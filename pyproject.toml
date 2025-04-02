@@ -5,6 +5,9 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"sensor_core" = ["scripts/*.sh"]
+
 [project]
 name = "sensor-core"
 version = "0.1.6"
@@ -73,4 +76,6 @@ fixable = ["ALL"]
 convention = "google"
 
 [project.scripts]
-scli = "sensor_core.bcli:main"
+bcli = "scripts/bcli"
+rpi_installer = "scripts/rpi_installer.sh"
+run_sensor_core = "scripts/run_sensor_core.sh"
