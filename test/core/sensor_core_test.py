@@ -39,4 +39,3 @@ class Test_SensorFactory:
         # Start again
         sc.start()
         sc.stop()
-

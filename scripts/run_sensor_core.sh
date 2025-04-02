@@ -102,6 +102,7 @@ export_system_cfg
 create_ramdisk_mount
 activate_venv
 #add_to_python_path
+echo "Starting SensorCore in $HOME/$my_code_dir"
 cd "$HOME/$my_code_dir"
 nohup python -m sensor_core.edge_orchestrator 2>&1 | /usr/bin/logger -t SENSOR_CORE &
 

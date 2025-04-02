@@ -3,6 +3,7 @@ from typing import Optional
 
 from example.my_config_object_defs import EXAMPLE_FILE_DS_TYPE, EXAMPLE_LOG_DS_TYPE
 from sensor_core import api
+from sensor_core import configuration as root_cfg
 from sensor_core.config_objects import SensorDsCfg
 from sensor_core.datastream import Datastream
 from sensor_core.sensor import Sensor
@@ -46,4 +47,8 @@ class ExampleSensor(Sensor):
 
             # Sensors should not sleep for more than ~180s so that the stop_requested flag can be checked
             # and the sensor shut down cleanly in a reasonable time frame.
-            sleep(0.1)
+            if root_cfg.TEST_MODE:
+                # In test mode, sleep for 0.1s to allow the test to run quickly
+                sleep(0.1)
+            else:
+                sleep(10)

@@ -27,6 +27,7 @@ dependencies = [
     "psutil",
     "pyaudio",
     "pydantic-settings",
+    "pytest",
     "PyYAML",
     "scikit-learn",
     "scipy",
