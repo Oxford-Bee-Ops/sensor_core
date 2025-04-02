@@ -3,7 +3,7 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["src", "scripts"]
 
 [project]
 name = "sensor-core"
@@ -73,4 +73,4 @@ fixable = ["ALL"]
 convention = "google"
 
 [project.scripts]
-scli = "sensor_core.bcli:main"
+bcli = "sensor_core.bcli:main"
