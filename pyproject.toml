@@ -31,7 +31,6 @@ dependencies = [
     "scikit-learn",
     "scipy",
     "smbus2",
-    "systemd; sys_platform != 'win32'",
     "wheel",
 ]
 

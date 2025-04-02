@@ -235,7 +235,7 @@ create_venv() {
     if [ ! -d "$HOME/$venv_dir" ]; then
         echo "Creating $HOME/$venv_dir"
         # Use uv to create the virtual environment
-        uv venv "$HOME/$venv_dir" || { echo "Failed to create virtual environment"; exit 1; }
+        uv venv --system-site-packages "$HOME/$venv_dir" || { echo "Failed to create virtual environment"; exit 1; }
     else
         echo "Virtual environment already exists."
     fi
