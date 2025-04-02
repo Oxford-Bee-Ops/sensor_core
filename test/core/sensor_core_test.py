@@ -1,7 +1,6 @@
 from time import sleep
 
 import pytest
-
 from sensor_core import configuration as root_cfg
 from sensor_core.sensor_core import SensorCore
 from sensor_core.utils import utils

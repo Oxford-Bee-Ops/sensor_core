@@ -14,7 +14,8 @@ from sensor_core.utils import utils
 
 if root_cfg.running_on_rpi:
     from systemd import journal  # type: ignore
-    def get_logs(since: Optional[datetime] = None, min_priority: Optional[int] = None) -> list[dict[str, Any]]:
+    def get_logs(since: Optional[datetime] = None, 
+                 min_priority: Optional[int] = None) -> list[dict[str, Any]]:
         """
         Fetch logs from the system journal.
 

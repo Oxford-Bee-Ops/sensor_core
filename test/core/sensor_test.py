@@ -4,14 +4,14 @@ from time import sleep
 
 import pytest
 import yaml
-
-from example.my_config_object_defs import ExampleSensorCfg
 from sensor_core import api, edge_orchestrator
 from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import CloudConnector
 from sensor_core.edge_orchestrator import EdgeOrchestrator
 from sensor_core.sensor_core import SensorCore
 from sensor_core.utils import file_naming, utils
+
+from example.my_config_object_defs import ExampleSensorCfg
 
 logger = utils.setup_logger("sensor_core")
 root_cfg.TEST_MODE = True
