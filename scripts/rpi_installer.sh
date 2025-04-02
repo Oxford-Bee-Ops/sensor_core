@@ -466,7 +466,6 @@ update_rpi_config
 update_journald_config
 install_uv
 create_venv
-install_sensor_core
 install_user_code
 install_ufw
 auto_start_on_install_if_required
