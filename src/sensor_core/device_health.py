@@ -14,7 +14,7 @@ from sensor_core.utils import utils
 
 if root_cfg.running_on_rpi:
     from systemd import journal  # type: ignore
-    def get_logs(since: Optional[datetime] = None, priority: Optional[int] = None) -> list[dict[str, Any]]:
+    def get_logs(since: Optional[datetime] = None, min_priority: Optional[int] = None) -> list[dict[str, Any]]:
         """
         Fetch logs from the system journal.
 
@@ -31,20 +31,20 @@ if root_cfg.running_on_rpi:
         # Set filters
         if since:
             reader.seek_realtime(since.timestamp())
-        if priority is not None:
-            reader.add_match(PRIORITY=str(priority))
 
         # Iterate through the logs
         for entry in reader:
-            log_entry = {
-                "time_logged": entry.get("__REALTIME_TIMESTAMP"),
-                "message": entry.get("MESSAGE", "No message"),
-                "process_id": entry.get("_PID"),
-                "process_name": entry.get("_COMM"),
-                "executable_path": entry.get("_EXE"),
-                "priority": entry.get("PRIORITY"),
-            }
-            logs.append(log_entry)
+            priority = int(entry.get("PRIORITY", 0))
+            if min_priority is None or priority >= min_priority:
+                log_entry = {
+                    "time_logged": entry.get("__REALTIME_TIMESTAMP"),
+                    "message": entry.get("MESSAGE", "No message"),
+                    "process_id": entry.get("_PID"),
+                    "process_name": entry.get("_COMM"),
+                    "executable_path": entry.get("_EXE"),
+                    "priority": entry.get("PRIORITY"),
+                }
+                logs.append(log_entry)
 
         return logs
 
@@ -78,7 +78,7 @@ class DeviceHealth():
     def log_warnings(self, warning_ds: Datastream) -> None:
         """Capture warning and error logs to the WARNING datastream.
         We get these from the system journal and log them to the WARNING datastream.
-        We capture logs tagged with the RAISE_WARN_TAG and all logs with priority >=4 (Warning)."""
+        We capture logs tagged with the RAISE_WARN_TAG and all logs with priority <=4 (Warning)."""
 
         if root_cfg.running_on_rpi:
             since_time = self.last_ran
@@ -88,7 +88,7 @@ class DeviceHealth():
             for log in logs:
                 if api.RAISE_WARN_TAG in log:
                     warning_ds.log(log)
-                elif log["priority"] >= 4:
+                elif log["priority"] <= 4:
                     warning_ds.log(log)
             
 
