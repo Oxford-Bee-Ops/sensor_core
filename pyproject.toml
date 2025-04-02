@@ -76,6 +76,4 @@ fixable = ["ALL"]
 convention = "google"
 
 [project.scripts]
-bcli = "scripts/bcli"
-rpi_installer = "scripts/rpi_installer.sh"
-run_sensor_core = "scripts/run_sensor_core.sh"
+bcli = "sensor_core.bcli:main"
