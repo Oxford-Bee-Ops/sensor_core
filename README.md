@@ -53,10 +53,12 @@ You will need:
 
 
 ### USER FLOW - BASIC SENSING USING SUPPORTED SENSORS
+The following is a basic step-by-step guide which can be substantially automated when you come to deploy lots of devices!
+
 - Physically build your Raspberry Pi and attach your chosen sensors.
 - Install an SD card with the Raspberry Pi OS and power up your RPI.
     - In the RaspberryPi Imager, make sure you enable SSH access and include default Wifi config for easy access.
-- Copy keys.env, system.cfg, fleet_config.py and run_sensor_core.py from the SensorCore repo `/example` folder to your own computer / dev environment / git project.
+- Copy the files in the SensorCore repo `/example` folder to your own computer / dev environment / git project.
 - Edit **keys.env**:
     - Set `cloud_storage_key` to enable access to your Azure Storage accounts (see notes in keys.env)
     - Do not check keys.env into Git - you should keep this keys file somewhere secure.
@@ -64,19 +66,24 @@ You will need:
     - You will need the mac address of the device's wlan0 interface as the identifier of the device
     - To get the mac address run `cat /sys/class/net/wlan0/address`
     - See the example fleet_config.py for more details.
-- Edit **run_sensor_core.py** to:
-    - 
 - Edit the **system.cfg**:
-    - You can leave all values as defaults, but if you want SensorCore to manage updates automatically, you will need to set:
-        - `my_git_repo_url` to your GitHub repo URL
+    - You can leave all values as defaults to start with but you will likely want to customise later.
+    - In particular, you will need to set `my_git_repo_url` to your GitHub repo URL if you want SensorCore to auto-update the device code.
     - See the system.cfg file in /example for more details.
 - Log in to your RPi:
     - create a **.sensor_core** folder in your user home directory (ie `/home/<user>/.sensor_core`)
     - copy your **keys.env** and **system.cfg** to the .sensor_core folder
-    - copy **rpi_installer.sh** from /scripts to the .sensor_core folder
-    - run `dos2unix rpi_installer.sh` to ensure the file is in the right format
-    - run `chmod +x rpi_installer.sh` to make it executable
-    - run `./rpi_installer.sh` to install SensorCore on your RPi
+    - install `uv` to manage your venv and code, by running:
+        - `curl -LsSf https://astral.sh/uv/install.sh | sh`
+    - create and activate your virtual environment in $HOME/venv:
+        - `uv venv $HOME/venv`
+        - `source $HOME/venv/bin/activate`
+    - install sensor-core:
+        - `uv pip install git+https://github.com/Oxford-Bee-Ops/sensor-core`
+    - install your now-customized example code in **$HOME/code/<my_git_project_name>/**
+    - run SensorCore:
+        - `cd $HOME/code/<my_git_project_name>`
+        - `python run_sensor_core.py`
 - If your system.cfg has `auto_start_on_install="Yes"`, SensorCore will now be running!
 - You can check by running the command line interface (CLI):
     - run `bcli`
@@ -84,8 +91,15 @@ You will need:
 
 ### USER FLOW - EXTENDING & CUSTOMIZING
 - Supporting new sensors
+    - To support new sensors, create a new python file in the same form as my_sensor_example.py that extends **sensor_core.Sensor**.
+    - You will need to define a configuration object for your sensor that subclasses **sensor_core.SensorCfg**.
+    - You will need to update your fleet_config to use this new SensorCfg.
 - Custom processing of recordings or data
+    - To implement custom data processing, create a new pythong file in the same form as my_processor_example.py that extends **sensor_core.DataProcessor**.
+    - You will need to define a configuration object for your DataProcessor that subclasses **sensor_core.DataProcessorCfg**.
+    - You will need to update your fleet_config to use this new DataProcessorCfg.
 - Contributing updates to SensorCore
+    - In the first instance, please email admin@bee-ops.com.
 
 
 ### USER FLOW - ETL
@@ -102,18 +116,16 @@ FC=Fleet config; SC=system.cfg; KE=keys.env
 | Wifi AP awareness | FC:`wifi_clients` | Enable devices to auto-connect to the network by pre-configuring access point details.
 | Wifi connections | FC:`attempt_wifi_recovery` | If internet connectivity is lost, try to auto-recover by switching wifi APs and other actions. Requires wifi_clients to be set in the FC.
 | Status LEDs | FC:`manage_leds` | Controls a red & green LED used to reflect system status
-| SD card wear | SC:`journald_Storage` | Make logging volatile so that it is written to memory rather than the SD card; logs will be lost over reboot as a result.
+| SD card wear | SC:`enable_volatile_logs` | Make logging volatile so that it is written to memory rather than the SD card to reduce wear; logs will be lost over reboot as a result but import logs are streamed to cloud storage in real time anyway.
 
 ## System setup
 
 | Function  | Config control | Notes |
 | ------------- | ------------- | ------------- |
 | Cloud storage access key | KE:`cloud_storage_key` | The Shared Access Signature that provides access to your Azure cloud storage
-| Auto-start SensorCore | SC:`auto_start_on_install` | Starts SensorCore automatically after installation and / or reboot; unless manual mode invoked via CLI.
+| Auto-start SensorCore | SC:`auto_start` | Starts SensorCore automatically after reboot; unless manual mode invoked via CLI.
 | Install a virtual environment | SC:`venv_dir` | Uses uv to install a venv unless one already exists at this location
 | Code install location | SC:`my_code_dir` | Specifies the location where code should be installed from Git
 | Git repo | SC:`my_git_repo_url` | URL of your Git repo containing your configuration and any custom code
 | Git branch | SC:`my_git_branch` | Name of the Git branch to use if not main
-| SSH key for Git | SC:`my_git_ssh_private_key_file` | The location of the private SSH key file that provides access to your code repo; not required if your repo is public
-| Fleet config | SC:`inventory_class` | The class reference to a python file that defines the configuration for each of your RPi devices (your "fleet")
 
