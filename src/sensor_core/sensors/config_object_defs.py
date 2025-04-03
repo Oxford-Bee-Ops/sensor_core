@@ -107,7 +107,7 @@ class ArucoProcessorCfg(DataProcessorCfg):
     #######################################################################
     # Standard DataProcessorCfg fields
     #######################################################################
-    dp_class_ref: str = "rpi_sensor.processor_video_who.VideoWHOProcessor"
+    dp_class_ref: str = "sensor_core.sensors.processor_video_aruco.VideoArucoProcessor"
     dp_description: str = "WHOCAM video processor"
     input_format: api.FILE_FORMATS = "mp4"
     output_format: api.FILE_FORMATS = "df"
