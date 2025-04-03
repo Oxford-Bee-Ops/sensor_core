@@ -271,7 +271,7 @@ def run_cmd(cmd: str, ignore_errors: bool=False, grep_strs: Optional[list[str]]=
 
     # We don't support pipes for security reasons; call the command multiple times if needed
     # if "|" in cmd:
-    #    raise Exception(ETL_ERROR() + "Pipes not supported in run_cmd: " + cmd)
+    #    raise Exception(RAISE_WARN() + "Pipes not supported in run_cmd: " + cmd)
 
     # Decompose the command into its args
     # We want to keep arguments in '' or "" together

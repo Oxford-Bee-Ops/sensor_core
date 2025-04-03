@@ -1,5 +1,5 @@
 
-from sensor_core.config_objects import DeviceCfg, SensorDsCfg, WifiClient
+from sensor_core.config_objects import DeviceCfg, SensorDsCfg, WifiClient, Inventory
 
 from example import my_config_object_defs as my_config_object_defs
 from example.my_config_object_defs import ExampleDfDsCfg, ExampleSensorCfg
@@ -129,7 +129,7 @@ INVENTORY: list[DeviceCfg] = [
 
 
 # Implement the class definition so that this file can be imported by SensorCore
-class Inventory:
+class MyInventory(Inventory):
     @staticmethod
     def get_inventory() -> list[DeviceCfg]:
         return INVENTORY
