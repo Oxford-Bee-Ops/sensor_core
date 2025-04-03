@@ -35,9 +35,7 @@ Key design decisions:
 
 ## Installation
 
-To install the code for development and integration purposes, run the command:
-
-`pip install sensor_core`
+To install the code, run:
 
 `pip install git+https://github.com/Oxford-Bee-Ops/sensor-core`
 
@@ -50,27 +48,28 @@ To install on a Raspberry Pi SBC for live deployment, follow the instructions in
 You will need: 
 - a GitHub account to store your *fleet* configuration and any custom code you choose to write
 - an Azure account for storage of your sensor output
-- some Raspberry Pi devices and sensors!
+- a Raspberry Pi SBC and some sensors!
+- basic experience with Python coding
 
 
 ### USER FLOW - BASIC SENSING USING SUPPORTED SENSORS
 - Physically build your Raspberry Pi and attach your chosen sensors.
 - Install an SD card with the Raspberry Pi OS and power up your RPI.
     - In the RaspberryPi Imager, make sure you enable SSH access and include default Wifi config for easy access.
-- Copy the keys.env, system.cfg and fleet_config.py files from the SensorCore repo /example folder.
-- Customize the keys.env:
+- Copy keys.env, system.cfg, fleet_config.py and run_sensor_core.py from the SensorCore repo `/example` folder to your own computer / dev environment / git project.
+- Edit **keys.env**:
     - Set `cloud_storage_key` to enable access to your Azure Storage accounts (see notes in keys.env)
-    - Set `my_git_ssh_private_key` to enable access to your Git repo (see further notes in keys.env)
-- Customize the system.cfg:
-    - You can leave most values as defaults, but you should expect to set:
-        - `my_git_repo_url` to your GitHub repo URL
-        - `inventory_class` to point to your python fleet config file (eg "my_configs.fleet_config.Inventory")
-    - See the system.cfg file in /example for more details.
-- Customize the fleet_config.py to contain config for your device(s) and check your changes into Git!
+    - Do not check keys.env into Git - you should keep this keys file somewhere secure.
+- Edit **fleet_config.py** to contain the configuration for your device(s)
     - You will need the mac address of the device's wlan0 interface as the identifier of the device
     - To get the mac address run `cat /sys/class/net/wlan0/address`
     - See the example fleet_config.py for more details.
-    - If you don't check your changes into Git, they won't appear on the device!
+- Edit **run_sensor_core.py** to:
+    - 
+- Edit the **system.cfg**:
+    - You can leave all values as defaults, but if you want SensorCore to manage updates automatically, you will need to set:
+        - `my_git_repo_url` to your GitHub repo URL
+    - See the system.cfg file in /example for more details.
 - Log in to your RPi:
     - create a **.sensor_core** folder in your user home directory (ie `/home/<user>/.sensor_core`)
     - copy your **keys.env** and **system.cfg** to the .sensor_core folder

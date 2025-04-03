@@ -84,7 +84,7 @@ class DeviceHealth():
         if root_cfg.running_on_rpi:
             since_time = self.last_ran
             self.last_ran = api.utc_now()
-            logs = get_logs(since=since_time, priority=6)
+            logs = get_logs(since=since_time, min_priority=6)
 
             for log in logs:
                 if api.RAISE_WARN_TAG in log:

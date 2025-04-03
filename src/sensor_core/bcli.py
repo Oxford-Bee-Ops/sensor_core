@@ -88,8 +88,7 @@ def check_keys_env() -> bool:
     Returns:
         True if the keys.env file exists and is valid, False otherwise.
     """
-    sc = SensorCore()
-    success, error = sc.check_keys()
+    success, error = root_cfg.check_keys()
     if success:
         return True
     else:    
@@ -277,14 +276,6 @@ def display_sensors() -> None:
     """Display the list of configured sensors."""
     click.echo("########################################################\n")
     click.echo("Sensors configured:")
-    click.echo("   Microphones = " + str(root_cfg.my_device.microphones_installed))
-    click.echo("   Cameras = " + str(root_cfg.my_device.camera_installed))
-    click.echo("   USB enviro = " + str(root_cfg.my_device.enviro_installed))
-    click.echo("   AHT20 = " + str(root_cfg.my_device.aht20_sensor))
-    click.echo("   LTR390 = " + str(root_cfg.my_device.ltr390_uv_sensor))
-    click.echo("   SHT31 = " + str(root_cfg.my_device.sht31_sensor))
-    click.echo("   SHT20 = " + str(root_cfg.my_device.sht20_sensor))
-    click.echo("   AS7331 = " + str(root_cfg.my_device.as7331_sensor))
     click.echo("   ")
     click.echo("USB devices discovered:")
     click.echo(run_cmd("lsusb") + "\n")

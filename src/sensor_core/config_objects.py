@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -186,7 +187,9 @@ class DeviceCfg(Configuration):
 
     # Device management
     auto_update_os: bool = True
+    auto_update_os_cron: str = "0 2 * * 0"  # Every Sunday at 2am
     auto_update_code: bool = True
+    auto_update_code_cron: str = "0 3 * * *"  # Every day at 3am
     attempt_wifi_recovery: bool = False
     manage_leds: bool = True
 
@@ -228,6 +231,15 @@ class DeviceCfg(Configuration):
                     datastreams[datastream_type] = 1
         return datastreams
 
+############################################################
+# Inventory class
+############################################################
+class Inventory(ABC):
+    @abstractmethod
+    def get_inventory(self) -> list[DeviceCfg]:
+        """Return a list of DeviceCfg inventory objects."""
+        raise NotImplementedError("get_inventory() must be implemented in subclasses")
+
 @dataclass
 class DpContext:
     """Class for supplying context information on calls out from SensorCore"""
@@ -261,12 +273,16 @@ class SystemCfg(BaseSettings):
     ############################################################
     install_type: str ="rpi_sensor"
     # Logging and storage settings
-    journald_Storage: str ="volatile"
+    enable_volatile_logs: str ="Yes"
     journald_SystemMaxUse: str ="50M"
     # Do you want SensorCore to start automatically after running the rpi_installer.sh script?
-    auto_start_on_install: str ="Yes"
+    enable_auto_start: str ="Yes"
     # Enable the UFW firewall
     enable_firewall: str = "Yes"
+    # Enable use of predictable network interface names
+    enable_predictable_interface_names: str = "Yes"
+    # Enable the I2C interface on the Raspberry Pi
+    enable_i2c: str = "Yes"
     # The location of the virtual environment relative to the $HOME directory.
     # (ie will expand to "$HOME/$venv_dir").
     # This will be created if it does not exist.

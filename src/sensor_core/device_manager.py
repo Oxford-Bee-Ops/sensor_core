@@ -5,16 +5,13 @@
 # - auto-update the OS to keep current with security fixes
 import os
 import time
-from datetime import timedelta
 from typing import Any
 
-from crontab import CronTab
 from gpiozero import LED
 
 from sensor_core import api
 from sensor_core import configuration as root_cfg
 from sensor_core.utils import utils
-from sensor_core.utils.git_helper import refresh_git_repo
 
 logger = utils.setup_logger("sensor_core")
 
@@ -82,42 +79,6 @@ class DeviceManager:
                 self.led_timer = utils.RepeatTimer(interval=1, 
                                                    function=self.led_timer_callback)
                 self.led_timer.start()
-
-        ####################################
-        # Auto-update the OS
-        ####################################
-        if root_cfg.my_device.auto_update_os and root_cfg.running_on_rpi:
-            # We use crontab to schedule the auto-update
-            cron = CronTab(user=utils.get_current_user())
-            job = cron.new(
-                command="sudo apt update && sudo apt upgrade -y",
-                comment="auto_update_os",
-            )
-            # Run every Sunday at 2am
-            job.setall("0 2 * * 0")
-            cron.write()
-            logger.info("Auto_update_os set in crontab")
-
-        ####################################
-        # Auto-update the user's code (and SensorCore code while under development)
-        ####################################
-        if root_cfg.my_device.auto_update_code:
-            # We use a timer to call the sensor_core.utils.git_helper.main python function
-            # We use a regular Timer rather than a RepeatTimer because we want to run at specific times
-            
-            # Calculate the time until 1am
-            current_time = api.utc_now()
-            next_1am = current_time.replace(hour=1, minute=0, second=0, microsecond=0)
-            if current_time >= next_1am:
-                # If it's already past 1am, set it to the next day
-                next_1am += timedelta(days=1)
-            time_until_1am = (next_1am - current_time).total_seconds()
-            self.auto_update_users_code_timer = utils.Timer(
-                interval=time_until_1am,
-                function=refresh_git_repo, 
-            )
-            self.auto_update_users_code_timer.start()
-            logger.info(f"Auto-update users code set to run at 1am (in {time_until_1am} seconds)")
 
         return
 
@@ -451,6 +412,14 @@ class DeviceManager:
 
 # Main loop called from crontab on boot up
 if __name__ == "__main__":
+    # Check if we're running on a Raspberry Pi and if the device_manager is already running
+    if not root_cfg.running_on_rpi:
+        print("Not running on a Raspberry Pi; exiting")
+        exit(0)
+    if utils.is_already_running("device_manager"):
+        print("Device manager is already running; exiting")
+        exit(0)
+
     device_manager = DeviceManager()
     while True:
         # Sleep for 1 seconds

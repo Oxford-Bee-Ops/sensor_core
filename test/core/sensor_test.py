@@ -11,6 +11,7 @@ from sensor_core.edge_orchestrator import EdgeOrchestrator
 from sensor_core.sensor_core import SensorCore
 from sensor_core.utils import file_naming, utils
 
+from example import my_fleet_config
 from example.my_config_object_defs import ExampleSensorCfg
 
 logger = utils.setup_logger("sensor_core")
@@ -21,7 +22,7 @@ class Test_Orchestrator:
     @pytest.mark.quick
     def test_SensorCore_status(self) -> None:
         sc = SensorCore()
-        sc.configure("example.my_fleet_config.Inventory")
+        sc.configure(my_fleet_config.Inventory)
         message = sc.status()
         logger.info(message)
         assert message is not None
@@ -34,7 +35,7 @@ class Test_Orchestrator:
         root_cfg.update_my_device_id("d01111111111")
 
         sc = SensorCore()
-        sc.configure("example.my_fleet_config.Inventory")
+        sc.configure(my_fleet_config.Inventory)
 
         orchestrator = EdgeOrchestrator.get_instance()
         orchestrator.load_sensors()

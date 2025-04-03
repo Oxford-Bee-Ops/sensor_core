@@ -94,22 +94,22 @@ WIFI_CLIENTS: list[WifiClient] = [
 ###############################################################################
 # Define per-device configuration for the fleet of devices
 ###############################################################################
-INVENTORY: dict[str, DeviceCfg] = {
-    "d01111111111": DeviceCfg(  # This is the DUMMY MAC address for windows
+INVENTORY: list[DeviceCfg] = [
+    DeviceCfg(  # This is the DUMMY MAC address for windows
         name="Alex",
         device_id="d01111111111",
         notes="Using Alex as an all-defaults camera in Experiment A",
         sensor_ds_list=experiment1_standard_camera_device,
         wifi_clients=WIFI_CLIENTS,
     ),
-    "d01111111112": DeviceCfg(
+    DeviceCfg(
         name="Bob",
         device_id="d01111111112",
         notes="Using Bob as a close up camera in Experiment A",
         sensor_ds_list=experiment1_double_camera_device,
         wifi_clients=WIFI_CLIENTS,
     ),
-    "d12222222222": DeviceCfg(
+    DeviceCfg(
         name="Charlie",
         device_id="d12222222222",
         notes="Using Charlie as a special sort of camera in Experiment A",
@@ -125,10 +125,11 @@ INVENTORY: dict[str, DeviceCfg] = {
         ],
         wifi_clients=WIFI_CLIENTS,
     ),
-}
+]
 
 
 # Implement the class definition so that this file can be imported by SensorCore
 class Inventory:
-    def get_inventory(self) -> dict[str, DeviceCfg]:
+    @staticmethod
+    def get_inventory() -> list[DeviceCfg]:
         return INVENTORY

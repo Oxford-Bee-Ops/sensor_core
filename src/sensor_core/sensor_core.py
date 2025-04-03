@@ -1,13 +1,14 @@
-import sys
+from pathlib import Path
 from time import sleep
 
 from crontab import CronTab
 
-from sensor_core import config_validator
+from sensor_core import api, config_validator
+from sensor_core.config_objects import Inventory
 from sensor_core import configuration as root_cfg
 from sensor_core.device_health import DeviceHealth
 from sensor_core.edge_orchestrator import EdgeOrchestrator, request_stop
-from sensor_core.utils import dc, utils
+from sensor_core.utils import utils
 
 logger = utils.setup_logger("sensor_core")
 
@@ -15,7 +16,7 @@ logger = utils.setup_logger("sensor_core")
 # SensorCore provides the public interface to the sensor_core module.
 # It is the entry point for users to configure and start the sensor_core.
 # Since the SensorCore may already be running (for example from boot in crontab), we can't assume
-# that this is the only instance of SensorCore running.
+# that this is the only instance of SensorCore on this device.
 # Therefore, all actions need to be taken indirectly via file flags or system calls.
 ####################################################################################################
 
@@ -27,13 +28,12 @@ class SensorCore:
     # We make the location of the keys file a public variable so that users can reference
     # it in their own code.
     KEYS_FILE = root_cfg.KEYS_FILE
-    SC_RUN_CMD = f"{root_cfg.SC_CODE_DIR / 'scripts' / 'run_sensors.sh'} {sys.prefix}"
 
     def __init__(self, test_mode: bool = False) -> None:
         if test_mode:
             root_cfg.TEST_MODE = True
 
-    def configure(self, fleet_config_py: str, force_update: bool = False) -> None:
+    def configure(self, fleet_config_py: Inventory, force_update: bool = False) -> None:
         """
         Set the file location of the SensorCore configuration.
         This file will be accessed immediately and when SensorCore restarts.
@@ -54,7 +54,7 @@ class SensorCore:
         if fleet_config_py is None:
             raise Exception("No configuration files provided.")
         
-        success, error = self.check_keys()
+        success, error = root_cfg.check_keys()
         if not success:
             raise Exception(error)
 
@@ -63,23 +63,16 @@ class SensorCore:
         try:
             is_valid = False
             errors: list[str] = []
-            fleet_config = root_cfg._load_inventory(fleet_config_py)
-            assert fleet_config is not None
+            fleet_config = root_cfg.load_inventory(fleet_config_py)
             is_valid, errors = config_validator.validate(fleet_config)
         except Exception as e:
             raise Exception(f"Error attempting to load fleet config: {e}")
         finally:
             if not is_valid:
-                raise Exception(f"Configuration in {fleet_config_py} is not valid: {errors}")
-
-        # Save the configuration file location so we can re-use it when we restart
-        if root_cfg.system_cfg is None:
-            root_cfg.system_cfg = root_cfg.SystemCfg()
-        root_cfg.system_cfg.inventory_class = str(fleet_config_py)
-        dc.save_settings_to_env(root_cfg.system_cfg, root_cfg.SYSTEM_CFG_FILE)
+                raise Exception(f"Configuration in {fleet_config_py} is not valid:\n{errors}")
 
         # Load the configuration
-        root_cfg.reload_inventory()
+        root_cfg.set_inventory(fleet_config_py)
 
         # Restart the SensorCore if it is running
         if self._is_running():
@@ -101,50 +94,37 @@ class SensorCore:
         if not self._is_configured() or root_cfg.system_cfg is None:
             raise Exception("SensorCore must be configured before starting.")
 
-        if root_cfg.running_on_rpi:
-            # We start the SensorCore as a separate python process so that we 
-            # don't want to kill it when we exit this thread.
-            utils.run_cmd(SensorCore.SC_RUN_CMD)
-            logger.info("SensorCore started.")
+        logger.info("Starting SensorCore")
 
-            # We want to make SensorCore persistent over reboot, so we add a cron job
-            if root_cfg.system_cfg.auto_start_on_install == "Yes":
-                # Ensure there is a cron job to restart SensorCore on reboot
-                cron = CronTab(user=utils.get_current_user())
-                job = cron.new(command=SensorCore.SC_RUN_CMD, comment='SensoreCore start on reboot')
-                job.every_reboot()
-                cron.write()
-                logger.info("Cron job added to run the script on reboot.")
+        # Check there isn't already a SensorCore process running
+        # @@@ How?!?
 
-        elif root_cfg.running_on_windows:
-            logger.info("SensorCore in test mode on Windows.")
-            # Trigger the orchestrator to start the sensors
-            # This will run the sensors in the current process
-            # This is for testing purposes only
-            orchestrator = EdgeOrchestrator.get_instance()
-            orchestrator.load_sensors()
-            orchestrator.start_all()
-        else:
-            raise Exception("SensorCore is not supported on this platform.")
+        # Trigger the orchestrator to start the sensors
+        # This will run the sensors in the current process
+        orchestrator = EdgeOrchestrator.get_instance()
+        orchestrator.load_sensors()
+        orchestrator.start_all()
+
 
     def stop(self) -> None:
         """
         Stop SensorCore.
+        And remove any crontab entries added by make_my_script_persistent.
         """
         # Set the STOP_SENSOR_CORE_FLAG file; this is polled by the main() method in 
         # the EdgeOrchestrator which will continue to restart the SensorCore until the flag is removed.
         request_stop()
 
+        # Ask the EdgeOrchestrator to stop all sensors
+        EdgeOrchestrator.get_instance().stop_all()
+        print(f"SensorCore stopping - this may take up to {root_cfg.my_device.max_recording_timer}s.")
+
         # Remove from crontab
         if root_cfg.running_on_rpi:
             # Remove the cron job to restart SensorCore on reboot
             cron = CronTab(user=utils.get_current_user())  # Use the current user's crontab
-            cron.remove_all(command=SensorCore.SC_RUN_CMD, comment='SensoreCore start on reboot')
+            cron.remove_all(comment='Run_my_script_on_reboot')
             cron.write()
-
-        # Ask the EdgeOrchestrator to stop all sensors
-        EdgeOrchestrator.get_instance().stop_all()
-        print(f"SensorCore stopping - this may take up to {root_cfg.my_device.max_recording_timer}s.")
 
 
     def status(self) -> str:
@@ -157,7 +137,7 @@ class SensorCore:
         display_message = f"\nSensorCore running: {self._is_running()}"
 
         # Check config is clean
-        success, error = self.check_keys()
+        success, error = root_cfg.check_keys()
         if not success:
             display_message += f"\n\n{error}"
 
@@ -182,26 +162,162 @@ class SensorCore:
 
         return display_message
 
-    def check_keys(self) -> tuple[bool, str]:
-        """Check the keys.env file exists and has loaded.  
-        Provided a helpful display string if not."""
-        root_cfg.CFG_DIR.mkdir(parents=True, exist_ok=True)
-        success = False
-        error = ""
-        if not root_cfg.KEYS_FILE.exists():
-            error = (f"Keys file {root_cfg.KEYS_FILE} does not exist. "
-                     f"Please create it and set the 'cloud_storage_key' key.")
-        elif (root_cfg.KEYS_FILE.exists()) and (
-            (root_cfg.keys is None
-            ) or (root_cfg.keys.cloud_storage_key is None
-            ) or (root_cfg.keys.cloud_storage_key == root_cfg.FAILED_TO_LOAD)
-            ):
-            error = f"Keys file {root_cfg.KEYS_FILE} exists but 'cloud_storage_key' key not set."
-        else:
-            success = True
-            error = "Keys loaded successfully."
+    def enable_device_management(self) -> None:
+        """
+        Enable device management for the sensor core.
+        This command can safely be re-run without causing duplicate effects.
 
-        return success, error
+        Starts the device_manager (and makes it persistent) to manage:
+        - LED status
+        - wifi
+
+        Performs one-off operations to set up the device for long-running data collection.
+        - creates crontab entry to auto update the OS
+        - creates crontab entry to auto update the user code & dependencies (including SensorCore itself)
+        - make log storage volatile to reduce wear on the SD card
+        - enable predictable network interface names
+        - enable the I2C interface
+        - install and enable the UFW firewall
+
+        """
+        if not root_cfg.system_cfg:
+            raise ValueError("SensorCore must be configured before enabling device management.")
+        
+        # We invoke the DeviceManager as a separate process so that it can persist when this
+        # process exits.
+        if root_cfg.running_on_rpi:
+            utils.run_cmd(f"{Path.home()}/venv/bin/activate && nohup python3 -m sensor_core.device_manager &")
+            logger.info("Device manager started.")
+
+        ####################################
+        # Auto-update the OS
+        ####################################
+        if root_cfg.my_device.auto_update_os and root_cfg.running_on_rpi:
+            # Schedule the auto-update
+            cron = CronTab(user=utils.get_current_user())
+            cron.remove_all(comment="auto_update_os")
+            job = cron.new(
+                command="sudo apt update && sudo apt upgrade -y",
+                comment="auto_update_os",
+                pre_comment=True,
+            )
+            # Run every Sunday at 2am
+            job.setall(root_cfg.my_device.auto_update_os_cron)
+            cron.write()
+            logger.info("Auto_update_os set in crontab")
+
+        ####################################
+        # Auto-update the user's code (and SensorCore code while under development)
+        ####################################
+        if root_cfg.my_device.auto_update_code and root_cfg.running_on_rpi:
+            update_script = Path(__file__) / "utils" / "update_my_code.py"
+            cron = CronTab(user=utils.get_current_user())
+            cron.remove_all(comment="auto_update_code")
+            job = cron.new(
+                command=(f"source {Path.home()}/{root_cfg.system_cfg.venv_dir}/bin/activate && "
+                         f"python3 {update_script}"),
+                comment="auto_update_code",
+                pre_comment=True,            
+            )
+            # Run every Sunday at 3am
+            job.setall(root_cfg.my_device.auto_update_code_cron)
+            cron.write()
+            logger.info("Auto_update_code set in crontab")
+
+        ####################################
+        # Make log storage volatile to reduce wear on the SD card
+        ####################################
+        if root_cfg.system_cfg.enable_volatile_logs == "Yes" and root_cfg.running_on_rpi:
+            # Set the systemd journal to use volatile storage
+            # Ensure that the /etc/systemd/journald.conf file exists
+            # That the journald_Storage key is not prefixed with a # and is set to "volatile"
+            # That the journald_SystemMaxUse key is not prefixed with a # and is set to 50M
+            if not Path("/etc/systemd/journald.conf").exists():
+                raise FileNotFoundError("The /etc/systemd/journald.conf file does not exist.")
+            
+            update_required: bool = False
+            with open("/etc/systemd/journald.conf", "r") as f:
+                lines = f.readlines()
+                for line in lines:
+                    if (((line.startswith("#Storage=")) or (line.startswith("Storage=")) 
+                            and line.strip() != "Storage=volatile")):
+                        update_required = True
+                        break
+                    elif (((line.startswith("#SystemMaxUse=")) or (line.startswith("SystemMaxUse=")) 
+                            and line.strip() != "SystemMaxUse=50M")):
+                        update_required = True
+                        break
+                
+            if update_required:
+                with open("/etc/systemd/journald.conf", "w") as f:
+                    for line in lines:
+                        if (line.startswith("#Storage=")) or (line.startswith("Storage=")):
+                            f.write("Storage=volatile\n")
+                        elif (line.startswith("#SystemMaxUse=")) or (line.startswith("SystemMaxUse=")):
+                            f.write("SystemMaxUse=50M\n")
+                        else:
+                            f.write(line)
+                # Restart the systemd-journald service to apply the changes
+                utils.run_cmd("sudo systemctl restart systemd-journald")
+                logger.info("Systemd journal set to use volatile storage.")
+
+        ####################################
+        # Set predictable network interface names
+        #
+        # Runs: sudo raspi-config nonint do_net_names 0
+        ####################################
+        if root_cfg.system_cfg.enable_predictable_interface_names == "Yes" and root_cfg.running_on_rpi:
+            # Set predictable network interface names
+            utils.run_cmd("sudo raspi-config nonint do_net_names 0")
+            logger.info("Predictable network interface names set.")
+
+        ####################################
+        # Enable the I2C interface
+        #
+        # Runs:	sudo raspi-config nonint do_i2c 0
+        ####################################
+        if root_cfg.system_cfg.enable_i2c == "Yes" and root_cfg.running_on_rpi:
+            # Enable the I2C interface
+            utils.run_cmd("sudo raspi-config nonint do_i2c 0")
+            logger.info("I2C interface enabled.")
+
+        ######################################
+        # Install the UFW firewall
+        #
+        # Reset the firewall to default settings
+        #  sudo ufw --force reset
+        # Allow IGMP broadcast traffic
+        #  sudo ufw allow proto igmp from any to 224.0.0.1
+        #  sudo ufw allow proto igmp from any to 224.0.0.251
+        # Allow SSH on 22
+        #  sudo ufw allow 22
+        # Allow HTTPS on 443
+        #  sudo ufw allow 443
+        # Re-enable the firewall
+        #  sudo ufw --force enable
+        ######################################
+        if root_cfg.system_cfg.enable_firewall == "Yes" and root_cfg.running_on_rpi:
+            # Install the UFW firewall
+            # Check if UFW is already installed
+            if not utils.run_cmd("sudo ufw status", ignore_errors=True).startswith("Status: active"):
+                # Install UFW
+                utils.run_cmd("sudo apt install ufw -y")
+                logger.info("UFW firewall installed.")
+            else:
+                logger.info("UFW firewall already installed.")
+
+            # Reset the firewall to default settings
+            utils.run_cmd("sudo ufw --force reset")
+            utils.run_cmd("sudo ufw allow proto igmp from any to 224.0.0.1")
+            utils.run_cmd("sudo ufw allow proto igmp from any to 224.0.0.251")
+            utils.run_cmd("sudo ufw allow 22")
+            utils.run_cmd("sudo ufw allow 443")
+            utils.run_cmd("sudo ufw --force enable")
+            # Check if UFW is enabled
+            if not utils.run_cmd("sudo ufw status", ignore_errors=True).startswith("Status: active"):
+                logger.error("UFW firewall not enabled.")
+            else: 
+                logger.info("UFW firewall installed and enabled.")
 
     def display_configuration(self) -> str:
         """
@@ -238,3 +354,44 @@ class SensorCore:
         """Check if SensorCore is configured."""
         # Test for the presence of the SC_CONFIG_FILE file
         return root_cfg.SYSTEM_CFG_FILE.exists()
+
+    @staticmethod    
+    def update_my_device_id(new_device_id: str) -> None:
+        """Function used in testing to change the device_id"""
+        root_cfg.update_my_device_id(new_device_id)
+
+    @staticmethod
+    def make_my_script_persistent(my_script: Path | str) -> None:
+        """Make this sensor persistent over reboot by adding a restart job in crontab.
+
+        Parameters:
+        - my_script: Path to the script to be made persistent.
+
+        Raises:
+        - ValueError: If the virtual environment is not found.
+            This script assumes that a virtual environment has been created and that this script
+            should be run in it's context. The virtual environment's location must be specified in system.cfg.
+        """
+        if not root_cfg.system_cfg:
+            raise ValueError("SensorCore must be configured before making a script persistent.")
+
+        # We assume that a virtual environment has been created and that this script
+        # should be run in it's context.
+        if not (Path.home() / root_cfg.system_cfg.venv_dir).exists():
+            raise ValueError(f"Virtual environment not found at {Path.home() / root_cfg.system_cfg.venv_dir}"
+                             "Please create venv before running this script.")
+
+        if isinstance(my_script, str):
+            my_script = Path(my_script)
+
+        from crontab import CronTab
+        cron = CronTab(user=utils.get_current_user())
+        cron.remove_all(comment='Run_my_script_on_reboot')
+        restart_on_reboot_cmd=(f"source {Path.home()}/{root_cfg.system_cfg.venv_dir}/bin/activate && "
+                               f"python3 {my_script}"),
+        job = cron.new(command=restart_on_reboot_cmd, 
+                       comment='Run_my_script_on_reboot',
+                       pre_comment=True)
+        job.every_reboot()
+        cron.write()
+        logger.info("Cron job added to run this script on reboot.")

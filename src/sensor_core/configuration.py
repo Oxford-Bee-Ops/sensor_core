@@ -6,7 +6,7 @@ from typing import Optional
 import psutil
 from pydantic_settings import SettingsConfigDict
 
-from sensor_core.config_objects import FAILED_TO_LOAD, DeviceCfg, Keys, SystemCfg
+from sensor_core.config_objects import FAILED_TO_LOAD, DeviceCfg, Inventory, Keys, SystemCfg
 
 ############################################################################################
 # Test mode flag
@@ -177,121 +177,129 @@ INVENTORY: dict[str, DeviceCfg] = {DUMMY_MAC: DUMMY_DEVICE}
 my_device: DeviceCfg = DUMMY_DEVICE
 
 ################################################################################################
-# Load the .env files
+# Load the keys.env file
 ################################################################################################
-try:
+def _load_keys() -> Optional[Keys | None]:
+    if not KEYS_FILE.exists():
+        print("#################################################################")
+        print(f"# Keys file {KEYS_FILE} does not exist")
+        print("#################################################################")
+        return None
 
-    def _load_keys() -> Optional[Keys | None]:
-        if not KEYS_FILE.exists():
+    try:
+        # Create a new Keys class with the env_file set in the model_config
+        keys = Keys(_env_file=KEYS_FILE, _env_file_encoding="utf-8")  # type: ignore
+        if keys.cloud_storage_key == FAILED_TO_LOAD:
             print("#################################################################")
-            print(f"# Keys file {KEYS_FILE} does not exist")
+            print(f"# WARNING: cloud_storage_key not set in {KEYS_FILE}")
             print("#################################################################")
-            return None
+        return keys
+    except Exception as e:
+        print("#################################################################")
+        print(f"Failed to load keys from {KEYS_FILE}: {e}")
+        print("#################################################################")
+        return None
 
-        try:
-            # Create a new Keys class with the env_file set in the model_config
-            keys = Keys(_env_file=KEYS_FILE, _env_file_encoding="utf-8")  # type: ignore
-            if keys.cloud_storage_key == FAILED_TO_LOAD:
-                print("#################################################################")
-                print(f"# WARNING: cloud_storage_key not set in {KEYS_FILE}")
-                print("#################################################################")
-            return keys
-        except Exception as e:
-            print("#################################################################")
-            print(f"Failed to load keys from {KEYS_FILE}: {e}")
-            print("#################################################################")
-            return None
+keys = _load_keys()
 
-    keys = _load_keys()
-
-    ############################################################################################
-    # Load inventory configuration
-    #
-    # The user sets configuratoin by calling SensorCore.configure() with the fully-qualified
-    # class reference of a class that implements the get_inventory() method.
-    # Once they've done this, we store the fully-qualified class reference persistently in
-    # home/<user>/.sensor_core/sc_config.env so that we can reload the configuration on reboot.
-    # We use pydantic_settings to load the .env file.
-    ############################################################################################
-    if SYSTEM_CFG_FILE.exists():
-        localised_model_config = SettingsConfigDict(
-            extra="ignore", env_file_encoding="utf-8", env_file=SYSTEM_CFG_FILE
-        )
+def check_keys() -> tuple[bool, str]:
+    """Check the keys.env file exists and has loaded; provided a helpful display string if not."""
+    CFG_DIR.mkdir(parents=True, exist_ok=True)
+    success = False
+    error = ""
+    if not KEYS_FILE.exists():
+        error = (f"Keys file {KEYS_FILE} does not exist. "
+                    f"Please create it and set the 'cloud_storage_key' key.")
+    elif (KEYS_FILE.exists()) and (
+        (keys is None
+        ) or (keys.cloud_storage_key is None
+        ) or (keys.cloud_storage_key == FAILED_TO_LOAD)
+        ):
+        error = f"Keys file {KEYS_FILE} exists but 'cloud_storage_key' key not set."
     else:
-        print("#################################################################")
-        print(f"# SC config file {SYSTEM_CFG_FILE} does not exist")
-        print("#################################################################")
-        localised_model_config = SettingsConfigDict()
+        success = True
+        error = "Keys loaded successfully."
 
-    def _load_system_cfg() -> Optional[SystemCfg | None]:
+    return success, error
+
+
+############################################################################################
+# Load system.cfg configuration
+############################################################################################
+if SYSTEM_CFG_FILE.exists():
+    localised_model_config = SettingsConfigDict(
+        extra="ignore", env_file_encoding="utf-8", env_file=SYSTEM_CFG_FILE
+    )
+else:
+    print("#################################################################")
+    print(f"# {SYSTEM_CFG_FILE} does not exist")
+    print("#################################################################")
+    localised_model_config = SettingsConfigDict()
+
+def _load_system_cfg() -> Optional[SystemCfg | None]:
+    try:
+        # Use the Keys class to load the configuration
+        return SystemCfg()
+    except Exception as e:
+        print("#################################################################")
+        print(f"Failed to load {SYSTEM_CFG_FILE}: {e}")
+        print("#################################################################")
+        return None
+
+system_cfg = _load_system_cfg()
+
+#############################################################################################
+# Load the inventory from the config python file
+##############################################################################################
+def load_inventory(inventory_class_ref: Inventory) -> list[DeviceCfg]:
+    """Load the inventory by calling get_inventory() on the class provided.
+    Does not set the inventory in SensorCore - call set_inventory() for that.
+    """
+    inventory: list[DeviceCfg] = []
+    if inventory_class_ref is None:
+        print("#################################################################")
+        print("# WARNING: no inventory class set")
+        print("#################################################################")
+    else:
         try:
-            # Use the Keys class to load the configuration
-            return SystemCfg()
+            # The class ref must be to a class called Inventory with a method get_inventory()
+            inventory = inventory_class_ref.get_inventory() # type: ignore
         except Exception as e:
             print("#################################################################")
-            print(f"Failed to load keys from {SYSTEM_CFG_FILE}: {e}")
+            print(f"Failed to load Inventory class from {inventory_class_ref}: {e}")
             print("#################################################################")
-            return None
 
-    def _load_inventory(inventory_class_ref: str) -> Optional[dict[str, DeviceCfg]]:
-        # Load the inventory by instantiating the Inventory class from the fully qualified class reference
-        # and calling the get_inventory method
-        inventory: dict[str, DeviceCfg] = {}
-        if inventory_class_ref != FAILED_TO_LOAD:
-            try:
-                inventory_class_parts = inventory_class_ref.split(".")
-                module_name = ".".join(inventory_class_parts[:-1])
-                class_name = inventory_class_parts[-1]
-                module = __import__(module_name, fromlist=[class_name])
-                # The class ref must be to a class called Inventory with a method get_inventory()
-                inventory = module.Inventory().get_inventory()
-            except Exception as e:
-                print("#################################################################")
-                print(f"Failed to load Inventory class from {inventory_class_ref}: {e}")
-                print("#################################################################")
-        else:
-            print("#################################################################")
-            print("# WARNING: no inventory class set")
-            print("#################################################################")
-        return inventory
+    return inventory
 
-    system_cfg = _load_system_cfg()
-    if (system_cfg is not None) and (system_cfg.inventory_class != FAILED_TO_LOAD):
-        inventory = _load_inventory(system_cfg.inventory_class)
-        if inventory is not None:
-            INVENTORY = inventory
-            print("Inventory loaded")
-
-except Exception as e:
-    print("#################################################################")
-    print(f"# Config load failed: {e}")
-    print("#################################################################")
-
-
-if my_device_id in INVENTORY:
-    my_device = INVENTORY[my_device_id]
-else:
-    print("########################################################################")
-    print(f"# ERROR: Device {my_device_id} not found in inventory; using defaults")
-    print("########################################################################")
-
-
-def reload_inventory() -> dict[str, DeviceCfg]:
+def set_inventory(inventory_class: Inventory) -> dict[str, DeviceCfg]:
+    """Reload the inventory from the config file.
+    It is assumed that the config has already been validated by SensorCore.configure().
+    """
     global INVENTORY
     global system_cfg
     global my_device
-    if system_cfg is None or system_cfg.inventory_class == FAILED_TO_LOAD:
-        system_cfg = _load_system_cfg()
 
-    if system_cfg:
-        inventory = _load_inventory(system_cfg.inventory_class)
-        if inventory is not None:
-            INVENTORY = inventory
-            if my_device_id in INVENTORY:
-                my_device = INVENTORY[my_device_id]
-        print(f"Inventory reloaded: found {len(INVENTORY)} devices")
+    inventory = load_inventory(inventory_class)
+    for device in inventory:
+        INVENTORY[device.device_id] = device
+    if my_device_id in INVENTORY:
+        my_device = INVENTORY[my_device_id]
+    print(f"Inventory reloaded: found {len(INVENTORY)} devices")
+
     return INVENTORY
 
+def check_inventory_loaded() -> bool:
+    """Check if the inventory has been loaded.
+    This is used in testing to check if the inventory has been loaded.
+    """
+    global INVENTORY
+
+    # If we have not loaded the inventory yet, it will still be set to the DUMMY_DEVICE
+    if my_device == DUMMY_DEVICE:
+        return False
+
+    # Check if the inventory is empty
+    return len(INVENTORY) > 0
 
 def update_my_device_id(new_device_id: str) -> None:
     """Function used in testing to change the device_id"""
