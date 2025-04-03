@@ -24,7 +24,7 @@ class VideoSensorCfg(SensorCfg):
     sensor_index: int = 1
     # The fully qualified class name of the sensor.
     # This must be interpretable as a Class by the Python
-    sensor_class_ref: str = "rpi_sensor.sensor_video.VideoSensor"
+    sensor_class_ref: str = "sensor_core.sensors.sensor_video.VideoSensor"
     # A human-readable description of the sensor model.
     sensor_model_description: str = "Default video sensor"
 
@@ -60,9 +60,9 @@ class AudioSensorCfg(SensorCfg):
     sensor_index: int = 1
     # The fully qualified class name of the sensor.
     # This must be interpretable as a Class by the Python
-    sensor_class_ref: str = "rpi_sensor.video_sensor.VideoSensor"
+    sensor_class_ref: str = "sensor_core.sensors.sensor_audio.AudioSensor"
     # A human-readable description of the sensor model.
-    sensor_model_description: str = "Default video sensor"
+    sensor_model_description: str = "Default audio sensor"
 
     ############################################################
     # Custom fields

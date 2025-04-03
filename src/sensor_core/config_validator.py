@@ -166,6 +166,12 @@ def validate(inventory: list[DeviceCfg]) -> tuple[bool, list[str]]:
 
     if not inventory:
         return False, ["No items in the inventory provided; empty list."]
+    
+    if not isinstance(inventory, list):
+        return False, ["Inventory is not a list."]
+    
+    if not all(isinstance(device, DeviceCfg) for device in inventory):
+        return False, ["Inventory contains non-DeviceCfg objects."]
 
     for rule in RULE_SET:
         try:
