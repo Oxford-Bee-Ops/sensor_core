@@ -102,7 +102,7 @@ else:
     raise Exception("Unknown platform: " + platform.platform())
 
 FLAGS_DIR: Path = CFG_DIR / "flags"  # For the flag files
-RESOURCES_DIR: Path = SC_CODE_DIR / "sensors" / "resources"
+RESOURCES_DIR: Path = SC_CODE_DIR / "src" / "sensors" / "resources"
 TMP_DIR: Path = ROOT_WORKING_DIR / "tmp"
 LOG_DIR: Path = ROOT_WORKING_DIR / "logs"
 TEST_DIR: Path = SC_CODE_DIR / "test"

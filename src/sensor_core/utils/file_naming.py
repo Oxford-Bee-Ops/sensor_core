@@ -185,6 +185,8 @@ def get_journal_filename(ds_type_id: str) -> Path:
 
 def get_temporary_filename(suffix: str) -> Path:
     """Generate a temporary filename in the TMP_DIR with the specified suffix."""
+    if suffix.startswith("."):
+        suffix = suffix[1:]
     tmp_fname = root_cfg.TMP_DIR.joinpath(f"tmp_{api.utc_to_fname_str()}.{suffix}")
     return increment_filename(tmp_fname)
 

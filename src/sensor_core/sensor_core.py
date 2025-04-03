@@ -3,9 +3,9 @@ from time import sleep
 
 from crontab import CronTab
 
-from sensor_core import api, config_validator
-from sensor_core.config_objects import Inventory
+from sensor_core import config_validator
 from sensor_core import configuration as root_cfg
+from sensor_core.config_objects import Inventory
 from sensor_core.device_health import DeviceHealth
 from sensor_core.edge_orchestrator import EdgeOrchestrator, request_stop
 from sensor_core.utils import utils
