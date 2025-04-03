@@ -17,7 +17,7 @@ class Test_video_aruco_processor:
     logger.addHandler(handler)
 
     @pytest.mark.quick
-    def test_WHO_processor_basic(self):
+    def test_aruco_processor_basic(self):
         file = (
             root_cfg.CODE_DIR / "sensor_core" 
             / "test"
