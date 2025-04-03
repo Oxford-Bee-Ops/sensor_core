@@ -27,7 +27,7 @@ from sensor_core import Datastream, Sensor, SensorDsCfg, api
 from sensor_core import configuration as root_cfg
 from sensor_core.utils import utils
 
-from sensors.config_object_defs import VideoSensorCfg
+from sensor_core.sensors.config_object_defs import VideoSensorCfg
 
 if root_cfg.running_on_rpi:
     from libcamera import Transform, controls  # type: ignore
