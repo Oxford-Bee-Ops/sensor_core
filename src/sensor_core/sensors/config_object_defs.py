@@ -7,8 +7,8 @@ from sensor_core.config_objects import DataProcessorCfg, DatastreamCfg, SensorCf
 #############################################################################################################
 # Define the DatastreamType IDs
 #############################################################################################################
-WHOCAM_DATA_DS_TYPE_ID = "WHOCAM"
-ARUCO_MARKED_UP_VIDEOS_DS_TYPE_ID = "WHOMARKED"
+ARUCO_DATA_DS_TYPE_ID = "ARUCO"
+ARUCO_MARKED_UP_VIDEOS_DS_TYPE_ID = "ARUCOMARKED"
 
 #############################################################################################################
 # Define the SensorCfg objects
@@ -130,7 +130,7 @@ class ArucoProcessorCfg(DataProcessorCfg):
 
 @dataclass
 class WhocamDfDsCfg(DatastreamCfg):
-    ds_type_id: str = WHOCAM_DATA_DS_TYPE_ID
+    ds_type_id: str = ARUCO_DATA_DS_TYPE_ID
     raw_format: api.FILE_FORMATS = "mp4"
     archived_format: api.FILE_FORMATS = "csv"
     archived_fields: list[str] = field(
