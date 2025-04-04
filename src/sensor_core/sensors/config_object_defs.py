@@ -9,6 +9,7 @@ from sensor_core.config_objects import DataProcessorCfg, DatastreamCfg, SensorCf
 #############################################################################################################
 ARUCO_DATA_DS_TYPE_ID = "ARUCO"
 ARUCO_MARKED_UP_VIDEOS_DS_TYPE_ID = "ARUCOMARKED"
+CONTINUOUS_VIDEO_DS_TYPE_ID = "RAWVIDEO"
 
 #############################################################################################################
 # Define the SensorCfg objects
@@ -48,6 +49,30 @@ class VideoSensorCfg(SensorCfg):
     save_first_frame: bool = False  # Save the first frame of the video as a JPEG
     direct_video_upload: bool = True  # Upload the video directly to the cloud
 
+@dataclass
+class RpicamSensorCfg(SensorCfg):
+    ############################################################
+    # SensorCfg fields
+    ############################################################
+    # The type of sensor.
+    sensor_type: api.SENSOR_TYPES = "CAMERA"
+    # Sensor index
+    sensor_index: int = 1
+    # The fully qualified class name of the sensor.
+    # This must be interpretable as a Class by the Python
+    sensor_class_ref: str = "sensor_core.sensors.sensor_rpicam_vid.RpicamSensor"
+    # A human-readable description of the sensor model.
+    sensor_model_description: str = "Video sensor that uses rpicam-vid"
+
+    ############################################################
+    # Custom fields
+    ############################################################
+    # Defines the rpicam-vid command to use to record video.
+    # This should be as specified in the rpicam-vid documentation.
+    # The filename should be substituted with FILENAME. 
+    # Example: "rpicam-vid --framerate 15 --width 640 --height 640 -o FILENAME.mp4 -t 5000"
+    # The FILENAME suffix should match the datastream raw_format.
+    rpicam_cmd: str = "rpicam-vid --framerate 15 --width 640 --height 480 -o FILENAME.mp4 -t 5000"
 
 @dataclass
 class AudioSensorCfg(SensorCfg):
@@ -129,16 +154,22 @@ class ArucoProcessorCfg(DataProcessorCfg):
 #############################################################################################################
 
 @dataclass
-class WhocamDfDsCfg(DatastreamCfg):
+class ArucoDsCfg(DatastreamCfg):
     ds_type_id: str = ARUCO_DATA_DS_TYPE_ID
     raw_format: api.FILE_FORMATS = "mp4"
     archived_format: api.FILE_FORMATS = "csv"
     archived_fields: list[str] = field(
         default_factory=lambda: api.REQD_RECORD_ID_FIELDS + MARKER_INFO_REQD_COLUMNS)
-    archived_data_description: str = "Identified ARUCO markers from WHOCAM videos."
+    archived_data_description: str = "Identified ARUCO markers in videos."
     sample_probability: str = str(0.01)
     sample_container: str = "sensor-core-upload"
     edge_processors: list[DataProcessorCfg] = field(
         default_factory=lambda: [ArucoProcessorCfg()])
 
-
+@dataclass
+class ContinousVideoDsCfg(DatastreamCfg):
+    ds_type_id: str = CONTINUOUS_VIDEO_DS_TYPE_ID
+    raw_format: api.FILE_FORMATS = "mp4"
+    archived_format: api.FILE_FORMATS = "mp4"
+    archived_data_description: str = "Basic continuous video recording."
+    cloud_container: str = "sensor-core-upload"

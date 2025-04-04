@@ -11,10 +11,10 @@ from typing import Optional
 import cv2
 import numpy as np
 import pandas as pd
-from sensor_core import DataProcessor, Datastream, DpContext, api
-from sensor_core.utils import file_naming, utils
 
+from sensor_core import DataProcessor, Datastream, DpContext, api
 from sensor_core.sensors.config_object_defs import ARUCO_MARKED_UP_VIDEOS_DS_TYPE_ID, ArucoProcessorCfg
+from sensor_core.utils import file_naming, utils
 
 cv2.setRNGSeed(42)
 

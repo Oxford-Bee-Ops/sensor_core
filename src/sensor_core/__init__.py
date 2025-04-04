@@ -3,7 +3,13 @@
 # Re-export specific classes and functions
 from . import api
 from .config_objects import (
-    DataProcessorCfg, DatastreamCfg, DeviceCfg, DpContext, SensorCfg, SensorDsCfg, Inventory
+    DataProcessorCfg,
+    DatastreamCfg,
+    DeviceCfg,
+    DpContext,
+    Inventory,
+    SensorCfg,
+    SensorDsCfg,
 )
 from .data_processor import DataProcessor
 from .datastream import Datastream

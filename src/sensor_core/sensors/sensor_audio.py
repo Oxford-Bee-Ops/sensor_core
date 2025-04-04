@@ -18,9 +18,8 @@ from typing import ClassVar
 
 from sensor_core import Sensor, SensorDsCfg, api
 from sensor_core import configuration as root_cfg
-from sensor_core.utils import utils, file_naming
-
 from sensor_core.sensors.config_object_defs import AudioSensorCfg
+from sensor_core.utils import file_naming, utils
 
 logger = utils.setup_logger("rpi")
 

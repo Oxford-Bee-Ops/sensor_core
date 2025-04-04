@@ -23,11 +23,10 @@ import subprocess
 from datetime import datetime, timedelta
 from time import sleep
 
-from sensor_core import Datastream, Sensor, SensorDsCfg, api
+from sensor_core import Sensor, SensorDsCfg, api, Datastream
 from sensor_core import configuration as root_cfg
-from sensor_core.utils import utils
-
 from sensor_core.sensors.config_object_defs import VideoSensorCfg
+from sensor_core.utils import utils, file_naming
 
 if root_cfg.running_on_rpi:
     from libcamera import Transform, controls  # type: ignore
@@ -40,7 +39,7 @@ else:
         MEDIUM = 2
         HIGH = 3
 
-logger = utils.setup_logger("rpi")
+logger = utils.setup_logger("sensor_core")
 
 
 ############################################################
@@ -124,10 +123,16 @@ class VideoSensor(Sensor):
         # Get the Datastream objects for this sensor so we can log / save data to them
         # We expect 0 or 1 video datastreams with raw_format="h264" or "mp4"
         # We expect 0 or 1 still image datastreams with raw_format="jpg"
-        self.video_ds = self.get_datastream(format="h264") 
-        self.image_ds = self.get_datastream(format="jpg") 
-        assert self.video_ds is not None 
-        assert self.image_ds is not None
+        video_ds = self.get_datastream(format=self.sensor_cfg.video_format)
+        assert video_ds is not None, (
+            f"Video datastream not found for format {self.sensor_cfg.video_format}"
+        )
+        self.video_ds: Datastream = video_ds
+        image_ds = self.get_datastream(format="jpg")
+        assert image_ds is not None, (
+            f"Image datastream not found for format jpg"
+        )
+        self.image_ds: Datastream = image_ds
 
         # Use the "with" context manager to ensure camera is closed after use
         failures = 0
@@ -154,7 +159,7 @@ class VideoSensor(Sensor):
                     # If memory is running low, we pause recording until the video_processor and push_to_cloud
                     # have dealt with the backlog.
                     if utils.pause_recording() and not self.bcli_test_mode:
-                        sleep(60 * 5)
+                        sleep(180)
                         continue
 
                     # Record video for the specified number of seconds
@@ -208,7 +213,7 @@ class VideoSensor(Sensor):
         start_time = api.utc_now()
 
         # Create the timestamped filename just before we start recording
-        vid_output_filename = self.video_ds.get_temporary_filename("h264")
+        vid_output_filename = file_naming.get_temporary_filename("h264")
         logger.info(f"Recording to {vid_output_filename} for {record_for_seconds} seconds")
 
         camera.start_recording(encoder, str(vid_output_filename), quality=self.video_quality)

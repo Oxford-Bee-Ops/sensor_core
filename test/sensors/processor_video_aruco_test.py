@@ -3,9 +3,8 @@ import sys
 
 import pytest
 from sensor_core import configuration as root_cfg
-from sensor_core.utils import utils
-
 from sensor_core.sensors import processor_video_aruco
+from sensor_core.utils import utils
 
 logger = utils.setup_logger("rpi")
 
