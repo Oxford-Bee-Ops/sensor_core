@@ -20,7 +20,7 @@ dependencies = [
     "python-crontab",
     "gitpython",
     "gpiozero",
-    "numpy",
+    "numpy --only-binary=:all:",
     "opencv-python",
     "pandas",
     "psutil",
