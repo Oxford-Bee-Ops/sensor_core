@@ -27,8 +27,6 @@ dependencies = [
     "pydantic-settings",
     "pytest",
     "PyYAML",
-    "scikit-learn",
-    "scipy",
     "smbus2",
     'systemd-python; sys_platform != "win32"',
     "wheel",
