@@ -37,7 +37,7 @@ Key design decisions:
 
 To install the code, run:
 
-`pip install git+https://github.com/Oxford-Bee-Ops/sensor-core`
+`pip install git+https://github.com/Oxford-Bee-Ops/sensor_core`
 
 
 To install on a Raspberry Pi SBC for live deployment, follow the instructions in Usage > User Flow below.
@@ -79,7 +79,7 @@ The following is a basic step-by-step guide which can be substantially automated
         - `uv venv $HOME/venv`
         - `source $HOME/venv/bin/activate`
     - install sensor-core:
-        - `uv pip install git+https://github.com/Oxford-Bee-Ops/sensor-core`
+        - `uv pip install git+https://github.com/Oxford-Bee-Ops/sensor_core`
     - install your now-customized example code in **$HOME/code/<my_git_project_name>/**
     - run SensorCore:
         - `cd $HOME/code/<my_git_project_name>`
