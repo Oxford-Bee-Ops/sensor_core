@@ -78,6 +78,8 @@ The following is a basic step-by-step guide which can be substantially automated
     - create and activate your virtual environment in $HOME/venv:
         - `uv venv $HOME/venv`
         - `source $HOME/venv/bin/activate`
+    - install pre-requisites:
+        - `sudo apt-get install libsystemd-dev`
     - install sensor-core:
         - `uv pip install git+https://github.com/Oxford-Bee-Ops/sensor_core`
     - install your now-customized example code in **$HOME/code/<my_git_project_name>/**
