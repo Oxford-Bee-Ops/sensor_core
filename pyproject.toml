@@ -25,7 +25,6 @@ dependencies = [
     "bottleneck>=1.3.6",
     "pandas",
     "psutil",
-    "pyaudio",
     "pydantic-settings",
     "pytest",
     "PyYAML",
