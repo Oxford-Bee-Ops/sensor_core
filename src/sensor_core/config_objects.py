@@ -235,17 +235,11 @@ class DeviceCfg(Configuration):
 # Inventory class
 ############################################################
 class Inventory(ABC):
-    @staticmethod
     @abstractmethod
-    def get_inventory() -> list[DeviceCfg]:
+    def get_inventory(self) -> list[DeviceCfg]:
         """Return a list of DeviceCfg inventory objects."""
         raise NotImplementedError("get_inventory() must be implemented in subclasses")
 
-    @staticmethod
-    def validate_my_config() -> None:
-        """Validate the configuration for this device."""
-        from sensor_core import SensorCore
-        SensorCore().configure(Inventory.get_inventory())
 
 @dataclass
 class DpContext:
