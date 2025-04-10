@@ -1,9 +1,8 @@
 from time import sleep
 
+from example import my_fleet_config
 from sensor_core import SensorCore
 from sensor_core.utils import utils
-
-from example import my_fleet_config
 
 logger = utils.setup_logger("sensor_core")
 

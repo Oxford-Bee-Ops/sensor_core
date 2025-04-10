@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import pandas as pd
 import pytest
+
 from sensor_core.sensors.sensor_audio import AudioSensor as ac
 from sensor_core.utils import utils
 
@@ -30,6 +31,7 @@ class Test_AudioSensor:
     @pytest.mark.quick
     def test_ok_to_record(self, test_input, expected):
         max_sleep = 1800
+        start_recording = 0 # noqa
         av_rec_seconds = 180
         num_devices, in_hive_port, port, timestamp = eval(test_input)
         expected_sleep_for, expected_record_for = eval(expected)

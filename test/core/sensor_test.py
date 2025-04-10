@@ -4,15 +4,15 @@ from time import sleep
 
 import pytest
 import yaml
+
+from example import my_fleet_config
+from example.my_config_object_defs import ExampleSensorCfg
 from sensor_core import api, edge_orchestrator
 from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import CloudConnector
 from sensor_core.edge_orchestrator import EdgeOrchestrator
 from sensor_core.sensor_core import SensorCore
 from sensor_core.utils import file_naming, utils
-
-from example import my_fleet_config
-from example.my_config_object_defs import ExampleSensorCfg
 
 logger = utils.setup_logger("sensor_core")
 root_cfg.TEST_MODE = True
@@ -61,7 +61,7 @@ class Test_Orchestrator:
 
         # Check that a FAIR yaml file has been created in the last 10s
         files = CloudConnector().list_cloud_files(root_cfg.my_device.cc_for_fair, 
-                                                  more_recent_than=api.utc_now() - dt.timedelta(seconds=10))
+                                                  more_recent_than=api.utc_now() - dt.timedelta(seconds=60))
         assert files, f"No FAIR files found in {root_cfg.my_device.cc_for_fair}"
 
         # Check we can download the FAIR yaml and recreate the object

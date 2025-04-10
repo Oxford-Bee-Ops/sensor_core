@@ -286,16 +286,14 @@ class SystemCfg(BaseSettings):
     # The location of the virtual environment relative to the $HOME directory.
     # (ie will expand to "$HOME/$venv_dir").
     # This will be created if it does not exist.
-    venv_dir: str ="venv"
+    venv_dir: str =".venv"
     # The location where your custom code is installed, relative to the $HOME directory 
     # (ie will expand to "$HOME/<my_code_dir>/<Git project name>").
     # The Git project name is the final component of the URL above (with the ".git" suffix removed)
     my_code_dir: str ="code"
     # The URL for the Git repo with the SensorCore code.
     # We only need this while SensorCore is in development.
-    dua_git_url: str ="github.com:Oxford-Bee-Ops/sensor_core.git"
-    dua_git_branch: str ="main"
-    dua_git_ssh_private_key_file: str ="id_ed25519_sensor_core"
-    sensor_core_code_dir: str ="code"
+    sensor_core_git_url: str ="github.com:Oxford-Bee-Ops/sensor_core.git"
+    sensor_core_git_branch: str ="main"
     # Pydantic-settings helper
     model_config = SettingsConfigDict(extra="ignore")

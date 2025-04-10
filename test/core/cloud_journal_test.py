@@ -1,5 +1,6 @@
 
 import pytest
+
 from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import CloudConnector
 from sensor_core.utils import utils

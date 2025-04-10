@@ -1,4 +1,5 @@
 import pytest
+
 from sensor_core import device_manager as dm
 
 

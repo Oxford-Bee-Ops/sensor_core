@@ -1,7 +1,7 @@
 # sensor-core
 
 SensorCore makes it as easy to use Raspberry Pi SBCs for scientific data collection
-in long-running experiments. SensorCore is a pre-baked set of functionality and design choices that hide much of the complexity of managing devices, sensors, and data flows.
+in long-running experiments. SensorCore is a pre-baked set of functionality and design choices that reduce the complexity & risk in managing devices, sensors, and data flows.
 
 
 SENSOR INTEGRATION
@@ -39,8 +39,7 @@ To install the code, run:
 
 `pip install git+https://github.com/Oxford-Bee-Ops/sensor_core`
 
-
-To install on a Raspberry Pi SBC for live deployment, follow the instructions in Usage > User Flow below.
+And follow the instructions in Usage > User Flow below.
 
 
 ## Usage
@@ -49,41 +48,41 @@ You will need:
 - a GitHub account to store your *fleet* configuration and any custom code you choose to write
 - an Azure account for storage of your sensor output
 - a Raspberry Pi SBC and some sensors!
-- basic experience with Python coding
+- some basic experience with Python coding
 
 
 ### USER FLOW - BASIC SENSING USING SUPPORTED SENSORS
 The following is a basic step-by-step guide which can be substantially automated when you come to deploy lots of devices!
 
 - Physically build your Raspberry Pi and attach your chosen sensors.
-- Install an SD card with the Raspberry Pi OS and power up your RPI.
-    - In the RaspberryPi Imager, make sure you enable SSH access and include default Wifi config for easy access.
+- Get an SD card with the Raspberry Pi OS.  If you use Raspberry Pi Imager, enabling SSH access and include default Wifi config will make your life easier.
+- Install the SD card with and power up your Pi.
 - Copy the files in the SensorCore repo `/example` folder to your own computer / dev environment / git project.
 - Edit **keys.env**:
-    - Set `cloud_storage_key` to enable access to your Azure Storage accounts (see notes in keys.env)
-    - Do not check keys.env into Git - you should keep this keys file somewhere secure.
-- Edit **fleet_config.py** to contain the configuration for your device(s)
+    - Set `cloud_storage_key` to the Shared Access Signature for your Azure Storage accounts (see notes in keys.env).
+    - For security reasons, do not check keys.env into Git.
+- Edit **fleet_config.py** to add configuration for your device(s)
     - You will need the mac address of the device's wlan0 interface as the identifier of the device
     - To get the mac address run `cat /sys/class/net/wlan0/address`
     - See the example fleet_config.py for more details.
 - Edit the **system.cfg**:
     - You can leave all values as defaults to start with but you will likely want to customise later.
-    - In particular, you will need to set `my_git_repo_url` to your GitHub repo URL if you want SensorCore to auto-update the device code.
-    - See the system.cfg file in /example for more details.
+    - In particular, you will need to set `my_git_repo_url` if you want SensorCore to auto-update your device code.
+    - See the system.cfg file in `/example` for more details.
 - Log in to your RPi:
-    - create a **.sensor_core** folder in your user home directory (ie `/home/<user>/.sensor_core`)
+    - create a **.sensor_core** folder in your user home directory 
+        - `mkdir $HOME/.sensor_core`
+    - create a **/sensor_core** root folder:
+        - `sudo mkdir /sensor_core && chown $USER:$USER /sensor_core`
     - copy your **keys.env** and **system.cfg** to the .sensor_core folder
-    - install `uv` to manage your venv and code, by running:
-        - `curl -LsSf https://astral.sh/uv/install.sh | sh`
-    - create and activate your virtual environment in $HOME/venv:
-        - `uv venv $HOME/venv`
+    - create and activate your virtual environment in $HOME/.venv:
+        - `python -m venv $HOME/.venv`
         - `source $HOME/venv/bin/activate`
     - install pre-requisites:
         - `sudo apt-get install libsystemd-dev libffi-dev`
         - libsystemd-dev is required by systemd-python to interact with journald
         - libffi-dev is required by azure-storage-blob via cryptography 
-        - `sudo apt-get install -y cmake build-essential gfortran libopenblas-dev liblapack-dev`
-        - required for building numpy
+        - `sudo apt-get install -y python3-scipy python3-pandas python3-opencv`
     - install sensor-core:
         - `uv pip install git+https://github.com/Oxford-Bee-Ops/sensor_core`
     - install your now-customized example code in **$HOME/code/<my_git_project_name>/**

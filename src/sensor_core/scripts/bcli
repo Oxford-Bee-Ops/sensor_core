@@ -34,10 +34,6 @@ export_system_cfg() {
     if [ -n "$my_git_repo_url" ]; then
         my_code_dir="$my_code_dir/$(git_project_name "$my_git_repo_url")"
     fi
-    # Append the git project name to the sensor_core_code_dir variable
-    if [ -n "$dua_git_url" ]; then
-        sensor_core_code_dir="$sensor_core_code_dir/$(git_project_name "$dua_git_url")"
-    fi
 }
 
 #####################################################################################

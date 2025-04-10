@@ -239,12 +239,12 @@ class SensorCore:
             with open("/etc/systemd/journald.conf", "r") as f:
                 lines = f.readlines()
                 for line in lines:
-                    if (((line.startswith("#Storage=")) or (line.startswith("Storage=")) 
-                            and line.strip() != "Storage=volatile")):
+                    if (((line.startswith("#Storage=")) or ((line.startswith("Storage=")) 
+                            and line.strip() != "Storage=volatile"))):
                         update_required = True
                         break
-                    elif (((line.startswith("#SystemMaxUse=")) or (line.startswith("SystemMaxUse=")) 
-                            and line.strip() != "SystemMaxUse=50M")):
+                    elif (((line.startswith("#SystemMaxUse=")) or ((line.startswith("SystemMaxUse=")) 
+                            and line.strip() != "SystemMaxUse=50M"))):
                         update_required = True
                         break
                 

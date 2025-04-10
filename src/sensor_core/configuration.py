@@ -7,6 +7,7 @@ import psutil
 from pydantic_settings import SettingsConfigDict
 
 from sensor_core.config_objects import FAILED_TO_LOAD, DeviceCfg, Inventory, Keys, SystemCfg
+from sensor_core.utils.dc import create_root_working_dir
 
 ############################################################################################
 # Test mode flag
@@ -90,6 +91,7 @@ elif running_on_rpi:
     SC_CODE_DIR = CODE_DIR / "sensor_core"
     CFG_DIR = HOME_DIR / ".sensor_core"  # In the base user directory on the RPi
     ROOT_WORKING_DIR = Path("/sensor_core")  # We always create a /sensor_core directory on the RPi
+    create_root_working_dir(ROOT_WORKING_DIR)
 
 elif running_on_linux:
     # This is Docker on Linux
@@ -98,6 +100,7 @@ elif running_on_linux:
     SC_CODE_DIR = Path("/app")
     CFG_DIR = Path("/run/secrets")
     ROOT_WORKING_DIR = Path("/sensor_core")
+    create_root_working_dir(ROOT_WORKING_DIR)
 else:
     raise Exception("Unknown platform: " + platform.platform())
 

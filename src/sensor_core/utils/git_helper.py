@@ -116,15 +116,15 @@ def main() -> None:
         )
 
     # Refresh the SensorCore code
-    if not root_cfg.system_cfg.dua_git_branch:
+    if not root_cfg.system_cfg.sensor_core_git_branch:
         refresh_git_repo(
-            root_cfg.system_cfg.dua_git_url,
+            root_cfg.system_cfg.sensor_core_git_url,
             root_cfg.system_cfg.my_git_ssh_private_key_file
         )
     else:
         refresh_git_repo(
-            root_cfg.system_cfg.dua_git_url,
-            root_cfg.system_cfg.dua_git_branch,
+            root_cfg.system_cfg.sensor_core_git_url,
+            root_cfg.system_cfg.sensor_core_git_branch,
             root_cfg.system_cfg.my_git_ssh_private_key_file
         )
 

@@ -97,10 +97,6 @@ export_system_cfg() {
     if [ -n "$my_git_repo_url" ]; then
         my_code_dir="$my_code_dir/$(git_project_name "$my_git_repo_url")"
     fi
-    # Append the git project name to the sensor_core_code_dir variable
-    if [ -n "$dua_git_url" ]; then
-        sensor_core_code_dir="$sensor_core_code_dir/$(git_project_name "$dua_git_url")"
-    fi
 }
 
 # Install SSH keys from the ./sensor_core directory to the ~/.ssh directory
@@ -110,15 +106,6 @@ install_ssh_keys() {
         mkdir -p "$HOME/.ssh" || { echo "Failed to create ~/.ssh directory"; exit 1; }
     fi
 
-    # Copy the private key file to the ~/.ssh directory
-    if [ -f "$HOME/.sensor_core/$dua_git_ssh_private_key_file" ]; then
-        cp "$HOME/.sensor_core/$dua_git_ssh_private_key_file" "$HOME/.ssh/" || { echo "Failed to copy $dua_git_ssh_private_key_file to ~/.ssh"; exit 1; }
-        chmod 600 "$HOME/.ssh/$dua_git_ssh_private_key_file" || { echo "Failed to set permissions for $dua_git_ssh_private_key_file"; exit 1; }
-    else
-        echo "Error: Private key file $dua_git_ssh_private_key_file does not exist in $HOME/.sensor_core"
-        exit 1
-    fi
-
     # Copy the users private key file to the ~/.ssh directory
     if [ -f "$HOME/.sensor_core/$my_git_ssh_private_key_file" ]; then
         cp "$HOME/.sensor_core/$my_git_ssh_private_key_file" "$HOME/.ssh/" || { echo "Failed to copy $my_git_ssh_private_key_file to ~/.ssh"; exit 1; }
@@ -126,7 +113,7 @@ install_ssh_keys() {
     else
         echo "Error: Private key file $my_git_ssh_private_key_file does not exist in $HOME/.sensor_core"
         exit 1
-    fi
+    
 
     # Set up known_hosts for GitHub if it doesn't already exist
     if ! ssh-keygen -F github.com > /dev/null; then
@@ -241,84 +228,6 @@ create_venv() {
     fi
 }
 
-# Function to install SensorCore
-install_sensor_core() {
-    echo "Installing SensorCore..."
-
-    if [ -z "$dua_git_url" ] || [ -z "$dua_git_branch" ] || [ -z "$sensor_core_code_dir" ]; then
-        echo "Error: dua_git_url, dua_git_branch, or sensor_core_code_dir is not set in system.cfg"
-        exit 1
-    fi
-
-    ############################################
-    # Manage SSH prep
-    ############################################
-    # Verify that the private key file exists
-    if [ ! -f "$HOME/.ssh/$dua_git_ssh_private_key_file" ]; then
-        echo "Error: Private key file ~/.ssh/$dua_git_ssh_private_key_file does not exist."
-        exit 1
-    fi
-
-    # Ensure the private key has correct permissions
-    chmod 600 "$HOME/.ssh/$dua_git_ssh_private_key_file"
-
-    # Set the GIT_SSH_COMMAND
-    export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/$dua_git_ssh_private_key_file -o IdentitiesOnly=yes"
-
-    # Persist the GIT_SSH_COMMAND in .bashrc if not already present
-    if ! grep -qs "export GIT_SSH_COMMAND=" "$HOME/.bashrc"; then
-        echo "export GIT_SSH_COMMAND='ssh -i \$HOME/.ssh/$dua_git_ssh_private_key_file -o IdentitiesOnly=yes'" >> "$HOME/.bashrc"
-    fi
-
-    # Ensure known_hosts exists and add GitHub key if necessary
-    mkdir -p "$HOME/.ssh"
-    touch "$HOME/.ssh/known_hosts"
-    chmod 600 "$HOME/.ssh/known_hosts"
-    if ! ssh-keygen -F github.com > /dev/null; then
-        echo "Adding GitHub key to known_hosts"
-        ssh-keyscan github.com >> "$HOME/.ssh/known_hosts"
-    fi
-
-    ############################################
-    # Do the Git clone and pip install
-    ############################################
-    # Validate sensor_core_code_dir
-    if [[ "$sensor_core_code_dir" =~ [^a-zA-Z0-9/_-] ]]; then
-        echo "Error: sensor_core_code_dir contains invalid characters. Only alphanumeric, '/', '_', and '-' are allowed."
-        exit 1
-    fi
-
-    # Create the repo directory if it doesn't already exist
-    if [ ! -d "$HOME/$sensor_core_code_dir" ]; then
-        echo "Creating directory $HOME/$sensor_core_code_dir..."
-        mkdir -p "$HOME/$sensor_core_code_dir" || { echo "Failed to create directory $HOME/$sensor_core_code_dir"; exit 1; }
-    fi
-
-    # Clone the repository if it doesn't already exist
-    if [ ! -d "$HOME/$sensor_core_code_dir/.git" ]; then
-        echo "Cloning SensorCore repository into $HOME/$sensor_core_code_dir..."
-        git clone --branch "$dua_git_branch" --depth 1 "git@$dua_git_url" "$HOME/$sensor_core_code_dir" || { echo "Failed to clone SensorCore repository"; exit 1; }
-    else
-        echo "SensorCore repository already exists. Pulling latest changes and resetting so we use the latest release..."
-        git -C "$HOME/$sensor_core_code_dir" fetch --depth 1 origin "$dua_git_branch" || { echo "Failed to fetch updates for SensorCore repository"; exit 1; }
-        git -C "$HOME/$sensor_core_code_dir" reset --hard origin/"$dua_git_branch" || { echo "Failed to reset to the latest commit for SensorCore repository"; exit 1; }
-    fi
-
-    # Activate the venv
-    if [ -f "$HOME/$venv_dir/bin/activate" ]; then
-        source "$HOME/$venv_dir/bin/activate" || { echo "Failed to activate virtual environment"; exit 1; }
-    else
-        echo "Error: Virtual environment not found at $HOME/$venv_dir/bin/activate"
-        exit 1
-    fi
-
-    # Reinstall the latest version of SensorCore in the virtual environment
-    echo "Reinstalling SensorCore in editable mode..."
-    cd "$HOME/$sensor_core_code_dir" || { echo "Failed to navigate to $HOME/$sensor_core_code_dir"; exit 1; }
-    uv pip install -e . || { echo "Failed to reinstall SensorCore in editable mode"; exit 1; }
-
-    echo "SensorCore installed successfully."
-}
 
 # Function to install user's code
 install_user_code() {

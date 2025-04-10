@@ -1,11 +1,11 @@
 from time import sleep
 
 import pytest
+
+from example import my_fleet_config
 from sensor_core import configuration as root_cfg
 from sensor_core.sensor_core import SensorCore
 from sensor_core.utils import utils
-
-from example import my_fleet_config
 
 logger = utils.setup_logger("sensor_core")
 root_cfg.TEST_MODE = True

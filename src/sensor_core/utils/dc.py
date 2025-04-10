@@ -1,12 +1,31 @@
 ####################################################################################################
 # Utils that have no dependencies on other modules in the project
 ####################################################################################################
+import subprocess
 from dataclasses import fields, is_dataclass
 from pathlib import Path
 from typing import Any, Union
 
 from pydantic_settings import BaseSettings
 
+
+def create_root_working_dir(path: Path) -> None:
+    """ Create the root working directory if it doesn't exist. 
+    This requires root privileges on Linux.
+   
+    Args:
+        path (Path): The path to the directory to create.
+
+    Raises:
+        subprocess.CalledProcessError: If the directory creation fails.
+     """
+    if not path.exists():
+        try:
+            subprocess.run(["sudo", "mkdir", "-p", str(path)], check=True)
+            print(f"Directory {path} created successfully.")
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to create directory {path}: {e}")
+            raise e
 
 ############################################################
 # Dataclass display utility
