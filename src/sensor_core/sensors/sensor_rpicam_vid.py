@@ -49,7 +49,9 @@ class RpicamSensor(Sensor):
         # We expect 0 or 1 video datastreams with raw_format="h264" or "mp4"
         # We expect 0 or 1 still image datastreams with raw_format="jpg"
         video_ds = self.get_datastream(format=self.raw_format)
-        assert video_ds is not None 
+        assert video_ds is not None, (
+            f"Datastream with raw_format={self.raw_format} not found in {self.sds_config.datastream_cfgs}"
+        ) 
         self.video_ds: Datastream = video_ds
         assert f"FILENAME.{self.video_ds.ds_config.raw_format}" in self.rpicam_cmd, (
             f"FILENAME suffix doesn't match datastream raw_format ({self.video_ds.ds_config.raw_format}) "
