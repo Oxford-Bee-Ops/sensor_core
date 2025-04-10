@@ -8,7 +8,6 @@ dependencies:
   - python-crontab
   - gitpython
   - numpy
-  - opencv
   - pandas
   - psutil
   - pydantic-settings
@@ -21,3 +20,4 @@ dependencies:
   - pip:
     - gpiozero
     - systemd-python
+    - opencv-python
