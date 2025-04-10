@@ -8,6 +8,7 @@ from dataclasses import asdict
 from datetime import timedelta
 from time import sleep
 from typing import Optional
+import traceback
 
 from sensor_core import api, datastream
 from sensor_core import configuration as root_cfg
@@ -231,6 +232,9 @@ class EdgeOrchestrator:
             logger.warning(f"Sensor_manager is already running; {self}")
             logger.info(self.status())
             return
+
+        # Check the "stop" file has been cleared
+        root_cfg.STOP_SENSOR_CORE_FLAG.unlink(missing_ok=True)
         self.orchestrator_is_stopping = False
 
         # Set the flag monitored by the SensorFactory
@@ -272,7 +276,7 @@ class EdgeOrchestrator:
         Blocks until all threads have exited"""
 
         logger.info(f"stop_all on {self!r} called by {threading.current_thread().name}")
-        logger.info(f"stop_all stack: {utils.get_stack_info()}")
+        logger.info(f"stop_all stack: {traceback.format_stack()}")
 
         self.orchestrator_is_stopping = True
 
@@ -466,9 +470,6 @@ def request_stop() -> None:
 
 def main() -> None:
     try:
-        # Check the "stop" file has been cleared
-        root_cfg.STOP_SENSOR_CORE_FLAG.unlink(missing_ok=True)
-
         # Provide diagnostics
         logger.info(root_cfg.my_device.display())
 
