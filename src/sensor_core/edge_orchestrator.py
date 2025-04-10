@@ -271,7 +271,8 @@ class EdgeOrchestrator:
 
         Blocks until all threads have exited"""
 
-        logger.info(f"stop_all on {self!r}")
+        logger.info(f"stop_all on {self!r} called by {threading.current_thread().name}")
+        logger.info(f"stop_all stack: {utils.get_stack_info()}")
 
         self.orchestrator_is_stopping = True
 

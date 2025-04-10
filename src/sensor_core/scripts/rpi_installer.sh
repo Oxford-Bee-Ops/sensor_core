@@ -22,7 +22,7 @@
 #   - make the log storage volatile
 #   - set predictable network interface names
 #   - enable the I2C interface
-# - start SensorCore if auto_start_on_install is set in the system.cfg file
+# - start SensorCore if auto_start is set in the system.cfg file
 #
 # Starting SensorCore (either via this script, via code or via the CLI) will:
 # - cause SensorCore to persist across reboots via crontab
@@ -123,73 +123,6 @@ install_ssh_keys() {
     echo "SSH keys installed successfully."
 }
 
-# Function to update journald configuration using the values exported from system.cfg
-# It restarts the systemd-journald service to apply the changes
-update_journald_config() {
-    echo "Updating journald configuration..."
-    local journald_config="/etc/systemd/journald.conf"
-    local temp_file="/tmp/journald.conf"
-
-    if [ -z "$journald_Storage" ] || [ -z "$journald_SystemMaxUse" ]; then
-        echo "Error: journald_Storage or journald_SystemMaxUse is not set in system.cfg"
-        exit 1
-    fi
-
-    # Validate journald_Storage
-    if [[ ! "$journald_Storage" =~ ^(volatile|persistent|auto|none)$ ]]; then
-        echo "Error: Invalid value for journald_Storage ($journald_Storage). Allowed values are 'volatile', 'persistent', 'auto', or 'none'."
-        exit 1
-    fi
-
-    # Validate journald_SystemMaxUse
-    if [[ ! "$journald_SystemMaxUse" =~ ^[0-9]+[KMG]?$ ]]; then
-        echo "Error: Invalid value for journald_SystemMaxUse ($journald_SystemMaxUse). It must be a number optionally followed by 'K', 'M', or 'G'."
-        exit 1
-    fi
-
-    if [ ! -f "$journald_config" ]; then
-        echo "Error: $journald_config does not exist. Cannot update journald configuration."
-        exit 1
-    fi
-
-    # Backup the original configuration
-    sudo cp "$journald_config" "${journald_config}.bak" || { echo "Failed to backup $journald_config"; exit 1; }
-
-    # Modify or append the configuration
-    sudo awk -v storage="$journald_Storage" -v max_use="$journald_SystemMaxUse" '
-    BEGIN { storage_updated = 0; max_use_updated = 0 }
-    /^Storage=/ { $0 = "Storage=" storage; storage_updated = 1 }
-    /^SystemMaxUse=/ { $0 = "SystemMaxUse=" max_use; max_use_updated = 1 }
-    END {
-        if (!storage_updated) print "Storage=" storage
-        if (!max_use_updated) print "SystemMaxUse=" max_use
-    } 1' "$journald_config" > "$temp_file" || { echo "Failed to modify $journald_config"; exit 1; }
-
-    # Replace the original file with the updated one
-    sudo mv "$temp_file" "$journald_config" || { echo "Failed to update $journald_config"; exit 1; }
-
-    # Restart systemd-journald to apply changes
-    sudo systemctl restart systemd-journald || { echo "Failed to restart systemd-journald"; exit 1; }
-
-    echo "journald configuration updated successfully."
-}
-
-# Function to set RPi config
-update_rpi_config() {
-	###############################################
-	# Set RPi to use predictable network interface names
-	# wlan0 remains, but the wifi dongle gets renamed from wlan1 to wlx<mac address>
-	# This is critical if we're to use mac address as the device_id
-	###############################################
-	echo "Setting predictable network interface names"
-	sudo raspi-config nonint do_net_names 0
-
-	###############################################
-	# Enable i2c interface
-	###############################################
-	echo "Enabling I2C interface"
-	sudo raspi-config nonint do_i2c 0
-}
 
 # Function to install UV package installer
 install_uv() {
@@ -335,18 +268,10 @@ install_user_code() {
         git -C "$HOME/$my_code_dir" fetch origin --depth 1 "$my_git_branch" || { echo "Failed to fetch updates for user's code repository"; exit 1; }
     fi
 
-    # Activate the venv
-    if [ -f "$HOME/$venv_dir/bin/activate" ]; then
-        source "$HOME/$venv_dir/bin/activate" || { echo "Failed to activate virtual environment"; exit 1; }
-    else
-        echo "Error: Virtual environment not found at $HOME/$venv_dir/bin/activate"
-        exit 1
-    fi
-
-    # Reinstall the latest version of SensorCore in the virtual environment
-    echo "Reinstalling user code in editable mode..."
+    # Reinstall the latest version of the user's code in the virtual environment
+    echo "Reinstalling user code..."
     cd "$HOME/$my_code_dir" || { echo "Failed to navigate to $HOME/$my_code_dir"; exit 1; }
-    uv pip install -e . || { echo "Failed to reinstall user code in editable mode"; exit 1; }
+    uv pip install . || { echo "Failed to reinstall user code"; exit 1; }
 
     echo "User's code installed successfully."
 }
@@ -382,11 +307,11 @@ install_ufw() {
     sudo ufw --force enable
 }
 
-# Function to start SensorCore if auto_start_on_install is set in the system.cfg file
-auto_start_on_install_if_required() {
-    if [ -z "$auto_start_on_install" ]; then
-        echo "Error: auto_start_on_install is not set in system.cfg"
-    elif [ "$auto_start_on_install" == "Yes" ]; then
+# Function to start SensorCore if auto_start is set in the system.cfg file
+auto_start_if_required() {
+    if [ -z "$auto_start" ]; then
+        echo "Error: auto_start is not set in system.cfg"
+    elif [ "$auto_start" == "Yes" ]; then
         echo "Starting SensorCore..."
         # Start SensorCore by calling the run_sensor_core.sh
         # The location of the script is defined in the system.cfg with key of 'sensor_core_code_dir'
@@ -402,7 +327,7 @@ auto_start_on_install_if_required() {
         fi
         echo "SensorCore started successfully."
     else
-        echo "auto_start_on_install is not set to 'Yes'. Not starting SensorCore."
+        echo "auto_start is not set to 'Yes'. Not starting SensorCore."
     fi
 }
 
@@ -415,15 +340,13 @@ echo "Starting RPi installer..."
 check_prerequisites
 export_system_cfg
 #install_ssh_keys
-#update_rpi_config
-#update_journald_config
 #install_uv
 install_conda
 create_venv
 install_sensor_core
-#install_user_code
+install_user_code
 #install_ufw
-#auto_start_on_install_if_required
+#auto_start_if_required
 
 # Add a flag file in the .sensor_core directory to indicate that the installer has run
 touch "$HOME/.sensor_core/rpi_installer_ran"

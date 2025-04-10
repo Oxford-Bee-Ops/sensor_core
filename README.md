@@ -138,7 +138,7 @@ With the correct config and auto-start set to yes, your device will immediately 
     - run SensorCore:
         - `cd $HOME/code/<my_git_project_name>`
         - `python run_sensor_core.py`
-- If your system.cfg has `auto_start_on_install="Yes"`, SensorCore will now be running!
+- If your system.cfg has `auto_start="Yes"`, SensorCore will now be running!
 - You can check by running the command line interface (CLI):
     - run `bcli`
 
