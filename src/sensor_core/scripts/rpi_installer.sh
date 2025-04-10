@@ -186,9 +186,9 @@ create_venv() {
 
     # Check if the venv is already listed in conda environments
     if conda env list | grep -q "$venv_dir"; then
-        echo "Virtual environment $HOME/$venv_dir already exists."
+        echo "Virtual environment $venv_dir already exists in the conda env list."
     else
-        echo "Creating $HOME/$venv_dir"
+        echo "Creating conda env $venv_dir"
         conda env create -f "$HOME/.sensor_core/environment.yml" || { echo "Failed to create virtual environment"; exit 1; }
     fi
     echo "Activating virtual environment..."
@@ -199,7 +199,7 @@ create_venv() {
 install_sensor_core() {
     # Install SensorCore from GitHub
     echo "Installing SensorCore..."
-    pip install git+https://github.com/oxford-bee-ops/sensor_core.git@main || { echo "Failed to install SensorCore"; exit 1; }
+    pip install --force-reinstall git+https://github.com/oxford-bee-ops/sensor_core.git@main || { echo "Failed to install SensorCore"; exit 1; }
     echo "SensorCore installed successfully."
 }
 
@@ -246,7 +246,7 @@ install_user_code() {
     ###############################################
     # [Re-]install the latest version of the user's code in the virtual environment
     echo "Reinstalling user code..."
-    pip install "git+ssh://git@$my_git_repo_url@$my_git_branch" || { echo "Failed to install $my_git_repo_url@$my_git_branch"; exit 1; }    
+    pip install --force-reinstall "git+ssh://git@$my_git_repo_url@$my_git_branch" || { echo "Failed to install $my_git_repo_url@$my_git_branch"; exit 1; }    
     echo "User's code installed successfully."
 }
 
