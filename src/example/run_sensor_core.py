@@ -17,7 +17,10 @@ def run_sensor_core():
     try:
         # Configure the SensorCore with the fleet configuration
         # This will load the configuration and check for errors
+        logger.info("SensorCore starting...")
         sc = SensorCore()
+
+        logger.info("Configuring SensorCore.")
         sc.configure(my_fleet_config.MyInventory())
 
         # If you want SensorCore to manage this device, uncomment the line below.
@@ -26,6 +29,7 @@ def run_sensor_core():
         # See documentation for details.
         # On Windows, the device health monitor will run but no other actions will be taken.
         #
+        logger.info("Enabling device management...")
         sc.enable_device_management()
 
         # If you want the sensor to restart automatically after reboot then uncomment the line below.
@@ -35,6 +39,7 @@ def run_sensor_core():
         #sc.make_my_script_persistent(__file__)
 
         # Start the SensorCore and begin data collection
+        logger.info("Starting SensorCore...")
         sc.start()
         while True:
             logger.info(sc.status())
