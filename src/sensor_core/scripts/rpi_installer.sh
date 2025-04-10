@@ -152,7 +152,6 @@ install_conda() {
         if ! command -v conda >/dev/null 2>&1; then
             echo "Adding conda to PATH..."
             echo 'export PATH="$HOME/miniconda3/bin:$PATH"' >> "$HOME/.bashrc"
-            source "$HOME/.bashrc"
         fi
     else
         echo "Installing Conda..."
@@ -181,6 +180,10 @@ create_venv() {
         echo "Error: environment.yml file is missing from $HOME/.sensor_core"
         exit 1
     fi
+
+    # Ensure Conda is initialized
+    source "$HOME/miniconda3/bin/activate" || { echo "Error: Failed to source Conda activation script"; exit 1; }
+
     # Check if the venv is already listed in conda environments
     if conda env list | grep -q "$venv_dir"; then
         echo "Virtual environment $HOME/$venv_dir already exists."
