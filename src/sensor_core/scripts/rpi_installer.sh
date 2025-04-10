@@ -113,7 +113,7 @@ install_ssh_keys() {
     else
         echo "Error: Private key file $my_git_ssh_private_key_file does not exist in $HOME/.sensor_core"
         exit 1
-    
+    fi
 
     # Set up known_hosts for GitHub if it doesn't already exist
     if ! ssh-keygen -F github.com > /dev/null; then
@@ -212,6 +212,35 @@ install_uv() {
     echo "UV installed successfully."
 }
 
+# Function to install mini conda package manager
+install_conda() {
+    # Check whether conda is already installed by looking for miniconda3 in the home directory
+    if [ -d "$HOME/miniconda3" ]; then
+        echo "Conda is already installed."
+        # Check if conda is in the PATH
+        if ! command -v conda >/dev/null 2>&1; then
+            # Add conda to the path
+            echo "Adding conda to PATH..."
+            echo 'export PATH="$HOME/miniconda3/bin:$PATH"' >> "$HOME/.bashrc"
+
+            # Test if conda is in the PATH
+            if ! command -v conda >/dev/null 2>&1; then
+                echo "Error: Failed to add conda to PATH. 'conda' command not found."
+                exit 1
+            fi
+        fi
+    else
+        echo "Installing Conda..."
+        mkdir -p ~/miniconda3
+        wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh -O ~/miniconda3/miniconda.sh
+        bash ~/miniconda3/miniconda.sh -b -u -p ~/miniconda3
+        rm ~/miniconda3/miniconda.sh
+        source ~/miniconda3/bin/activate
+        conda init --all
+        echo "Conda installed successfully."
+    fi
+}
+
 # Function to create a virtual environment if it doesn't already exist
 # The venv location is specified in the system.cfg (venv_dir)
 create_venv() {
@@ -219,15 +248,30 @@ create_venv() {
         echo "Error: venv_dir is not set in system.cfg"
         exit 1
     fi
-    if [ ! -d "$HOME/$venv_dir" ]; then
-        echo "Creating $HOME/$venv_dir"
-        # Use uv to create the virtual environment
-        uv venv --system-site-packages "$HOME/$venv_dir" || { echo "Failed to create virtual environment"; exit 1; }
-    else
-        echo "Virtual environment already exists."
+    if [ ! -f "$HOME/.sensor_core/environment.yml" ]; then
+        echo "Error: environment.yml file is missing from $HOME/.sensor_core"
+        exit 1
     fi
+    # Check if the venv is already listed in conda environments
+    conda env list | grep -q "venv"
+    if [ $? -eq 0 ]; then
+        echo "Virtual environment $HOME/$venv_dir already exists."
+    else
+        echo "Creating $HOME/$venv_dir"
+        conda env create -f environment.yml || { echo "Failed to create virtual environment"; exit 1; }
+    fi
+    echo "Activating virtual environment..."
+    conda init
+    conda activate venv
 }
 
+# Function to install SensorCore 
+install_sensor_core() {
+    # Install SensorCore from GitHub
+    echo "Installing SensorCore..."
+    pip install git+https://github.com/oxford-bee-ops/sensor_core.git@main || { echo "Failed to install SensorCore"; exit 1; }
+    echo "SensorCore installed successfully."
+}
 
 # Function to install user's code
 install_user_code() {
@@ -370,14 +414,16 @@ auto_start_on_install_if_required() {
 echo "Starting RPi installer..."
 check_prerequisites
 export_system_cfg
-install_ssh_keys
-update_rpi_config
-update_journald_config
-install_uv
+#install_ssh_keys
+#update_rpi_config
+#update_journald_config
+#install_uv
+install_conda
 create_venv
-install_user_code
-install_ufw
-auto_start_on_install_if_required
+install_sensor_core
+#install_user_code
+#install_ufw
+#auto_start_on_install_if_required
 
 # Add a flag file in the .sensor_core directory to indicate that the installer has run
 touch "$HOME/.sensor_core/rpi_installer_ran"

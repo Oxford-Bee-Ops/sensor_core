@@ -1,0 +1,23 @@
+name: venv
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - azure-storage-blob
+  - click
+  - python-crontab
+  - gitpython
+  - numpy
+  - opencv
+  - pandas
+  - psutil
+  - pydantic-settings
+  - pytest
+  - PyYAML
+  - scikit-learn
+  - scipy
+  - smbus2
+  - pip
+  - pip:
+    - gpiozero
+    - systemd-python

@@ -51,30 +51,79 @@ You will need:
 - some basic experience with Python coding
 
 
-### USER FLOW - BASIC SENSING USING SUPPORTED SENSORS
-The following is a basic step-by-step guide which can be substantially automated when you come to deploy lots of devices!
+### USER FLOW - INITIAL SETUP
+The following steps enable you to run the default example sensor on your RPi.  Do this first to prove that your cloud storage config is working and to learn the basics.  Then you can move on to defining your actual experimental setup!
 
+- In your Azure storage account, create the following containers:
+    - `sensor-core-journals` - this is where your experimental data will end up 
+    - `sensor-core-system-records` - this is where the SensorCore records will go that show you how your devices are performing
+    - `sensor-core-upload` - this is the default location for uploading recordings from your devices
+    - `sensor-core-fair` - this is where the FAIR records will go that snapshot your experimental configuration.
 - Physically build your Raspberry Pi and attach your chosen sensors.
-- Get an SD card with the Raspberry Pi OS.  If you use Raspberry Pi Imager, enabling SSH access and include default Wifi config will make your life easier.
+- Get an SD card with the Raspberry Pi OS.  If you use Raspberry Pi Imager, enabling SSH access and including default Wifi config will make your life easier.
 - Install the SD card with and power up your Pi.
-- Copy the files in the SensorCore repo `/example` folder to your own computer / dev environment / git project.
+- Copy the **keys.env** and **system.cfg** files from the sensor_core repo `/src/example` folder to your own computer / dev environment / git project.
 - Edit **keys.env**:
-    - Set `cloud_storage_key` to the Shared Access Signature for your Azure Storage accounts (see notes in keys.env).
-    - For security reasons, do not check keys.env into Git.
-- Edit **fleet_config.py** to add configuration for your device(s)
+    - Set `cloud_storage_key` to the Shared Access Signature for your Azure Storage accounts (see explanatory notes in keys.env).
+    - For security reasons, do **not** check keys.env into Git.
+- Log in to your RPi:
+    - create a **.sensor_core** folder in your user home directory 
+        - `mkdir $HOME/.sensor_core`
+    - copy your **keys.env** and **system.cfg** to the .sensor_core folder
+    - copy the **rpi_installer.sh** and **run_sensor_core.sh** files from `/src/sensor_core/scripts` to the .sensor_core folder
+    - run the rpi_installer.sh script:
+        - `cd $HOME/.sensor_core`
+        - `dos2unix *.sh`
+        - `chmod +x *.sh`
+        - `./rpi_installer.sh`
+        - this will take a few minutes as it installs mini-conda, creates a virtual environment, installs SensorCore and its dependencies, and sets up the RPi ready for use as a sensor.
+    - once SensorCore is installed, you can test it using either:
+        - A shell script:
+            `./run_sensor_core.sh`
+        - In Python:
+            - `python`
+            - `from sensor_core import SensorCore`
+            - `sc = SensorCore()`
+            - `sc.start()`
+- You should see data appearing in each of the containers in your cloud storage account.
+
+
+### USER FLOW - CONFIGURING FOR YOUR DEVICES
+To execute your particular experimental setup, you need to configure your devices in a "fleet config" python file.  You will want to maintain this configuration in Git.
+
+- Create your own Git repo if you haven't already got one
+    - You might want to install `uv` or similar to help you with initial project setup (`uv init`)
+- Copy the `/src/example` folder into your Git repo as a starting point for your own config and code customizations.
+- Edit **my_fleet_config.py** to add configuration for your device(s)
     - You will need the mac address of the device's wlan0 interface as the identifier of the device
     - To get the mac address run `cat /sys/class/net/wlan0/address`
     - See the example fleet_config.py for more details.
 - Edit the **system.cfg**:
-    - You can leave all values as defaults to start with but you will likely want to customise later.
-    - In particular, you will need to set `my_git_repo_url` if you want SensorCore to auto-update your device code.
-    - See the system.cfg file in `/example` for more details.
-- Log in to your RPi:
-    - create a **.sensor_core** folder in your user home directory 
-        - `mkdir $HOME/.sensor_core`
-    - create a **/sensor_core** root folder:
-        - `sudo mkdir /sensor_core && chown $USER:$USER /sensor_core`
-    - copy your **keys.env** and **system.cfg** to the .sensor_core folder
+    - If you want SensorCore to auto-update your devices each night with the latest code from your git repo, you will need to set `my_git_repo_url`.
+    - See the system.cfg file in `/example` for more details and more options.
+
+### USER FLOW - PRODUCTION PROCESS FOR AN EXPERIMENT WITH MANY DEVICES
+#### Pre-requisites
+- You have a keys.env with your cloud storage key
+- You have a system.cfg with:
+    - `my_git_repo_url` set to your Git repo URL
+    - `auto-start` set to `Yes`
+- You have a fleet_config.py file with:
+    - all the mac addresses of your devices listed
+    - the right sensor configuration for your experiment
+    - wifi config set if different from the environment where you're setting them up
+
+#### Deployment
+For each device, you will need to:
+- Install Raspberry Pi OS on the SD card (or buy it pre-installed)
+- Copy on **keys.env**, **system.cfg** and **rpi_installer.sh**
+- @@@ Install SSH keys so the device can access your private repo
+- Run `./rpi_installer.sh` as per above
+
+With the correct config and auto-start set to yes, your device will immediately start recording - and will continue to do so across reboots / power cycle, etc.
+
+
+- 
     - create and activate your virtual environment in $HOME/.venv:
         - `python -m venv $HOME/.venv`
         - `source $HOME/venv/bin/activate`
@@ -92,6 +141,7 @@ The following is a basic step-by-step guide which can be substantially automated
 - If your system.cfg has `auto_start_on_install="Yes"`, SensorCore will now be running!
 - You can check by running the command line interface (CLI):
     - run `bcli`
+
 
 
 ### USER FLOW - EXTENDING & CUSTOMIZING
