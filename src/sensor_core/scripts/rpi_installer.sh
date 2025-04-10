@@ -147,28 +147,24 @@ install_uv() {
 
 # Function to install mini conda package manager
 install_conda() {
-    # Check whether conda is already installed by looking for miniconda3 in the home directory
     if [ -d "$HOME/miniconda3" ]; then
         echo "Conda is already installed."
-        # Check if conda is in the PATH
         if ! command -v conda >/dev/null 2>&1; then
-            # Add conda to the path
             echo "Adding conda to PATH..."
             echo 'export PATH="$HOME/miniconda3/bin:$PATH"' >> "$HOME/.bashrc"
-
-            # Test if conda is in the PATH
-            if ! command -v conda >/dev/null 2>&1; then
-                echo "Error: Failed to add conda to PATH. 'conda' command not found."
-                exit 1
-            fi
+            source "$HOME/.bashrc"
         fi
     else
         echo "Installing Conda..."
-        mkdir -p ~/miniconda3
-        wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh -O ~/miniconda3/miniconda.sh
-        bash ~/miniconda3/miniconda.sh -b -u -p ~/miniconda3
-        rm ~/miniconda3/miniconda.sh
-        source ~/miniconda3/bin/activate
+        if ! command -v wget >/dev/null 2>&1; then
+            echo "Error: wget is not installed. Please install wget and re-run the script."
+            exit 1
+        fi
+        mkdir -p "$HOME/miniconda3"
+        wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh -O "$HOME/miniconda3/miniconda.sh"
+        bash "$HOME/miniconda3/miniconda.sh" -b -u -p "$HOME/miniconda3"
+        rm "$HOME/miniconda3/miniconda.sh"
+        source "$HOME/miniconda3/bin/activate"
         conda init --all
         echo "Conda installed successfully."
     fi
@@ -186,16 +182,14 @@ create_venv() {
         exit 1
     fi
     # Check if the venv is already listed in conda environments
-    conda env list | grep -q "venv"
-    if [ $? -eq 0 ]; then
+    if conda env list | grep -q "$venv_dir"; then
         echo "Virtual environment $HOME/$venv_dir already exists."
     else
         echo "Creating $HOME/$venv_dir"
-        conda env create -f environment.yml || { echo "Failed to create virtual environment"; exit 1; }
+        conda env create -f "$HOME/.sensor_core/environment.yml" || { echo "Failed to create virtual environment"; exit 1; }
     fi
     echo "Activating virtual environment..."
-    conda init
-    conda activate venv
+    source "$HOME/miniconda3/bin/activate" "$venv_dir"
 }
 
 # Function to install SensorCore 
@@ -210,8 +204,8 @@ install_sensor_core() {
 install_user_code() {
     echo "Installing user's code..."
 
-    if [ -z "$my_git_repo_url" ] || [ -z "$my_git_branch" ] || [ -z "$my_code_dir" ]; then
-        echo "Error: my_git_repo_url, my_git_branch, or my_code_dir is not set in system.cfg"
+    if [ -z "$my_git_repo_url" ] || [ -z "$my_git_branch" ]; then
+        echo "Error: my_git_repo_url or my_git_branch is not set in system.cfg"
         exit 1
     fi
 
@@ -245,34 +239,11 @@ install_user_code() {
     fi
 
     ##############################################
-    # Do the Git clone and pip install
+    # Do the Git clone
     ###############################################
-    # Validate my_code_dir
-    if [[ "$my_code_dir" =~ [^a-zA-Z0-9/_-] ]]; then
-        echo "Error: my_code_dir contains invalid characters. Only alphanumeric, '/', '_', and '-' are allowed."
-        exit 1
-    fi
-
-    # Create the repo directory if it doesn't already exist
-    if [ ! -d "$HOME/$my_code_dir" ]; then
-        echo "Creating directory $HOME/$my_code_dir..."
-        mkdir -p "$HOME/$my_code_dir" || { echo "Failed to create directory $HOME/$my_code_dir"; exit 1; }
-    fi
-
-    # Check for the .git file to see if the repository already exists
-    if [ ! -d "$HOME/$my_code_dir/.git" ]; then
-        echo "Cloning user's code repository..."
-        git clone --branch "$my_git_branch" --depth 1 "git@$my_git_repo_url" "$HOME/$my_code_dir" || { echo "Failed to clone user's code repository"; exit 1; }
-    else
-        echo "User's code repository already exists. Resetting and pulling latest changes..."
-        git -C "$HOME/$my_code_dir" fetch origin --depth 1 "$my_git_branch" || { echo "Failed to fetch updates for user's code repository"; exit 1; }
-    fi
-
-    # Reinstall the latest version of the user's code in the virtual environment
+    # [Re-]install the latest version of the user's code in the virtual environment
     echo "Reinstalling user code..."
-    cd "$HOME/$my_code_dir" || { echo "Failed to navigate to $HOME/$my_code_dir"; exit 1; }
-    uv pip install . || { echo "Failed to reinstall user code"; exit 1; }
-
+    pip install "git+ssh://git@$my_git_repo_url@$my_git_branch" || { echo "Failed to install $my_git_repo_url@$my_git_branch"; exit 1; }    
     echo "User's code installed successfully."
 }
 
