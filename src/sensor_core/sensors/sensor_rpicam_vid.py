@@ -25,6 +25,7 @@ class RpicamSensor(Sensor):
 
         assert isinstance(sds_config.sensor_cfg, RpicamSensorCfg)
         self.sensor_cfg: RpicamSensorCfg = sds_config.sensor_cfg
+        self.raw_format = self.sds_config.datastream_cfgs[0].raw_format
         self.rpicam_cmd = self.sensor_cfg.rpicam_cmd
 
         assert self.rpicam_cmd, (
@@ -47,7 +48,7 @@ class RpicamSensor(Sensor):
         # Get the Datastream objects for this sensor so we can log / save data to them
         # We expect 0 or 1 video datastreams with raw_format="h264" or "mp4"
         # We expect 0 or 1 still image datastreams with raw_format="jpg"
-        video_ds = self.get_datastream(format=self.video_ds.ds_config.raw_format) 
+        video_ds = self.get_datastream(format=self.raw_format)
         assert video_ds is not None 
         self.video_ds: Datastream = video_ds
         assert f"FILENAME.{self.video_ds.ds_config.raw_format}" in self.rpicam_cmd, (

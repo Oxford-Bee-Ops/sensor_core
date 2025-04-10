@@ -33,20 +33,39 @@ class SensorCore:
         if test_mode:
             root_cfg.TEST_MODE = True
 
+    def test_configuration(self, fleet_config_py: Inventory) -> tuple[bool, list[str]]:
+        """ Validates that the configuration in fleet_config_py is valid.
+        """
+        is_valid = False
+        errors: list[str] = []
+
+        if fleet_config_py is None:
+            return (False, ["No configuration files provided."])
+        
+        # The fleet_config_py is a python file passed in as a class reference
+        # Evaluate the class reference before we save it
+        try:
+            fleet_config = root_cfg.load_inventory(fleet_config_py)
+            is_valid, errors = config_validator.validate(fleet_config)
+        except Exception as e:
+            errors = [str(e)]
+
+        return (is_valid, errors)                
+
+
     def configure(self, fleet_config_py: Inventory, force_update: bool = False) -> None:
         """
-        Set the file location of the SensorCore configuration.
-        This file will be accessed immediately and when SensorCore restarts.
+        Set the SensorCore configuration.
         See the /examples folder for configuration file templates.
 
         Parameters:
-        - fleet_config_py: Path to the fleet configuration which is a python file
+        - fleet_config_py: Inventory class that implements get_invemtory()
         - force_update: If True, the configuration will be reloaded and the device rebooted
             even if SensorCore is already running.
 
         Raises:
         - Exception: If the sensor core is running (and force_update is not set).
-        - Exception: If no configuration files are provided or the files do not exist.
+        - Exception: If no configuration exists.
         """
         if not force_update and self._is_running():
             raise Exception("SensorCore is running; either stop SensorCore or use force_update.")

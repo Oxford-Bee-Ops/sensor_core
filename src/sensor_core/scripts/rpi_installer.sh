@@ -199,7 +199,7 @@ create_venv() {
 install_sensor_core() {
     # Install SensorCore from GitHub
     echo "Installing SensorCore..."
-    pip install --force-reinstall git+https://github.com/oxford-bee-ops/sensor_core.git@main || { echo "Failed to install SensorCore"; exit 1; }
+    pip install git+https://github.com/oxford-bee-ops/sensor_core.git@main || { echo "Failed to install SensorCore"; exit 1; }
     echo "SensorCore installed successfully."
 }
 
@@ -246,7 +246,7 @@ install_user_code() {
     ###############################################
     # [Re-]install the latest version of the user's code in the virtual environment
     echo "Reinstalling user code..."
-    pip install --force-reinstall "git+ssh://git@$my_git_repo_url@$my_git_branch" || { echo "Failed to install $my_git_repo_url@$my_git_branch"; exit 1; }    
+    pip install "git+ssh://git@$my_git_repo_url@$my_git_branch" || { echo "Failed to install $my_git_repo_url@$my_git_branch"; exit 1; }    
     echo "User's code installed successfully."
 }
 

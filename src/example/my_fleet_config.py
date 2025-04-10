@@ -132,3 +132,10 @@ class MyInventory(Inventory):
     @staticmethod
     def get_inventory() -> list[DeviceCfg]:
         return INVENTORY
+
+    @staticmethod
+    def validate_my_config() -> None:
+        """Validate the configuration for this device."""
+        from sensor_core import SensorCore
+        SensorCore().configure(MyInventory.get_inventory())
+        
