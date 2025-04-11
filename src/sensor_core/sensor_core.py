@@ -361,7 +361,7 @@ class SensorCore:
         is_running = False
 
         if root_cfg.running_on_rpi:
-            is_running = utils.is_already_running("sensor_core")
+            is_running = utils.is_already_running(".sensor_core")
         elif root_cfg.running_on_windows:
             orchestrator = EdgeOrchestrator.get_instance()
             is_running = orchestrator.orchestrator_is_running
