@@ -153,7 +153,7 @@ class ArucoProcessorCfg(DataProcessorCfg):
 #############################################################################################################
 # Define the PRIMARY DatastreamCfg objects
 #############################################################################################################
-ARUCO_DS = DatastreamCfg(
+ARUCO_DATA_DS = DatastreamCfg(
     ds_type_id = ARUCO_DATA_DS_TYPE_ID,
     raw_format = "mp4",
     archived_format = "csv",
@@ -172,17 +172,7 @@ CONTINUOUS_VIDEO_DS = DatastreamCfg(
     cloud_container = "sensor-core-upload",
 )
 
-WHOCAM_MARKER_DS = DatastreamCfg(
-    ds_type_id=ARUCO_DATA_DS_TYPE_ID,
-    raw_format="mp4",
-    archived_format="csv",
-    archived_data_description="Video data from a WHO camera",
-    sample_probability=1.0,  # Sample all data
-    sample_container="sensor-core-upload",
-    edge_processors=[ArucoProcessorCfg()],
-)
-
-WHOCAM_MARKED_UP_VIDEO_DS = DatastreamCfg(
+ARUCO_MARKED_UP_VIDEO_DS = DatastreamCfg(
     ds_type_id=ARUCO_MARKED_UP_VIDEOS_DS_TYPE_ID,
     raw_format="mp4",
     archived_format="mp4",
