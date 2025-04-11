@@ -2,11 +2,11 @@ from pathlib import Path
 from typing import Optional
 
 import pandas as pd
-
-from example.my_config_object_defs import EXAMPLE_DF_DS_TYPE_ID, EXAMPLE_FILE_DS_TYPE_ID
 from sensor_core import DataProcessor, Datastream, DpContext
 from sensor_core import configuration as root_cfg
 from sensor_core.utils import file_naming, utils
+
+from example.my_config_object_defs import EXAMPLE_DF_DS_TYPE_ID, EXAMPLE_FILE_DS_TYPE_ID
 
 logger = utils.setup_logger("sensor_core")
 

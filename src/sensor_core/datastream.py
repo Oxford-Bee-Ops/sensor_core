@@ -7,6 +7,7 @@ from pathlib import Path
 from threading import Thread
 from time import sleep
 from typing import Callable, Optional
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import yaml
@@ -752,6 +753,16 @@ class Datastream(Thread):
                 raise ValueError("End_time must be a valid datetime object.")
             if start_time > end_time:
                 raise ValueError("Start_time must be before end_time.")
+            
+        # Check that the start_time and end_time are both timezone aware
+        if start_time.tzinfo is None:
+            logger.warning(f"{utils.RAISE_WARN}start_time must be timezone aware. "
+                           "Use api.utc_now() to get the current time.")
+            start_time = start_time.replace(tzinfo=ZoneInfo("UTC"))
+        if end_time is not None and end_time.tzinfo is None:
+            logger.warning(f"{utils.RAISE_WARN}end_time must be timezone aware. "
+                           "Use api.utc_now() to get the current time.")
+            end_time = end_time.replace(tzinfo=ZoneInfo("UTC"))
 
         # Check that the Datastream has been started
         if self.ds_start_time is None:

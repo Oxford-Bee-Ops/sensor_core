@@ -2,7 +2,6 @@ import datetime as dt
 from datetime import datetime
 
 import pytest
-
 from sensor_core import api
 from sensor_core import configuration as root_cfg
 from sensor_core.utils import utils

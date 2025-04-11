@@ -4,7 +4,6 @@ from time import sleep
 
 import pytest
 import yaml
-
 from example import my_fleet_config
 from example.my_config_object_defs import ExampleSensorCfg
 from sensor_core import api, edge_orchestrator

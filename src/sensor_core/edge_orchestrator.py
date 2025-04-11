@@ -3,12 +3,12 @@
 ####################################################################################################
 import sys
 import threading
+import traceback
 import zipfile
 from dataclasses import asdict
 from datetime import timedelta
 from time import sleep
 from typing import Optional
-import traceback
 
 from sensor_core import api, datastream
 from sensor_core import configuration as root_cfg

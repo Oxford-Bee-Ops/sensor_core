@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 
 import pytest
-
 from example.my_config_object_defs import ExampleSensorCfg
 from sensor_core import api
 from sensor_core import configuration as root_cfg

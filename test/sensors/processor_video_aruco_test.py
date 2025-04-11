@@ -2,7 +2,6 @@ import logging
 import sys
 
 import pytest
-
 from sensor_core.utils import utils
 
 logger = utils.setup_logger("rpi")

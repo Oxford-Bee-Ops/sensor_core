@@ -1,7 +1,6 @@
 from time import sleep
 
 import pytest
-
 from example import my_fleet_config
 from sensor_core import configuration as root_cfg
 from sensor_core.sensor_core import SensorCore

@@ -2,7 +2,6 @@ import os
 
 import pandas as pd
 import pytest
-
 from sensor_core import configuration as root_cfg
 from sensor_core.utils import utils
 from sensor_core.utils.journal import Journal
