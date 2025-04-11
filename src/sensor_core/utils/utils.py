@@ -17,6 +17,7 @@ from datetime import datetime
 from pathlib import Path
 from threading import Timer
 from typing import Any, Generator, Optional
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import psutil
@@ -139,7 +140,7 @@ def pause_recording() -> bool:
     return False
 
 
-last_space_check = dt.datetime(1970, 1, 1)
+last_space_check = dt.datetime(1970, 1, 1, tzinfo=ZoneInfo("UTC"))
 last_check_outcome = False
 
 
