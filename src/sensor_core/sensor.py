@@ -150,41 +150,41 @@ class Sensor(threading.Thread, ABC):
         # This made more difficult by the fact that the sensor_index is not explicitly available
         # in the Datastream but it is part of the ds_id
 
-        # If we have both ds_type_id and sensor_index, we can filter by ds_id
-        if ds_type_id is not None and sensor_index is not None:
-            ds_id = file_naming.create_ds_id(
-                    root_cfg.my_device_id, ds_type_id, sensor_index)
-            if ds_id in self._datastreams:
-                return self._datastreams[ds_id]
+        if ds_type_id is not None:
+            # If we have both ds_type_id and sensor_index, we can filter by ds_id
+            if sensor_index is not None:
+                ds_id = file_naming.create_ds_id(
+                        root_cfg.my_device_id, ds_type_id, sensor_index)
+                if ds_id in self._datastreams:
+                    return self._datastreams[ds_id]
+                else:
+                    return None
             else:
-                return None
-
-        # If we have ds_type_id but not sensor_index, we can filter by ds_type_id
-        elif ds_type_id is not None:
-            matching_datastreams: list[Datastream] = []
-            matching_datastreams = [
-                ds
-                for ds in self._datastreams.values()
-                if ds.ds_config.ds_type_id == ds_type_id
-            ]
-            # Now check raw_format
-            if format is not None:
+                # If we have ds_type_id but not sensor_index, we can filter by ds_type_id
+                matching_datastreams: list[Datastream] = []
                 matching_datastreams = [
                     ds
-                    for ds in matching_datastreams
-                    if ds.ds_config.raw_format == format
+                    for ds in self._datastreams.values()
+                    if ds.ds_config.ds_type_id == ds_type_id
                 ]
+                # Now check raw_format
+                if format is not None:
+                    matching_datastreams = [
+                        ds
+                        for ds in matching_datastreams
+                        if ds.ds_config.raw_format == format
+                    ]
 
-            if len(matching_datastreams) == 0:
-                return None
-            elif len(matching_datastreams) == 1:
-                return matching_datastreams[0]
-            else:
-                logger.error(
-                    f"{utils.RAISE_WARN()}get_datastream() found multiple Datastreams for ds_type_id="
-                    f"{ds_type_id}, sensor_index={sensor_index}, format={format}"
-                )
-                return None
+                if len(matching_datastreams) == 0:
+                    return None
+                elif len(matching_datastreams) == 1:
+                    return matching_datastreams[0]
+                else:
+                    logger.error(
+                        f"{utils.RAISE_WARN()}get_datastream() found multiple Datastreams for ds_type_id="
+                        f"{ds_type_id}, sensor_index={sensor_index}, format={format}"
+                    )
+                    return None
 
         # If we have the sensor_index but not ds_type_id, we have to walk the list to check sensor_index
         elif sensor_index is not None:
@@ -195,6 +195,23 @@ class Sensor(threading.Thread, ABC):
                     if (format is not None) and (ds.ds_config.raw_format != format):
                         continue
                     return ds
+                
+        elif format is not None:
+            # If we have format but not ds_type_id or sensor_index, we can filter by format
+            matching_datastreams = [
+                ds
+                for ds in self._datastreams.values()
+                if ds.ds_config.raw_format == format
+            ]
+            if len(matching_datastreams) == 0:
+                return None
+            elif len(matching_datastreams) == 1:
+                return matching_datastreams[0]
+            else:
+                logger.error(
+                    f"{utils.RAISE_WARN()}get_datastream() found multiple Datastreams for format={format}"
+                )
+                return None
 
         return None
 

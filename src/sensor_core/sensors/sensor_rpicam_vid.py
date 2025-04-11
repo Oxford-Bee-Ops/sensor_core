@@ -46,8 +46,7 @@ class RpicamSensor(Sensor):
             return
 
         # Get the Datastream objects for this sensor so we can log / save data to them
-        # We expect 0 or 1 video datastreams with raw_format="h264" or "mp4"
-        # We expect 0 or 1 still image datastreams with raw_format="jpg"
+        # We expect 1 video datastream with raw_format="h264" or "mp4"
         video_ds = self.get_datastream(format=self.raw_format)
         assert video_ds is not None, (
             f"Datastream with raw_format={self.raw_format} not found in {self.sds_config.datastream_cfgs}"

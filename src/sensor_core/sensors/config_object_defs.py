@@ -187,6 +187,6 @@ EXIT_CAM_DS = DatastreamCfg(
     archived_data_description="Exit cam data describing in/out events",
     cloud_container="sensor-core-journals",
     archived_fields=api.REQD_RECORD_ID_FIELDS + ["filename", "in", "out", "size"],
-    sample_probability=0.5,  # Reasonably often while training
+    sample_probability=str(0.5),  # Reasonably often while training
     sample_container="sensor-core-upload",
 )
