@@ -87,7 +87,7 @@ class RpicamSensor(Sensor):
                 self.video_ds.save_recording(filename, start_time=start_time, end_time=api.utc_now())
 
             except Exception as e:
-                logger.error(f"{utils.RAISE_WARN()}Error in RpicamSensor: {e}")
+                logger.error(f"{utils.RAISE_WARN()}Error in RpicamSensor: {e}", exc_info=True)
                 break
 
         logger.warning("Exiting RpicamSensor loop")

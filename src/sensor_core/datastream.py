@@ -751,8 +751,6 @@ class Datastream(Thread):
         if end_time is not None:
             if not isinstance(end_time, datetime):
                 raise ValueError("End_time must be a valid datetime object.")
-            if start_time > end_time:
-                raise ValueError("Start_time must be before end_time.")
             
         # Check that the start_time and end_time are both timezone aware
         if start_time.tzinfo is None:
@@ -763,6 +761,10 @@ class Datastream(Thread):
             logger.warning(f"{utils.RAISE_WARN}end_time must be timezone aware. "
                            "Use api.utc_now() to get the current time.")
             end_time = end_time.replace(tzinfo=ZoneInfo("UTC"))
+
+        if end_time is not None:
+            if start_time > end_time:
+                raise ValueError("Start_time must be before end_time.")
 
         # Check that the Datastream has been started
         if self.ds_start_time is None:
