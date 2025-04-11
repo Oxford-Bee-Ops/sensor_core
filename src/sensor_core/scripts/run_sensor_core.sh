@@ -1,14 +1,5 @@
 #!/bin/bash
 
-# Function to get the Git project name from the URL
-git_project_name() {
-    # Get the Git project name from the URL
-    local url="$1"
-    local project_name=$(basename "$url" .git)
-    echo "$project_name"
-}
-
-
 # Function to read system.cfg file and export the key-value pairs found
 export_system_cfg() {
     if [ ! -f "$HOME/.sensor_core/system.cfg" ]; then
@@ -27,15 +18,6 @@ export_system_cfg() {
             fi
         fi
     done < "$HOME/.sensor_core/system.cfg"
-
-    # Append the git project name to the my_code_dir variable
-    if [ -n "$my_git_repo_url" ]; then
-        my_code_dir="$my_code_dir/$(git_project_name "$my_git_repo_url")"
-    fi
-    # Append the git project name to the sensor_core_code_dir variable
-    if [ -n "$dua_git_url" ]; then
-        sensor_core_code_dir="$sensor_core_code_dir/$(git_project_name "$dua_git_url")"
-    fi
 }
 
 # Function to create a ramdisk mount
@@ -64,32 +46,19 @@ create_ramdisk_mount() {
 
 # Function to activate the virtual environment
 activate_venv() {
-    # Check if the virtual environment directory exists
-    if [ -d "$HOME/$venv_dir" ]; then
-        # Activate the virtual environment
-        source "$HOME/$venv_dir/bin/activate"
-    else
-        echo "Error: Virtual environment not found at $HOME/$venv_dir"
+    # Ensure venv_dir is exported from system.cfg
+    if [ -z "$venv_dir" ]; then
+        echo "Error: venv_dir is not set in system.cfg"
         exit 1
     fi
-}
-
-# Function to ensure the SensorCore code directory is in the Python path
-add_to_python_path() {
-    # Ensure $my_code_dir is defined
-    if [ -z "$my_code_dir" ]; then
-        echo "Error: my_code_dir is not defined in the configuration file"
+    source "$HOME/miniconda3/bin/activate" "$venv_dir"
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to activate virtual environment $venv_dir"
         exit 1
     fi
-
-    sensor_core_code_dir="$HOME/$my_code_dir"
-    if [[ ":$PYTHONPATH:" != *":$sensor_core_code_dir:"* ]]; then
-        export PYTHONPATH="$sensor_core_code_dir:$PYTHONPATH"
-        echo "Added $sensor_core_code_dir to PYTHONPATH"
-    else
-        echo "$sensor_core_code_dir is already in PYTHONPATH"
-    fi
+    echo "Activated virtual environment $venv_dir"
 }
+
 
 ###################################################################################################
 # Run SensorCore
@@ -101,8 +70,6 @@ echo "Starting SensorCore"
 export_system_cfg
 create_ramdisk_mount
 activate_venv
-#add_to_python_path
-echo "Starting SensorCore in $HOME/$my_code_dir"
-cd "$HOME/$my_code_dir"
-nohup python -m sensor_core.edge_orchestrator 2>&1 | /usr/bin/logger -t SENSOR_CORE &
+echo "Calling run_sensor_core in $HOME/miniconda3/envs/$venv_dir"
+python -m run_sensor_core 2>&1 | /usr/bin/logger -t SENSOR_CORE
 
