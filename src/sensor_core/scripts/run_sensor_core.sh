@@ -66,10 +66,9 @@ activate_venv() {
 # We run it in the users code directory so that their code is in the python path.
 # If an instance is already running, the edge_orchestrator.py will exit cleanly.
 ###################################################################################################
-echo "Starting SensorCore"
 export_system_cfg
 create_ramdisk_mount
 activate_venv
-echo "Calling run_sensor_core in $HOME/$venv_dir"
-python -m run_sensor_core 2>&1 | /usr/bin/logger -t SENSOR_CORE
+echo "Calling run_my_sensor in $HOME/$venv_dir"
+python -m run_my_sensor 2>&1 | /usr/bin/logger -t SENSOR_CORE
 
