@@ -160,7 +160,7 @@ create_venv() {
 # and we want to use the system package manager to install them.
 install_os_packages() {
     echo "Installing OS packages..."
-    sudo apt-get update || { echo "Failed to update package list"; exit 1; }
+    sudo apt update && sudo apt upgrade -y || { echo "Failed to update package list"; exit 1; }
     sudo apt-get install -y pip python3-scipy python3-pandas python3-opencv || { echo "Failed to install base packages"; exit 1; }
     sudo apt-get install -y libcamera-dev python3-picamera2 python3-smbus || { echo "Failed to install sensor packages"; exit 1; }
     echo "OS packages installed successfully."
