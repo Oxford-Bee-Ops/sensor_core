@@ -37,6 +37,9 @@ class RpicamSensor(Sensor):
         assert "FILENAME" in self.rpicam_cmd, (
             f"FILENAME placeholder missing in rpicam_cmd: {self.rpicam_cmd}"
         )
+        assert "FILENAME " in self.rpicam_cmd, (
+            f"FILENAME placeholder should be specified without any suffix rpicam_cmd: {self.rpicam_cmd}"
+        )
 
 
     def run(self):
@@ -52,10 +55,6 @@ class RpicamSensor(Sensor):
             f"Datastream with raw_format={self.raw_format} not found in {self.sds_config.datastream_cfgs}"
         ) 
         self.video_ds: Datastream = video_ds
-        assert f"FILENAME.{self.video_ds.ds_config.raw_format}" in self.rpicam_cmd, (
-            f"FILENAME suffix doesn't match datastream raw_format ({self.video_ds.ds_config.raw_format}) "
-            f"placeholder missing in rpicam_cmd: {self.rpicam_cmd}"
-        )
 
         # Main loop to record video and take still images
         while not self.stop_requested:
