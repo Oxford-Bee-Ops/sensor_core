@@ -51,9 +51,9 @@ activate_venv() {
         echo "Error: venv_dir is not set in system.cfg"
         exit 1
     fi
-    source "$HOME/miniconda3/bin/activate" "$venv_dir"
+    source "$HOME/$venv_dir/bin/activate" "$venv_dir"
     if [ $? -ne 0 ]; then
-        echo "Error: Failed to activate virtual environment $venv_dir"
+        echo "Error: Failed to activate virtual environment $HOME/$venv_dir"
         exit 1
     fi
     echo "Activated virtual environment $venv_dir"
@@ -70,6 +70,6 @@ echo "Starting SensorCore"
 export_system_cfg
 create_ramdisk_mount
 activate_venv
-echo "Calling run_sensor_core in $HOME/miniconda3/envs/$venv_dir"
+echo "Calling run_sensor_core in $HOME/$venv_dir"
 python -m run_sensor_core 2>&1 | /usr/bin/logger -t SENSOR_CORE
 

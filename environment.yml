@@ -12,6 +12,7 @@ dependencies:
   - psutil
   - pydantic-settings
   - pytest
+  - python3-picamera2
   - PyYAML
   - scikit-learn
   - scipy
@@ -21,3 +22,7 @@ dependencies:
     - gpiozero
     - systemd-python
     - opencv-python
+build:
+  script: |
+    echo "Using system site packages"
+    conda env config vars set PYTHONNOUSERSITE=False

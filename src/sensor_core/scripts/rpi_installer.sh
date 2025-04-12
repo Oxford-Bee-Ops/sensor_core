@@ -15,16 +15,15 @@
 #   if using a private repository
 #
 # This script will:
-# - install the UV package installer
 # - create a venv in $HOME/.sensor_core/venv if one doesn't already exist
 # - install the SensorCore code & dependencies in the venv
+# - start SensorCore if auto_start is set in the system.cfg file
+#
+# Starting SensorCore (either via this script, via code or via the CLI) will:
 # - make persistent changes to the RPi for long-running operations:
 #   - make the log storage volatile
 #   - set predictable network interface names
 #   - enable the I2C interface
-# - start SensorCore if auto_start is set in the system.cfg file
-#
-# Starting SensorCore (either via this script, via code or via the CLI) will:
 # - cause SensorCore to persist across reboots via crontab
 #   - invoking your custom code as defined in the fleet config.
 # - start DeviceManager, which will optionally manage (depending on the system.cfg file):
@@ -106,66 +105,25 @@ install_ssh_keys() {
         mkdir -p "$HOME/.ssh" || { echo "Failed to create ~/.ssh directory"; exit 1; }
     fi
 
-    # Copy the users private key file to the ~/.ssh directory
-    if [ -f "$HOME/.sensor_core/$my_git_ssh_private_key_file" ]; then
-        cp "$HOME/.sensor_core/$my_git_ssh_private_key_file" "$HOME/.ssh/" || { echo "Failed to copy $my_git_ssh_private_key_file to ~/.ssh"; exit 1; }
-        chmod 600 "$HOME/.ssh/$my_git_ssh_private_key_file" || { echo "Failed to set permissions for $my_git_ssh_private_key_file"; exit 1; }
+    # Only install keys if $my_git_ssh_private_key_file is set in the system.cfg file
+    if [ -z "$my_git_ssh_private_key_file" ]; then
+        echo "my_git_ssh_private_key_file is not set in system.cfg"
     else
-        echo "Error: Private key file $my_git_ssh_private_key_file does not exist in $HOME/.sensor_core"
-        exit 1
-    fi
-
-    # Set up known_hosts for GitHub if it doesn't already exist
-    if ! ssh-keygen -F github.com > /dev/null; then
-        ssh-keyscan github.com >> "$HOME/.ssh/known_hosts"
-    fi
-
-    echo "SSH keys installed successfully."
-}
-
-
-# Function to install UV package installer
-install_uv() {
-    source $HOME/.local/bin/env
-    if command -v uv >/dev/null 2>&1; then
-        echo "UV is already installed."
-        return
-    fi
-
-    echo "Installing UV package installer..."
-    curl -LsSf https://astral.sh/uv/install.sh | sh || { echo "Failed to install UV"; exit 1; }
-    source $HOME/.local/bin/env
-
-    # Verify that UV is installed
-    if ! command -v uv >/dev/null 2>&1; then
-        echo "Error: UV installation failed. 'uv' command not found."
-        exit 1
-    fi
-
-    echo "UV installed successfully."
-}
-
-# Function to install mini conda package manager
-install_conda() {
-    if [ -d "$HOME/miniconda3" ]; then
-        echo "Conda is already installed."
-        if ! command -v conda >/dev/null 2>&1; then
-            echo "Adding conda to PATH..."
-            echo 'export PATH="$HOME/miniconda3/bin:$PATH"' >> "$HOME/.bashrc"
-        fi
-    else
-        echo "Installing Conda..."
-        if ! command -v wget >/dev/null 2>&1; then
-            echo "Error: wget is not installed. Please install wget and re-run the script."
+        # Copy the users private key file to the ~/.ssh directory
+        if [ -f "$HOME/.sensor_core/$my_git_ssh_private_key_file" ]; then
+            cp "$HOME/.sensor_core/$my_git_ssh_private_key_file" "$HOME/.ssh/" || { echo "Failed to copy $my_git_ssh_private_key_file to ~/.ssh"; exit 1; }
+            chmod 600 "$HOME/.ssh/$my_git_ssh_private_key_file" || { echo "Failed to set permissions for $my_git_ssh_private_key_file"; exit 1; }
+        else
+            echo "Error: Private key file $my_git_ssh_private_key_file does not exist in $HOME/.sensor_core"
             exit 1
         fi
-        mkdir -p "$HOME/miniconda3"
-        wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh -O "$HOME/miniconda3/miniconda.sh"
-        bash "$HOME/miniconda3/miniconda.sh" -b -u -p "$HOME/miniconda3"
-        rm "$HOME/miniconda3/miniconda.sh"
-        source "$HOME/miniconda3/bin/activate"
-        conda init --all
-        echo "Conda installed successfully."
+
+        # Set up known_hosts for GitHub if it doesn't already exist
+        if ! ssh-keygen -F github.com > /dev/null; then
+            ssh-keyscan github.com >> "$HOME/.ssh/known_hosts"
+        fi
+
+        echo "SSH keys installed successfully."
     fi
 }
 
@@ -176,29 +134,43 @@ create_venv() {
         echo "Error: venv_dir is not set in system.cfg"
         exit 1
     fi
-    if [ ! -f "$HOME/.sensor_core/environment.yml" ]; then
-        echo "Error: environment.yml file is missing from $HOME/.sensor_core"
+
+    # Check if the venv directory already exists
+    if [ -d "$HOME/$venv_dir" ]; then
+        echo "Virtual environment already exists at $HOME/$venv_dir"
+    else
+        # Create the virtual environment
+        echo "Creating virtual environment at $venv_dir..."
+        python3 -m venv "$HOME/$venv_dir" --system-site-packages || { echo "Failed to create virtual environment"; exit 1; }
+        echo "Virtual environment created successfully."
+    fi
+
+    # Ensure the virtual environment exists before activating
+    if [ ! -f "$HOME/$venv_dir/bin/activate" ]; then
+        echo "Error: Virtual environment activation script not found"
         exit 1
     fi
 
-    # Ensure Conda is initialized
-    source "$HOME/miniconda3/bin/activate" || { echo "Error: Failed to source Conda activation script"; exit 1; }
-
-    # Check if the venv is already listed in conda environments
-    if conda env list | grep -q "$venv_dir"; then
-        echo "Virtual environment $venv_dir already exists in the conda env list."
-    else
-        echo "Creating conda env $venv_dir"
-        conda env create -f "$HOME/.sensor_core/environment.yml" || { echo "Failed to create virtual environment"; exit 1; }
-    fi
     echo "Activating virtual environment..."
-    source "$HOME/miniconda3/bin/activate" "$venv_dir"
+    source "$HOME/$venv_dir/bin/activate" || { echo "Failed to activate virtual environment"; exit 1; }
+}
+
+# Function to install OS packages using apt-get
+# We use this rather than conda or uv because we want packages that are optimised for RPi
+# and we want to use the system package manager to install them.
+install_os_packages() {
+    echo "Installing OS packages..."
+    sudo apt-get update || { echo "Failed to update package list"; exit 1; }
+    sudo apt-get install -y pip python3-scipy python3-pandas python3-opencv || { echo "Failed to install base packages"; exit 1; }
+    sudo apt-get install -y libcamera-dev python3-picamera2 python3-smbus || { echo "Failed to install sensor packages"; exit 1; }
+    echo "OS packages installed successfully."
 }
 
 # Function to install SensorCore 
 install_sensor_core() {
     # Install SensorCore from GitHub
     echo "Installing SensorCore..."
+    source "$HOME/$venv_dir/bin/activate" || { echo "Failed to activate virtual environment"; exit 1; }
     pip install git+https://github.com/oxford-bee-ops/sensor_core.git@main || { echo "Failed to install SensorCore"; exit 1; }
     echo "SensorCore installed successfully."
 }
@@ -246,6 +218,7 @@ install_user_code() {
     ###############################################
     # [Re-]install the latest version of the user's code in the virtual environment
     echo "Reinstalling user code..."
+    source "$HOME/$venv_dir/bin/activate" || { echo "Failed to activate virtual environment"; exit 1; }
     pip install "git+ssh://git@$my_git_repo_url@$my_git_branch" || { echo "Failed to install $my_git_repo_url@$my_git_branch"; exit 1; }    
     echo "User's code installed successfully."
 }
@@ -287,8 +260,12 @@ auto_start_if_required() {
         echo "Error: auto_start is not set in system.cfg"
     elif [ "$auto_start" == "Yes" ]; then
         echo "Starting SensorCore..."
-        # Start SensorCore by calling the run_sensor_core.sh
-        # The location of the script is defined in the system.cfg with key of 'sensor_core_code_dir'
+        # Verify sensor_core_code_dir is set
+        if [ -z "$sensor_core_code_dir" ]; then
+            echo "Error: sensor_core_code_dir is not set in system.cfg"
+            exit 1
+        fi
+        # Verify run_sensor_core.sh exists
         if [ ! -f "$HOME/$sensor_core_code_dir/scripts/run_sensor_core.sh" ]; then
             echo "Error: run_sensor_core.sh file is missing in $HOME/$sensor_core_code_dir/scripts"
             exit 1
@@ -314,9 +291,8 @@ echo "Starting RPi installer..."
 check_prerequisites
 export_system_cfg
 #install_ssh_keys
-#install_uv
-install_conda
 create_venv
+install_os_packages
 install_sensor_core
 install_user_code
 #install_ufw
