@@ -83,7 +83,7 @@ class Datastream(Thread):
         # This is a reference to the Sensor.save_sample() method.
         self.save_sample_callback = save_sample_callback
 
-        logger.info(f"Initialising DS {self}")
+        logger.debug(f"Initialising DS {self}")
 
         # Initialise the Thread after we've set the fields used by __hash__
         super().__init__()
@@ -139,7 +139,7 @@ class Datastream(Thread):
         # Record the number of datapoints recorded by this Datastream
         self._datastream_stats: list[DatastreamStats] = []
 
-        logger.info(f"Completed initialisation of {self}")
+        logger.debug(f"Completed initialisation of {self}")
 
     #########################################################################################################
     #

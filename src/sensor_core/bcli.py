@@ -18,7 +18,8 @@ from sensor_core.utils.utils import disable_console_logging
 
 logger = utils.setup_logger("common")
 
-header = "########################################################\n\n"
+dash_line = "########################################################"
+header = dash_line + "\n\n"
 
 ###################################################################################################
 # Utility functions
@@ -107,7 +108,7 @@ def check_keys_env() -> bool:
         return True
     else:    
         # Help the user setup keys
-        click.echo("\n###############################################")
+        click.echo(f"{dash_line}")
         click.echo(f"# {error}")
         click.echo("# ")
         click.echo(f"# Create a file called {root_cfg.KEYS_FILE} in {root_cfg.CFG_DIR}.")
@@ -122,7 +123,7 @@ def check_keys_env() -> bool:
         click.echo("# ")
         click.echo("# Press any key to continue once you have done so")
         click.echo("# ")
-        click.echo("\n###############################################")
+        click.echo(f"{dash_line}")
         return False
 
 
@@ -202,10 +203,10 @@ def display_errors() -> None:
         return
     since_time = api.utc_now() - timedelta(hours=4)
     click.echo("\n")
-    click.echo("#################################################")
+    click.echo(f"{dash_line}")
     click.echo("# ERROR LOGS")
     click.echo("# Displaying error logs from the last 4 hours")
-    click.echo("#################################################\n")
+    click.echo(f"{dash_line}")
     logs = device_health.get_logs(since=since_time, min_priority=4)
     display_logs(logs)
 
@@ -216,10 +217,10 @@ def display_sensor_core_logs() -> None:
         click.echo("This command only works on Linux. Exiting...")
         return
     since_time = api.utc_now() - timedelta(minutes=15)
-    click.echo("#################################################")
+    click.echo(f"{dash_line}")
     click.echo("# SensorCore logs")
     click.echo("# Displaying sensor_core logs for the last 15 minutes")
-    click.echo("#################################################")
+    click.echo(f"{dash_line}")
     logs = device_health.get_logs(since=since_time, min_priority=6, grep_str="sensor_core")
     display_logs(logs)
 
@@ -229,10 +230,10 @@ def display_sensor_logs() -> None:
         click.echo("This command only works on Linux. Exiting...")
         return
     since_time = api.utc_now() - timedelta(minutes=30)
-    click.echo("#################################################")
+    click.echo(f"{dash_line}")
     click.echo("# SensorCore logs")
     click.echo("# Displaying sensor_core logs for the last 30 minutes")
-    click.echo("#################################################")
+    click.echo(f"{dash_line}")
     logs = device_health.get_logs(since=since_time, min_priority=6, grep_str=api.TELEM_TAG)
     display_logs(logs)
 
@@ -282,7 +283,7 @@ def start_sensor_core() -> None:
             click.echo("This command only works on Linux. Exiting...")
             return
         if root_cfg.SCRIPTS_DIR.exists():
-            run_cmd_live_echo(f"sudo -u $USER {root_cfg.SCRIPTS_DIR}/run_sensor_core.sh")
+            run_cmd(f"nohup sudo -u $USER {root_cfg.SCRIPTS_DIR}/run_sensor_core.sh &")
         else:
             click.echo(f"Error: scripts directory does not exist at {root_cfg.SCRIPTS_DIR}. "
                        f"Please check your installation.")
@@ -326,9 +327,9 @@ def set_hostname() -> None:
 
 def show_crontab_entries() -> None:
     """Display the crontab entries for the user."""
-    click.echo("########################################################")
-    click.echo("# CRONTAB ENTRIES                                     #")
-    click.echo("########################################################")
+    click.echo(f"{dash_line}")
+    click.echo("# CRONTAB ENTRIES")
+    click.echo(f"{dash_line}")
     if not root_cfg.running_on_rpi:
         click.echo("This command only works on a Raspberry Pi")
         return
@@ -336,7 +337,7 @@ def show_crontab_entries() -> None:
     cron = CronTab(user=utils.get_current_user())
     for job in cron:
         click.echo(job)
-    click.echo("\n########################################################")
+    click.echo(f"{dash_line}")
 
 
 ####################################################################################################
@@ -344,8 +345,8 @@ def show_crontab_entries() -> None:
 ####################################################################################################
 def display_sensors() -> None:
     """Display the list of configured sensors."""
-    click.echo("########################################################\n")
-    click.echo("Sensors & their primary datastreams configured:\n")
+    click.echo(f"{dash_line}")
+    click.echo("\nSensors & their primary datastreams configured:\n")
     for i, sensor_ds in enumerate(root_cfg.my_device.sensor_ds_list):
         click.echo(f"{i}> {sensor_ds.sensor_cfg.sensor_type}: {sensor_ds.sensor_cfg.sensor_index} "
                    f"- {sensor_ds.sensor_cfg.sensor_class_ref}")
@@ -423,14 +424,14 @@ def test_still() -> None:
 ####################################################################################################
 def run_network_test() -> None:
     """Run a network test and display the results."""
-    click.echo("########################################################")
-    click.echo("# NETWORK INFO                                         #")
-    click.echo("########################################################")
+    click.echo(f"{dash_line}")
+    click.echo("# NETWORK INFO")
+    click.echo(f"{dash_line}")
     if not root_cfg.running_on_rpi:
         click.echo("This command only works on a Raspberry Pi")
         return
     run_cmd_live_echo(f"sudo {root_cfg.SCRIPTS_DIR}/network_test.sh q")
-    click.echo("\n########################################################")
+    click.echo(f"{dash_line}")
 
 
 def self_test() -> None:
@@ -470,9 +471,9 @@ def interactive_menu() -> None:
     check_if_setup_required()
 
     # Display status
-    click.echo("########################################################")
+    click.echo(f"{dash_line}")
     click.echo(f"# SensorCore CLI on {root_cfg.my_device_id} {root_cfg.my_device.name}")
-    click.echo("########################################################")
+    click.echo(f"{dash_line}")
     view_status()
     while True:
         click.echo(f"{header}Main Menu:")

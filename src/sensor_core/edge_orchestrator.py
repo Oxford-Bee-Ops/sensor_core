@@ -67,7 +67,7 @@ class EdgeOrchestrator:
         return EdgeOrchestrator._instance
 
     def reset_orchestrator_state(self) -> None:
-        logger.info("Reset orchestrator state")
+        logger.debug("Reset orchestrator state")
         with EdgeOrchestrator.orchestrator_lock:
             self._sensorThreads: list[Sensor] = []
             self._datastreams: list[Datastream] = []
