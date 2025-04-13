@@ -18,6 +18,8 @@ from sensor_core.utils.utils import disable_console_logging
 
 logger = utils.setup_logger("common")
 
+header = "########################################################\n\n"
+
 ###################################################################################################
 # Utility functions
 ###################################################################################################
@@ -473,8 +475,7 @@ def interactive_menu() -> None:
     click.echo("########################################################")
     view_status()
     while True:
-        click.echo("########################################################")
-        click.echo("\nSensorCore Main Menu:")
+        click.echo(f"{header}Main Menu:")
         click.echo("1. View Config")
         click.echo("2. Sensor Commands")
         click.echo("3. Debugging Commands")
@@ -482,7 +483,7 @@ def interactive_menu() -> None:
         click.echo("5. Testing Commands")
         click.echo("6. Exit")
         try:
-            choice = click.prompt("Enter your choice", type=int)
+            choice = click.prompt("\nEnter your choice", type=int)
             click.echo("\n")
         except ValueError:
             click.echo("Invalid input. Please enter a number.")
@@ -508,14 +509,14 @@ def interactive_menu() -> None:
 def debug_menu() -> None:
     """Menu for debugging commands."""
     while True:
-        click.echo("\nDebugging Menu:")
+        click.echo(f"{header}Debugging Menu:")
         click.echo("1. Journalctl")
         click.echo("2. Display errors")
         click.echo("3. Display SensorCore Logs")
         click.echo("4. Display logs from sensors")
         click.echo("5. Back to Main Menu")
         try:
-            choice = click.prompt("Enter your choice", type=int)
+            choice = click.prompt("\nEnter your choice", type=int)
             click.echo("\n")
         except ValueError:
             click.echo("Invalid input. Please enter a number.")
@@ -538,7 +539,7 @@ def debug_menu() -> None:
 def maintenance_menu() -> None:
     """Menu for maintenance commands."""
     while True:
-        click.echo("\nMaintenance Menu:")
+        click.echo(f"{header}Maintenance Menu:")
         click.echo("1. Update Software")
         click.echo("2. Start SensorCore")
         click.echo("3. Stop SensorCore")
@@ -546,7 +547,7 @@ def maintenance_menu() -> None:
         click.echo("5. Show Crontab Entries")
         click.echo("6. Back to Main Menu")
         try:
-            choice = click.prompt("Enter your choice", type=int)
+            choice = click.prompt("\nEnter your choice", type=int)
             click.echo("\n")
         except ValueError:
             click.echo("Invalid input. Please enter a number.")
@@ -571,14 +572,14 @@ def maintenance_menu() -> None:
 def sensors_menu() -> None:
     """Menu for sensor commands."""
     while True:
-        click.echo("\nSensor Menu:")
+        click.echo(f"{header}Sensor Menu:")
         click.echo("1. Display Sensors")
         click.echo("2. Test Audio")
         click.echo("3. Test Video")
         click.echo("4. Test Still")
         click.echo("5. Back to Main Menu")
         try:
-            choice = click.prompt("Enter your choice", type=int)
+            choice = click.prompt("\nEnter your choice", type=int)
             click.echo("\n")
         except ValueError:
             click.echo("Invalid input. Please enter a number.")
@@ -601,12 +602,12 @@ def sensors_menu() -> None:
 def testing_menu() -> None:
     """Menu for testing commands."""
     while True:
-        click.echo("\nTesting Menu:")
+        click.echo(f"{header}Testing Menu:")
         click.echo("1. Run Network Test")
         click.echo("2. Self Test")
         click.echo("3. Back to Main Menu")
         try:
-            choice = click.prompt("Enter your choice", type=int)
+            choice = click.prompt("\nEnter your choice", type=int)
             click.echo("\n")
         except ValueError:
             click.echo("Invalid input. Please enter a number.")
