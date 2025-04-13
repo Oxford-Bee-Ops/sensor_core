@@ -185,8 +185,8 @@ class Datastream(Thread):
         # These data points don't have a duration - that only applies to recordings.
         self._datastream_stats.append(DatastreamStats(api.utc_now(), 1))
 
-        # We also spam the data to the logger for easy debugging
-        logger.debug(api.TELEM_TAG + str(log_data))
+        # We also spam the data to the logger for easy debugging and display in the bcli
+        logger.info(api.TELEM_TAG + str(log_data))
 
     def save_data(self, sensor_data: pd.DataFrame) -> None:
         """Called by Sensors to save 1 or more 'rows' of Sensor-generated data.

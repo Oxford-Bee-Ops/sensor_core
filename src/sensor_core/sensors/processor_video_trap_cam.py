@@ -156,5 +156,6 @@ class ProcessorVideoTrapCam(DataProcessor):
                             logger.info(f"Discarding {(sample_last_movement_frame - sample_first_frame)}"
                                         f" frames of movement as noise")
                             temp_filename.unlink(missing_ok=True)
-
+                            
+        logger.info(f"Finished processing video: {video_path}")
         cap.release()

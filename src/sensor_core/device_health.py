@@ -15,7 +15,8 @@ from sensor_core.utils import utils
 if root_cfg.running_on_rpi:
     from systemd import journal  # type: ignore
     def get_logs(since: Optional[datetime] = None, 
-                 min_priority: Optional[int] = None) -> list[dict[str, Any]]:
+                 min_priority: Optional[int] = None,
+                 grep_str: Optional[str] = None) -> list[dict[str, Any]]:
         """
         Fetch logs from the system journal.
 
@@ -36,7 +37,8 @@ if root_cfg.running_on_rpi:
         # Iterate through the logs
         for entry in reader:
             priority = int(entry.get("PRIORITY", 0))
-            if min_priority is None or priority >= min_priority:
+            if ((min_priority is None or priority >= min_priority) and
+                (grep_str is None or grep_str in entry.get("MESSAGE", ""))):
                 log_entry = {
                     "time_logged": entry.get("__REALTIME_TIMESTAMP"),
                     "message": entry.get("MESSAGE", "No message"),

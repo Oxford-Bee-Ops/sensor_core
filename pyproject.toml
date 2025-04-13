@@ -13,7 +13,7 @@ where = ["src"]
 
 [project]
 name = "sensor-core"
-version = "0.1.18"
+version = "0.1.19"
 description = "Python module to support using Raspberry Pi for scientific data collection"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -76,4 +76,4 @@ fixable = ["ALL"]
 convention = "google"
 
 [project.scripts]
-bcli = "sensor_core.bcli:main"
+bcli = "sensor_core.scripts.bcli:main"

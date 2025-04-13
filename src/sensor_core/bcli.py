@@ -6,11 +6,12 @@ import subprocess
 import sys
 import threading
 import time
+from datetime import timedelta
 
 import click
 from crontab import CronTab
 
-from sensor_core import SensorCore
+from sensor_core import SensorCore, api, device_health
 from sensor_core import configuration as root_cfg
 from sensor_core.utils import utils
 from sensor_core.utils.utils import disable_console_logging
@@ -72,12 +73,23 @@ def run_cmd_live_echo(cmd: str) -> str:
                     break
     except Exception as e:
         return f"Error: {e}"
+    finally:
+        if process and process.poll() is None:
+            process.terminate()  # Ensure the process is terminated
+
     return "Command executed successfully."
 
 
 def check_if_setup_required() -> None:
     """Check if setup is required by verifying keys and Git repo."""
+    attempts = 0
+    max_attempts = 3
     while not check_keys_env():
+        attempts += 1
+        if attempts >= max_attempts:
+            click.echo("Setup not completed. Exiting...")
+            sys.exit(1)
+        click.echo("Press any key to retry setup...")
         click.getchar()
 
 
@@ -115,18 +127,6 @@ def check_keys_env() -> bool:
 ####################################################################################################
 # Main menu functions
 ####################################################################################################
-@click.group()
-def cli() -> None:
-    """
-    Main command line interface for the sensor core.
-    """
-    # Disable console logging during CLI execution
-    with disable_console_logging("sensor_core"):
-        # Check if we need to setup keys or git repo
-        check_if_setup_required()
-
-
-@click.command()
 def view_status() -> None:
     """View the current status of the device."""
     try:
@@ -136,29 +136,13 @@ def view_status() -> None:
         click.echo(f"Error in script start up: {e}")
 
 
-@click.command()
-def update_software() -> None:
-    """Update the software to the latest version."""
-    click.echo("Running update to get latest code...")
-    # First check if the /home/bee-ops/code/dua directory exists
-    # If it does, we run the update script from there
-    # Otherwise we run the update script from the /home/bee-ops/code directory
-    if root_cfg.SCRIPTS_DIR.exists():
-        run_cmd_live_echo(f"sudo -u $USER {root_cfg.SCRIPTS_DIR}/rpi_installer.sh")
-    else:
-        click.echo(f"Error: scripts directory does not exist at {root_cfg.SCRIPTS_DIR}. "
-                   f"Please check your installation.")
-        return
-
-
-@click.command()
 def view_sensor_core_config() -> None:
     """View the sensor core configuration."""
     # Check we have bloc storage access
     if not check_keys_env():
         return
-    
-    # This function allows the user to set the fully qualified class ref for the sensor core config   
+
+    # This function allows the user to set the fully qualified class ref for the sensor core config
     sc = SensorCore()
     click.echo(f"\n{sc.display_configuration()}")
 
@@ -166,7 +150,6 @@ def view_sensor_core_config() -> None:
 ####################################################################################################
 # Debug menu functions
 ####################################################################################################
-@click.command()
 def journalctl() -> None:
     """Continuously display journal logs in real time."""
     # Ask if the user wants to specify a grep filter
@@ -204,48 +187,74 @@ def journalctl() -> None:
     except KeyboardInterrupt:
         click.echo("\nExiting...")
 
+def display_logs(logs: list[dict]) -> None:
+    for log in logs:
+        if api.RAISE_WARN_TAG in log or log["priority"] <= 4:
+            # Nicely format the log by printing the timestamp and message
+            log["timestamp"] = api.utc_to_iso_str(log["timestamp"])
+            click.echo(f"{log['timestamp']} - {log['priority']} - {log['message']}")
 
-@click.command()
-def parse_and_display_log(tag: str = "device_status") -> None:
-    """Parse and display logs based on a specific tag."""
-    # @@@ Update with python systemd
-    pass
-
-
-@click.command()
-def parse_and_display_log_env_measurement(sensor_tag: str, measure_tag: str) -> None:
-    """Parse and display environmental measurement logs."""
-    # @@@ Update with python systemd
-    pass
-
-
-@click.command()
-def check_telemetry_logs() -> None:
-    """Check and display telemetry logs."""
-    click.echo("Displaying the most recent instance of each sort of telemetry log...\n")
-    # @@@ Update with python systemd
-    pass
+def display_errors() -> None:
+    """Display error logs."""
+    if root_cfg.running_on_windows:
+        click.echo("This command only works on Linux. Exiting...")
+        return
+    since_time = api.utc_now() - timedelta(hours=4)
+    click.echo("#################################################")
+    click.echo("# ERROR LOGS")
+    click.echo("# Displaying error logs from the last 4 hours")
+    click.echo("#################################################")
+    logs = device_health.get_logs(since=since_time, min_priority=5)
+    display_logs(logs)
 
 
-@click.command()
-def display_env_telemetry_logs() -> None:
-    """Display the most recent environmental telemetry logs."""
-    click.echo("Displaying the most recent instance of each sort of env measurement log...\n")
-    # @@@ Update with python systemd
-    pass
+def display_sensor_core_logs() -> None:
+    """Display regular sensor_core logs."""
+    if root_cfg.running_on_windows:
+        click.echo("This command only works on Linux. Exiting...")
+        return
+    since_time = api.utc_now() - timedelta(minutes=15)
+    click.echo("#################################################")
+    click.echo("# SensorCore logs")
+    click.echo("# Displaying sensor_core logs for the last 15 minutes")
+    click.echo("#################################################")
+    logs = device_health.get_logs(since=since_time, min_priority=6, grep_str="sensor_core")
+    display_logs(logs)
 
 
-@click.command()
-def journalctl_errors() -> None:
-    """Display journalctl errors from the last 4 hours."""
-    # @@@ Update with python systemd
-    pass
+def display_sensor_logs() -> None:
+    if root_cfg.running_on_windows:
+        click.echo("This command only works on Linux. Exiting...")
+        return
+    since_time = api.utc_now() - timedelta(minutes=30)
+    click.echo("#################################################")
+    click.echo("# SensorCore logs")
+    click.echo("# Displaying sensor_core logs for the last 30 minutes")
+    click.echo("#################################################")
+    logs = device_health.get_logs(since=since_time, min_priority=6, grep_str=api.TELEM_TAG)
+    display_logs(logs)
 
 
 ####################################################################################################
 # Maintenance menu functions
 ####################################################################################################
-@click.command()
+def update_software() -> None:
+    """Update the software to the latest version."""
+    click.echo("Running update to get latest code...")
+    if root_cfg.running_on_windows:
+        click.echo("This command only works on Linux. Exiting...")
+        return
+    # First check if the /home/bee-ops/code/dua directory exists
+    # If it does, we run the update script from there
+    # Otherwise we run the update script from the /home/bee-ops/code directory
+    if root_cfg.SCRIPTS_DIR.exists():
+        run_cmd_live_echo(f"sudo -u $USER {root_cfg.SCRIPTS_DIR}/rpi_installer.sh")
+    else:
+        click.echo(f"Error: scripts directory does not exist at {root_cfg.SCRIPTS_DIR}. "
+                   f"Please check your installation.")
+        return
+
+
 def set_hostname() -> None:
     """Set the hostname of the Raspberry Pi."""
     click.echo("Enter the new hostname:")
@@ -255,6 +264,9 @@ def set_hostname() -> None:
     click.echo("  n: no")
     char = click.getchar()
     click.echo(char)
+    if not root_cfg.running_on_rpi:
+        click.echo("This command only works on a Raspberry Pi")
+        return
     if char == "y":
         click.echo("Setting hostname... (ignore temporary error message)")
         run_cmd_live_echo("sudo hostnamectl set-hostname " + new_hostname)
@@ -268,20 +280,38 @@ def set_hostname() -> None:
         click.echo("Exiting...")
 
 
+def show_crontab_entries() -> None:
+    """Display the crontab entries for the user."""
+    click.echo("########################################################")
+    click.echo("# CRONTAB ENTRIES                                     #")
+    click.echo("########################################################")
+    if not root_cfg.running_on_rpi:
+        click.echo("This command only works on a Raspberry Pi")
+        return
+    # Get the crontab entries for the user 'bee-ops'
+    cron = CronTab(user=utils.get_current_user())
+    for job in cron:
+        click.echo(job)
+    click.echo("\n########################################################")
+
+
 ####################################################################################################
 # Sensor menu functions
 ####################################################################################################
-@click.command()
 def display_sensors() -> None:
     """Display the list of configured sensors."""
     click.echo("########################################################\n")
-    click.echo("Sensors configured:")
-    click.echo("   ")
-    click.echo("USB devices discovered:")
+    click.echo("Sensors & their primary datastreams configured:\n")
+    for i, sensor_ds in enumerate(root_cfg.my_device.sensor_ds_list):
+        click.echo(f"{i}> {sensor_ds.sensor_cfg.sensor_type}: {sensor_ds.sensor_cfg.sensor_index} "
+                   f"- {sensor_ds.sensor_cfg.sensor_class_ref}")
+        for ds in sensor_ds.datastream_cfgs:
+            click.echo(f"  {ds.ds_type_id}: - {ds.archived_data_description}")
+    click.echo("\nUSB devices discovered:")
     click.echo(run_cmd("lsusb") + "\n")
     click.echo("Associated sounds cards:")
-    click.echo(run_cmd("find /sys/devices/ -name id | grep usb | grep sound") + "\n")
-    click.echo("Camera:")
+    click.echo(run_cmd("find /sys/devices/ -name id | grep usb | grep sound"))
+    click.echo("\nCamera:")
     camera_info = run_cmd("libcamera-hello --list-cameras")
     if camera_info == "":
         click.echo("No camera found.\n")
@@ -289,20 +319,19 @@ def display_sensors() -> None:
         click.echo(camera_info + "\n")
 
 
-@click.command()
 def test_audio() -> None:
     """Test the audio sensor using the 'arecord' command."""
     pass
 
 
-@click.command()
 def test_video() -> None:
     """Test the camera function by recording a video."""
-    num_configured = root_cfg.my_device.camera_installed
-    if num_configured == 0:
-        click.echo("No camera configured.")
+    # Parse the output of libcamera-hello --list-cameras to get the camera names
+    # and to see how many cameras are configured
+    camera_info = run_cmd("libcamera-hello --list-cameras")
+    if camera_info == "":
+        click.echo("No camera found.\n")
         return
-
     click.echo("This test uses the configuration defined for your device_type and with the current settings.")
     click.echo("\nWhat duration of video do you want to capture? (in seconds)")
     try:
@@ -323,12 +352,11 @@ def test_video() -> None:
         click.echo("You also need to wait up to 180s after setting pause recording or manual mode.")
 
 
-@click.command()
 def test_still() -> None:
     """Test the camera function by capturing a still image."""
-    num_configured = root_cfg.my_device.camera_installed
-    if num_configured == 0:
-        click.echo("No camera configured.")
+    camera_info = run_cmd("libcamera-hello --list-cameras")
+    if camera_info == "":
+        click.echo("No camera found.\n")
         return
 
     click.echo("This test uses the configuration defined for your device_type and with the current settings.")
@@ -349,30 +377,18 @@ def test_still() -> None:
 ####################################################################################################
 # Testing menu functions
 ####################################################################################################
-@click.command()
 def run_network_test() -> None:
     """Run a network test and display the results."""
     click.echo("########################################################")
     click.echo("# NETWORK INFO                                         #")
     click.echo("########################################################")
+    if not root_cfg.running_on_rpi:
+        click.echo("This command only works on a Raspberry Pi")
+        return
     run_cmd_live_echo(f"sudo {root_cfg.SCRIPTS_DIR}/network_test.sh q")
     click.echo("\n########################################################")
 
 
-@click.command()
-def show_crontab_entries() -> None:
-    """Display the crontab entries for the user."""
-    click.echo("########################################################")
-    click.echo("# CRONTAB ENTRIES                                     #")
-    click.echo("########################################################")
-    # Get the crontab entries for the user 'bee-ops'
-    cron = CronTab(user=utils.get_current_user())
-    for job in cron:
-        click.echo(job)
-    click.echo("\n########################################################")
-
-
-@click.command()
 def self_test() -> None:
     """Run a self-test on the system."""
     # First ask if they want quick or full test
@@ -395,15 +411,6 @@ def self_test() -> None:
                 "python -m pytest -s /home/bee-ops/code/bee_ops_code/common "
                 "/home/bee-ops/code/bee_ops_code/rpi_sensor/"
             )
-
-        # Check that the journal is volatile. Check for the line "Storage=volatile".  Mustn't start with #.
-        journald_conf = run_cmd("cat /etc/systemd/journald.conf | grep '#Storage='")
-        if journald_conf != "":
-            click.echo("ERROR: Journal is not volatile. Check /etc/systemd/journald.conf.")
-        journald_conf = run_cmd("cat /etc/systemd/journald.conf | grep 'Storage=volatile'")
-        if journald_conf == "":
-            click.echo("ERROR: Journal is not volatile. Check /etc/systemd/journald.conf.")
-
     except Exception as e:
         click.echo(f"ERROR: {e}")
 
@@ -411,7 +418,6 @@ def self_test() -> None:
 ####################################################################################################
 # Interactive menu functions
 ####################################################################################################
-@click.command()
 def interactive_menu() -> None:
     """Interactive menu for navigating commands."""
     click.clear()
@@ -433,7 +439,11 @@ def interactive_menu() -> None:
         click.echo("4. Maintenance Commands")
         click.echo("5. Testing Commands")
         click.echo("6. Exit")
-        choice = click.prompt("Enter your choice", type=int)
+        try:
+            choice = click.prompt("Enter your choice", type=int)
+        except ValueError:
+            click.echo("Invalid input. Please enter a number.")
+            continue
 
         if choice == 1:
             view_sensor_core_config()
@@ -457,27 +467,25 @@ def debug_menu() -> None:
     while True:
         click.echo("\nDebugging Menu:")
         click.echo("1. Journalctl")
-        click.echo("2. Parse and Display Log")
-        click.echo("3. Parse and Display Log (Env Measurement)")
-        click.echo("4. Check Telemetry Logs")
-        click.echo("5. Display Env Telemetry Logs")
-        click.echo("6. Journalctl Errors")
-        click.echo("7. Back to Main Menu")
-        choice = click.prompt("Enter your choice", type=int)
+        click.echo("2. Display errors")
+        click.echo("3. Display SensorCore Logs")
+        click.echo("4. Display logs from sensors")
+        click.echo("5. Back to Main Menu")
+        try:
+            choice = click.prompt("Enter your choice", type=int)
+        except ValueError:
+            click.echo("Invalid input. Please enter a number.")
+            continue
 
         if choice == 1:
             journalctl()
         elif choice == 2:
-            parse_and_display_log()
+            display_errors()
         elif choice == 3:
-            parse_and_display_log_env_measurement()
+            display_sensor_core_logs()
         elif choice == 4:
-            check_telemetry_logs()
+            display_sensor_logs()
         elif choice == 5:
-            display_env_telemetry_logs()
-        elif choice == 6:
-            journalctl_errors()
-        elif choice == 7:
             break
         else:
             click.echo("Invalid choice. Please try again.")
@@ -491,7 +499,11 @@ def maintenance_menu() -> None:
         click.echo("2. Set Hostname")
         click.echo("3. Show Crontab Entries")
         click.echo("4. Back to Main Menu")
-        choice = click.prompt("Enter your choice", type=int)
+        try:
+            choice = click.prompt("Enter your choice", type=int)
+        except ValueError:
+            click.echo("Invalid input. Please enter a number.")
+            continue
 
         if choice == 1:
             update_software()
@@ -514,7 +526,11 @@ def sensors_menu() -> None:
         click.echo("3. Test Video")
         click.echo("4. Test Still")
         click.echo("5. Back to Main Menu")
-        choice = click.prompt("Enter your choice", type=int)
+        try:
+            choice = click.prompt("Enter your choice", type=int)
+        except ValueError:
+            click.echo("Invalid input. Please enter a number.")
+            continue
 
         if choice == 1:
             display_sensors()
@@ -537,7 +553,11 @@ def testing_menu() -> None:
         click.echo("1. Run Network Test")
         click.echo("2. Self Test")
         click.echo("3. Back to Main Menu")
-        choice = click.prompt("Enter your choice", type=int)
+        try:
+            choice = click.prompt("Enter your choice", type=int)
+        except ValueError:
+            click.echo("Invalid input. Please enter a number.")
+            continue
 
         if choice == 1:
             run_network_test()
@@ -548,67 +568,14 @@ def testing_menu() -> None:
         else:
             click.echo("Invalid choice. Please try again.")
 
-
-####################################################################################################
-# Define sub-groups for alternative CLI structure
-####################################################################################################
-@click.group()
-def debug() -> None:
-    """Debugging commands."""
-    pass
-
-
-@click.group()
-def maintenance() -> None:
-    """Maintenance commands."""
-    pass
-
-
-@click.group()
-def sensors() -> None:
-    """Sensor-related commands."""
-    pass
-
-
-@click.group()
-def testing() -> None:
-    """Testing commands."""
-    pass
-
-
-# Add commands to the debug group
-debug.add_command(journalctl)
-debug.add_command(parse_and_display_log)
-debug.add_command(parse_and_display_log_env_measurement)
-debug.add_command(check_telemetry_logs)
-debug.add_command(display_env_telemetry_logs)
-debug.add_command(journalctl_errors)
-
-# Add commands to the maintenance group
-maintenance.add_command(update_software)
-maintenance.add_command(set_hostname)
-maintenance.add_command(show_crontab_entries)
-
-# Add commands to the sensors group
-sensors.add_command(display_sensors)
-sensors.add_command(test_audio)
-sensors.add_command(test_video)
-sensors.add_command(test_still)
-
-# Add commands to the testing group
-testing.add_command(run_network_test)
-testing.add_command(self_test)
-
-# Add the command groups to the CLI
-cli.add_command(interactive_menu)
-cli.add_command(debug)
-cli.add_command(maintenance)
-cli.add_command(sensors)
-cli.add_command(testing)
-
-
+#################################################################################
+# Main function to run the CLI
 # Main just calls the interactive menu
-if __name__ == "__main__":
+#################################################################################
+def main():
     # Disable console logging during CLI execution
     with disable_console_logging("sensor_core"):
         interactive_menu()
+
+if __name__ == "__main__":
+    main()
