@@ -17,7 +17,7 @@ if root_cfg.running_on_rpi:
     def get_logs(since: Optional[datetime] = None, 
                  min_priority: Optional[int] = None,
                  grep_str: Optional[str] = None,
-                 max_logs: Optional[int] = 1000) -> list[dict[str, Any]]:
+                 max_logs: int = 1000) -> list[dict[str, Any]]:
         """
         Fetch logs from the system journal.
 
@@ -30,7 +30,7 @@ if root_cfg.running_on_rpi:
         Returns:
             list[dict[str, Any]]: A list of log entries.
         """
-        logs = []
+        logs:list[dict] = []
         try:
             reader = journal.Reader()
         except Exception as e:
@@ -52,8 +52,8 @@ if root_cfg.running_on_rpi:
             if ((min_priority is None or priority <= min_priority) and
                 (grep_str is None or grep_str in entry.get("MESSAGE", ""))):
                 log_entry = {
-                    "time_logged": (datetime.fromtimestamp(entry["__REALTIME_TIMESTAMP"] / 
-                                                           1_000_000, tz=timezone.utc).isoformat()),
+                    "time_logged": (datetime.fromtimestamp(entry["__REALTIME_TIMESTAMP"], 
+                                                           tz=timezone.utc).isoformat()),
                     "message": entry.get("MESSAGE", "No message"),
                     "process_id": entry.get("_PID"),
                     "process_name": entry.get("_COMM"),

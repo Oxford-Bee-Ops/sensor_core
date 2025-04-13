@@ -1,6 +1,8 @@
 import os
+
 from setuptools import setup
 from setuptools.command.install import install
+
 
 class PostInstallCommand(install):
     """Post-installation for setting executable permissions on scripts."""
