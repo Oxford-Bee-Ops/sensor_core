@@ -289,6 +289,7 @@ auto_start_if_required() {
 ###################################################################################################
 echo "Starting RPi installer..."
 check_prerequisites
+cd "$HOME/.sensor_core" || { echo "Failed to change directory to $HOME/.sensor_core"; exit 1; }
 export_system_cfg
 #install_ssh_keys
 create_venv
