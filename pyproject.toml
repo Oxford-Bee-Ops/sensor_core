@@ -2,12 +2,9 @@
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools.packages.find]
-where = ["src"]
-
 [project]
 name = "sensor-core"
-version = "0.1.23"
+version = "0.1.24"
 description = "Python module to support using Raspberry Pi for scientific data collection"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -49,6 +46,21 @@ dev = [
     "sensor-core[test,lint]",
 ]
 
+[project.scripts]
+bcli = "sensor_core.bcli:main"
+
+# This defines where to look for the python files
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# These two statements ensure the shell scripts get installed
+[tool.setuptools.package-data]
+"sensor_core" = ["scripts/*"]
+
+[tool.setuptools.data-files]
+"scripts" = ["scripts/*"]
+
+# Configuration for ruff
 [tool.ruff]
 line-length = 110
 indent-width = 4
@@ -69,6 +81,3 @@ fixable = ["ALL"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
-
-[project.scripts]
-bcli = "sensor_core.bcli:main"
