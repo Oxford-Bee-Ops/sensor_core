@@ -87,7 +87,7 @@ elif running_on_rpi:
     # Check we're not running in the root context
     assert Path.cwd() != Path("/"), f"Running in root context: {Path.cwd()}"
     HOME_DIR = Path.home()
-    CODE_DIR = Path(__file__).parent.parent.parent.parent
+    CODE_DIR = Path(__file__).parent.parent
     SC_CODE_DIR = CODE_DIR / "sensor_core"
     CFG_DIR = HOME_DIR / ".sensor_core"  # In the base user directory on the RPi
     ROOT_WORKING_DIR = Path("/sensor_core")  # We always create a /sensor_core directory on the RPi
