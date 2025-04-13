@@ -46,14 +46,14 @@ if root_cfg.running_on_rpi:
 
         # Iterate through the logs
         for i, entry in enumerate(reader):
-            if i >= max_logs:
-                break
             priority = int(entry.get("PRIORITY", 0))
             if ((min_priority is None or priority <= min_priority) and
                 (grep_str is None or grep_str in entry.get("MESSAGE", ""))):
+                if i >= max_logs:
+                    break
+                time_logged: datetime = entry.get("__REALTIME_TIMESTAMP")
                 log_entry = {
-                    "time_logged": (datetime.fromtimestamp(entry["__REALTIME_TIMESTAMP"], 
-                                                           tz=timezone.utc).isoformat()),
+                    "time_logged": time_logged,
                     "message": entry.get("MESSAGE", "No message"),
                     "process_id": entry.get("_PID"),
                     "process_name": entry.get("_COMM"),

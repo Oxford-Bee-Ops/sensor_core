@@ -189,10 +189,9 @@ def journalctl() -> None:
 
 def display_logs(logs: list[dict]) -> None:
     for log in logs:
-        if api.RAISE_WARN_TAG in log or log["priority"] <= 4:
-            # Nicely format the log by printing the timestamp and message
-            log["timestamp"] = api.utc_to_iso_str(log["timestamp"])
-            click.echo(f"{log['timestamp']} - {log['priority']} - {log['message']}")
+        # Nicely format the log by printing the timestamp and message
+        log["timestamp"] = api.utc_to_iso_str(log["time_logged"])
+        click.echo(f"{log['timestamp']} - {log['priority']} - {log['message']}")
 
 def display_errors() -> None:
     """Display error logs."""
@@ -200,10 +199,11 @@ def display_errors() -> None:
         click.echo("This command only works on Linux. Exiting...")
         return
     since_time = api.utc_now() - timedelta(hours=4)
+    click.echo("\n")
     click.echo("#################################################")
     click.echo("# ERROR LOGS")
     click.echo("# Displaying error logs from the last 4 hours")
-    click.echo("#################################################")
+    click.echo("#################################################\n")
     logs = device_health.get_logs(since=since_time, min_priority=5)
     display_logs(logs)
 
