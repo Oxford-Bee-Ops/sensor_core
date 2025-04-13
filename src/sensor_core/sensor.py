@@ -123,10 +123,15 @@ class Sensor(threading.Thread, ABC):
             return {
                 ds_type_idx: ds
                 for ds_type_idx, ds in self._datastreams.items()
-                if ds.ds_config.ds_type_id == ds_type_id
+                if ((ds.ds_config.ds_type_id == ds_type_id) and 
+                    (ds.ds_config.primary_ds))
             }
         else:
-            return self._datastreams
+            return {
+                ds_type_idx: ds
+                for ds_type_idx, ds in self._datastreams.items()
+                if (ds.ds_config.primary_ds)
+            }
 
     # We expect the Sensor subclass to call this from the run() method
     def get_datastream(self, 
@@ -147,8 +152,7 @@ class Sensor(threading.Thread, ABC):
             The format of the Datastream to return.
         """
         # Filter by each non-None parameter in turn
-        # This made more difficult by the fact that the sensor_index is not explicitly available
-        # in the Datastream but it is part of the ds_id
+        matching_datastreams: list[Datastream] = []
 
         if ds_type_id is not None:
             # If we have both ds_type_id and sensor_index, we can filter by ds_id
@@ -156,35 +160,14 @@ class Sensor(threading.Thread, ABC):
                 ds_id = file_naming.create_ds_id(
                         root_cfg.my_device_id, ds_type_id, sensor_index)
                 if ds_id in self._datastreams:
-                    return self._datastreams[ds_id]
-                else:
-                    return None
+                    matching_datastreams = [self._datastreams[ds_id]]
             else:
                 # If we have ds_type_id but not sensor_index, we can filter by ds_type_id
-                matching_datastreams: list[Datastream] = []
                 matching_datastreams = [
                     ds
                     for ds in self._datastreams.values()
                     if ds.ds_config.ds_type_id == ds_type_id
                 ]
-                # Now check raw_format
-                if format is not None:
-                    matching_datastreams = [
-                        ds
-                        for ds in matching_datastreams
-                        if ds.ds_config.raw_format == format
-                    ]
-
-                if len(matching_datastreams) == 0:
-                    return None
-                elif len(matching_datastreams) == 1:
-                    return matching_datastreams[0]
-                else:
-                    logger.error(
-                        f"{utils.RAISE_WARN()}get_datastream() found multiple Datastreams for ds_type_id="
-                        f"{ds_type_id}, sensor_index={sensor_index}, format={format}"
-                    )
-                    return None
 
         # If we have the sensor_index but not ds_type_id, we have to walk the list to check sensor_index
         elif sensor_index is not None:
@@ -192,28 +175,29 @@ class Sensor(threading.Thread, ABC):
                 would_be_ds_id = file_naming.create_ds_id(
                     root_cfg.my_device_id, ds.ds_config.ds_type_id, sensor_index)
                 if ds_id == would_be_ds_id:
-                    if (format is not None) and (ds.ds_config.raw_format != format):
-                        continue
-                    return ds
-                
-        elif format is not None:
+                    matching_datastreams = [ds]
+
+        else: 
+            matching_datastreams = list(self._datastreams.values())
+
+        # Now filter by format & exclude derived datastreams
+        if format is not None:
             # If we have format but not ds_type_id or sensor_index, we can filter by format
             matching_datastreams = [
                 ds
                 for ds in self._datastreams.values()
-                if ds.ds_config.raw_format == format
+                if ((ds.ds_config.raw_format == format) and (ds.ds_config.primary_ds))
             ]
-            if len(matching_datastreams) == 0:
-                return None
-            elif len(matching_datastreams) == 1:
-                return matching_datastreams[0]
-            else:
-                logger.error(
-                    f"{utils.RAISE_WARN()}get_datastream() found multiple Datastreams for format={format}"
-                )
-                return None
 
-        return None
+        if len(matching_datastreams) == 0:
+            return None
+        elif len(matching_datastreams) == 1:
+            return matching_datastreams[0]
+        else:
+            logger.error(
+                f"{utils.RAISE_WARN()}get_datastream() found multiple Datastreams for format={format}"
+            )
+            return None
 
     # All Sensor sub-classes must implement this method
     # Implementations should respect the stop_requested flag and terminate within a reasonable time (~3min)
@@ -223,7 +207,7 @@ class Sensor(threading.Thread, ABC):
         assert False, "Sub-classes must override this method"
 
     # This is typically used when a sensor sub-class calls save_recording()
-    def save_sample(self, ds_type_id: str) -> bool:
+    def save_sample(self, datastream: Datastream) -> bool:
         """Function to check whether this recording should be save as a sample.
         This is a default implementation that can be over-ridden if more complex function is required.
 
@@ -231,7 +215,7 @@ class Sensor(threading.Thread, ABC):
         returns True if the random number generated is less than the probability.
         """
         # Get the configuration for the Datastream
-        ds_config = self.sds_config.get_datastream_cfg(ds_type_id)
+        ds_config = datastream.ds_config
 
         # If there are no Edge DataProcessors, we don't need to save a sample because we're saving everything
         if not ds_config.edge_processors:
@@ -251,7 +235,7 @@ class Sensor(threading.Thread, ABC):
 
         if (sample_probability > 0) and (ds_config.sample_container is None):
             logger.error(
-                f"{utils.RAISE_WARN()}Datastream {ds_type_id} has sample_probability "
+                f"{utils.RAISE_WARN()}Datastream {ds_config.ds_type_id} has sample_probability "
                 f"but no sample_container defined"
             )
             return False

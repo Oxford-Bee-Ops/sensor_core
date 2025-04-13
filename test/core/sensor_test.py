@@ -21,7 +21,7 @@ class Test_Orchestrator:
     @pytest.mark.quick
     def test_SensorCore_status(self) -> None:
         sc = SensorCore()
-        sc.configure(my_fleet_config.MyInventory())
+        sc.configure(my_fleet_config.INVENTORY)
         message = sc.status()
         logger.info(message)
         assert message is not None
@@ -34,7 +34,7 @@ class Test_Orchestrator:
         root_cfg.update_my_device_id("d01111111111")
 
         sc = SensorCore()
-        sc.configure(my_fleet_config.MyInventory())
+        sc.configure(my_fleet_config.INVENTORY)
 
         orchestrator = EdgeOrchestrator.get_instance()
         orchestrator.load_sensors()

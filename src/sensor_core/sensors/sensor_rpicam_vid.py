@@ -5,8 +5,6 @@
 #
 ####################################################################################################
 
-import subprocess
-from datetime import datetime
 from time import sleep
 
 from sensor_core import Datastream, Sensor, SensorDsCfg, api
@@ -44,7 +42,7 @@ class RpicamSensor(Sensor):
 
     def run(self):
         """Main loop for the RpicamSensor - runs continuously unless paused."""
-        if not root_cfg.running_on_rpi:
+        if not root_cfg.running_on_rpi and not root_cfg.TEST_MODE:
             logger.warning("Video configuration is only supported on Raspberry Pi.")
             return
 
@@ -66,7 +64,7 @@ class RpicamSensor(Sensor):
                     continue
 
                 # Record video for the specified number of seconds
-                start_time = datetime.now()
+                start_time = api.utc_now()
 
                 # Get the filename for the video file
                 filename = file_naming.get_temporary_filename(
@@ -78,8 +76,7 @@ class RpicamSensor(Sensor):
                 logger.info(f"Recording video with command: {cmd}")
 
                 # Start the video recording process
-                process = subprocess.Popen(cmd, shell=True)
-                rc = process.wait()
+                rc = utils.run_cmd(cmd)
                 logger.info(f"Video recording completed with rc={rc}")
 
                 # Save the video file to the datastream

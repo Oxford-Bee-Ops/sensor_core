@@ -13,7 +13,7 @@ class Test_SensorFactory:
     @pytest.mark.quick
     def test_SensorCore_status(self) -> None:
         sc = SensorCore()
-        sc.configure(my_fleet_config.MyInventory())
+        sc.configure(my_fleet_config.INVENTORY)
         message = sc.status()
         logger.info(message)
         assert message is not None
@@ -26,7 +26,7 @@ class Test_SensorFactory:
         root_cfg.update_my_device_id("d01111111111")
 
         sc = SensorCore()
-        sc.configure(my_fleet_config.MyInventory())
+        sc.configure(my_fleet_config.INVENTORY)
         sc.start()
         sleep(2)
         sc.status()

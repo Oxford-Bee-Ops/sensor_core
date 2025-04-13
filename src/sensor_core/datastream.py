@@ -208,7 +208,8 @@ class Datastream(Thread):
         start_time: datetime,
         end_time: Optional[datetime] = None,
     ) -> Path:
-        """Called by a Sensor to save a raw recording file to the appropriate datastore.
+        """Called by a Sensor or DataProcessor to save a recording file to the appropriate datastore.
+        This should only be used by Sensors or **primary** datastreams.
 
         Note: save_recording() will *rename* (ie move) the supplied temporary_file.
         This method will manage storage and subsequent processing of the temporary_file
@@ -357,7 +358,7 @@ class Datastream(Thread):
         start_time: datetime
             The time that the recording started.
         end_time:datetime
-            Tthe time that the recording ended.
+            The time that the recording ended.
         offset_index: optional int
             Typically a frame number in the recording, if applicable.
         secondary_offset_index: optional int
@@ -480,7 +481,9 @@ class Datastream(Thread):
                         input_files = self._get_ds_files(dp)
                         if input_files is not None and len(input_files) > 0:
                             logger.debug(f"Invoking {dp} with {input_files}")
-                            output_df = dp.process_data(self, input_files, self._get_context(dp_config))
+                            output_df = dp.process_data(self,
+                                                            input_data=input_files, 
+                                                            context=self._get_context(dp_config))
                             # Clear up the files now they've been processed.
                             # Any files that were meant to be uploaded will have been moved directly
                             # to the upload directory.
@@ -764,7 +767,7 @@ class Datastream(Thread):
 
         if end_time is not None:
             if start_time > end_time:
-                raise ValueError("Start_time must be before end_time.")
+                raise ValueError(f"Start_time ({start_time}) must be before end_time ({end_time}).")
 
         # Check that the Datastream has been started
         if self.ds_start_time is None:
@@ -793,7 +796,7 @@ class Datastream(Thread):
                 new_fname = file_naming.increment_filename(new_fname)
             new_fname = src_file.rename(new_fname)
 
-        if (self.save_sample_callback is not None) and (self.save_sample_callback(self.ds_config.ds_type_id)):
+        if (self.save_sample_callback is not None) and (self.save_sample_callback(self)):
             # If True, the recording will be saved as a sample.
             # Generate a *copy* of the raw sample file because the original is in the Processing directory
             # and may soon by picked up by a DataProcessor.

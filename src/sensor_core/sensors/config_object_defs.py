@@ -11,6 +11,7 @@ ARUCO_DATA_DS_TYPE_ID = "ARUCO"
 ARUCO_MARKED_UP_VIDEOS_DS_TYPE_ID = "ARUCOMARKED"
 CONTINUOUS_VIDEO_DS_TYPE_ID = "RAWVIDEO"
 EXIT_CAM_DS_TYPE_ID = "EXITCAM"
+TRAP_CAM_DS_TYPE_ID = "TRAPCAM"
 
 #############################################################################################################
 # Define the SensorCfg objects
@@ -101,12 +102,23 @@ class AudioSensorCfg(SensorCfg):
 #############################################################################################################
 # Define the DERIVED DatastreamCfg objects
 #############################################################################################################
-@dataclass
-class WhocamMarkedUpVideosDsCfg(DatastreamCfg):
-    ds_type_id: str = ARUCO_MARKED_UP_VIDEOS_DS_TYPE_ID
-    raw_format: api.FILE_FORMATS = "mp4"
-    archived_format: api.FILE_FORMATS = "mp4"
-    archived_data_description: str = "Marked up videos from the WHOCAM."
+ARUCO_MARKED_UP_VIDEOS_DS = DatastreamCfg(
+    ds_type_id = ARUCO_MARKED_UP_VIDEOS_DS_TYPE_ID,
+    raw_format = "mp4",
+    archived_format = "mp4",
+    archived_data_description = "Videos with aruco tags identified.",
+    primary_ds = False  # This is a derived datastream
+)
+
+TRAP_CAM_DS = DatastreamCfg(
+    ds_type_id = "TRAPCAM",
+    raw_format = "mp4",
+    archived_format = "mp4",
+    archived_data_description = 
+        "A video datastream that only records when there is identified movement in the video.",
+    primary_ds = False,  # This is a derived datastream
+    cloud_container = "sensor-core-upload",
+)
 
 #############################################################################################################
 # Define the DataProcessorCfg objects
@@ -141,7 +153,7 @@ class ArucoProcessorCfg(DataProcessorCfg):
         default_factory=lambda: api.REQD_RECORD_ID_FIELDS + MARKER_INFO_REQD_COLUMNS
     )
     derived_datastreams: list[DatastreamCfg] = field(
-        default_factory=lambda: [WhocamMarkedUpVideosDsCfg()]
+        default_factory=lambda: [ARUCO_MARKED_UP_VIDEOS_DS]
     )
     ########################################################################
     # Custom fields
@@ -149,10 +161,35 @@ class ArucoProcessorCfg(DataProcessorCfg):
     aruco_dict_name: str = "DICT_4X4_50"
     save_marked_up_video: bool = True  # Save the marked up video
 
+@dataclass(frozen=True)
+class TrapCamProcessorCfg(DataProcessorCfg):
+    #######################################################################
+    # Standard DataProcessorCfg fields
+    #######################################################################
+    dp_class_ref: str = "sensor_core.sensors.processor_video_trap_cam.ProcessorVideoTrapCam"
+    dp_description: str = "Trap cam video processor"
+    input_format: api.FILE_FORMATS = "mp4"
+    output_format: api.FILE_FORMATS = "mp4"
+    derived_datastreams: list[DatastreamCfg] = field(
+        default_factory=lambda: [TRAP_CAM_DS]
+    )
+    ########################################################################
+    # Custom fields
+    ########################################################################
+    min_blob_size: int = 1000  # Minimum blob size in pixels
+    max_blob_size: int = 1000000  # Maximum blob size in pixels
 
 #############################################################################################################
 # Define the PRIMARY DatastreamCfg objects
 #############################################################################################################
+CONTINUOUS_VIDEO_DS = DatastreamCfg(
+    ds_type_id = CONTINUOUS_VIDEO_DS_TYPE_ID,
+    raw_format = "mp4",
+    archived_format = "mp4",
+    archived_data_description = "Basic continuous video recording.",
+    cloud_container = "sensor-core-upload",
+)
+
 ARUCO_DATA_DS = DatastreamCfg(
     ds_type_id = ARUCO_DATA_DS_TYPE_ID,
     raw_format = "mp4",
@@ -164,19 +201,12 @@ ARUCO_DATA_DS = DatastreamCfg(
     edge_processors = [ArucoProcessorCfg()],
 )
 
-CONTINUOUS_VIDEO_DS = DatastreamCfg(
-    ds_type_id = CONTINUOUS_VIDEO_DS_TYPE_ID,
-    raw_format = "mp4",
-    archived_format = "mp4",
-    archived_data_description = "Basic continuous video recording.",
-    cloud_container = "sensor-core-upload",
-)
-
 ARUCO_MARKED_UP_VIDEO_DS = DatastreamCfg(
     ds_type_id=ARUCO_MARKED_UP_VIDEOS_DS_TYPE_ID,
     raw_format="mp4",
     archived_format="mp4",
     archived_data_description="Marked up video data from a WHO camera",
+    primary_ds = False,  # This is a derived datastream
     cloud_container="sensor-core-upload",
 )
 
@@ -185,8 +215,9 @@ EXIT_CAM_DS = DatastreamCfg(
     raw_format="mp4",
     archived_format="df",
     archived_data_description="Exit cam data describing in/out events",
+    primary_ds = False,  # This is a derived datastream
     cloud_container="sensor-core-journals",
-    archived_fields=api.REQD_RECORD_ID_FIELDS + ["filename", "in", "out", "size"],
+    archived_fields=[*api.REQD_RECORD_ID_FIELDS, "filename", "in", "out", "size"],
     sample_probability=str(0.5),  # Reasonably often while training
     sample_container="sensor-core-upload",
 )

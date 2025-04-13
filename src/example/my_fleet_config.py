@@ -1,5 +1,5 @@
 
-from sensor_core.config_objects import DeviceCfg, Inventory, SensorDsCfg, WifiClient
+from sensor_core.config_objects import DeviceCfg, SensorDsCfg, WifiClient
 
 from example import my_config_object_defs as my_config_object_defs
 from example.my_config_object_defs import ExampleDfDsCfg, ExampleSensorCfg
@@ -8,16 +8,10 @@ from example.my_config_object_defs import ExampleDfDsCfg, ExampleSensorCfg
 # SensorCore config model
 #
 # At the top level, we are defining configuration for a fleet of devices.
-# This fleet config must be returned by a class called Inventory.get_inventory().
-# The fully qualified class reference for this Inventory class is what is passed to SensorCore
-# when it is first configured:
+# This fleet config must be returned as a list of DeviceCfg objects.
+# The inventory is passed to SensorCore when it is first configured:
 #
-#   SensorCore.configure(fleet_config_py="example.my_fleet_config.Inventory")
-#
-# The fleet config returned by get_inventory() is a dictionary of DeviceCfg objects,
-# with the device's mac address as the key (stripped of ':'s).
-#
-#   {"d01111111111": DeviceCfg()}
+#   SensorCore.configure(fleet_config=example.my_fleet_config.INVENTORY)
 #
 # The DeviceCfg contains:
 # - name: a friendly name for the device (eg Alex)
@@ -126,12 +120,5 @@ INVENTORY: list[DeviceCfg] = [
         wifi_clients=WIFI_CLIENTS,
     ),
 ]
-
-
-# Implement the class definition so that this file can be imported by SensorCore
-class MyInventory(Inventory):
-    @staticmethod
-    def get_inventory() -> list[DeviceCfg]:
-        return INVENTORY
 
         

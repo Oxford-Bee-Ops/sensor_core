@@ -292,35 +292,7 @@ def display_sensors() -> None:
 @click.command()
 def test_audio() -> None:
     """Test the audio sensor using the 'arecord' command."""
-    num_configured = root_cfg.my_device.microphones_installed
-    if num_configured == 0:
-        click.echo("No microphones configured.")
-        return
-    click.echo("Choose a port number to test.")
-    click.echo("   There are " + str(num_configured) + " mics configured.")
-    click.echo("   These should correspond to the sound cards found below.\n")
-    device_list = run_cmd("find /sys/devices/ -name id | grep usb | grep sound")
-    if device_list == "":
-        click.echo("No sound cards found.")
-        return
-    else:
-        click.echo(device_list + "\n")
-        port = click.getchar()
-        click.echo(port + "\n")
-        # Check we've been given a number
-        if not port.isdigit():
-            click.echo("Invalid input: expected a port number. Exiting...")
-            return
-        #card_index = str(ac.get_card_index_from_port(num_configured, int(port)))
-        #click.echo(
-        #    "This command will run arecord on port "
-        #    + str(num_configured)
-        #    + " (card"
-        #    + card_index
-        #    + ") to listen for 8 seconds."
-        #)
-        #click.echo("Starting audio test...")
-        #run_cmd_live_echo("arecord -D sysdefault:CARD=" + card_index + " -vvv -f dat -d 8 /dev/null")
+    pass
 
 
 @click.command()

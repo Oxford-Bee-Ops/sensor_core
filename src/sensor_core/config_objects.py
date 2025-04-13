@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -98,6 +97,10 @@ class DatastreamCfg:
     archived_format: api.FILE_FORMATS
     archived_data_description: str
 
+    # Primary or derived datastream?
+    # Primary datastreams are produced by sensors; derived datastreams are produced by DataProcessors.
+    primary_ds: bool = True
+
     # The cloud storage container to which the data is archived.
     # This is required for all types uploading files, other than archived_format="CSV".
     # "CSV" data is uploaded to the DeviceCfg.cc_for_journals container.
@@ -137,6 +140,7 @@ class SensorDsCfg:
         for ds_cfg in self.datastream_cfgs:
             if ds_cfg.ds_type_id == ds_type_id:
                 return ds_cfg
+                
         raise ValueError(f"Datastream {ds_type_id} not found in sensor config {self.datastream_cfgs}")
 
 ############################################################################################
@@ -230,15 +234,6 @@ class DeviceCfg(Configuration):
                 else:
                     datastreams[datastream_type] = 1
         return datastreams
-
-############################################################
-# Inventory class
-############################################################
-class Inventory(ABC):
-    @abstractmethod
-    def get_inventory(self) -> list[DeviceCfg]:
-        """Return a list of DeviceCfg inventory objects."""
-        raise NotImplementedError("get_inventory() must be implemented in subclasses")
 
 
 @dataclass

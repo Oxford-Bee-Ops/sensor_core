@@ -5,7 +5,7 @@ from crontab import CronTab
 
 from sensor_core import config_validator
 from sensor_core import configuration as root_cfg
-from sensor_core.config_objects import Inventory
+from sensor_core.config_objects import DeviceCfg
 from sensor_core.device_health import DeviceHealth
 from sensor_core.edge_orchestrator import EdgeOrchestrator, request_stop
 from sensor_core.utils import utils
@@ -33,19 +33,18 @@ class SensorCore:
         if test_mode:
             root_cfg.TEST_MODE = True
 
-    def test_configuration(self, fleet_config_py: Inventory) -> tuple[bool, list[str]]:
+    def test_configuration(self, fleet_config: list[DeviceCfg]) -> tuple[bool, list[str]]:
         """ Validates that the configuration in fleet_config_py is valid.
         """
         is_valid = False
         errors: list[str] = []
 
-        if fleet_config_py is None:
-            return (False, ["No configuration files provided."])
+        if not fleet_config:
+            return (False, ["No configuration provided."])
         
         # The fleet_config_py is a python file passed in as a class reference
         # Evaluate the class reference before we save it
         try:
-            fleet_config = root_cfg.load_inventory(fleet_config_py)
             is_valid, errors = config_validator.validate(fleet_config)
         except Exception as e:
             errors = [str(e)]
@@ -53,7 +52,7 @@ class SensorCore:
         return (is_valid, errors)                
 
 
-    def configure(self, fleet_config_py: Inventory, force_update: bool = False) -> None:
+    def configure(self, fleet_config: list[DeviceCfg], force_update: bool = False) -> None:
         """
         Set the SensorCore configuration.
         See the /examples folder for configuration file templates.
@@ -70,7 +69,7 @@ class SensorCore:
         if not force_update and self._is_running():
             raise Exception("SensorCore is running; either stop SensorCore or use force_update.")
 
-        if fleet_config_py is None:
+        if not fleet_config:
             raise Exception("No configuration files provided.")
         
         success, error = root_cfg.check_keys()
@@ -82,16 +81,15 @@ class SensorCore:
         try:
             is_valid = False
             errors: list[str] = []
-            fleet_config = root_cfg.load_inventory(fleet_config_py)
             is_valid, errors = config_validator.validate(fleet_config)
         except Exception as e:
             raise Exception(f"Error attempting to load fleet config: {e}")
         finally:
             if not is_valid:
-                raise Exception(f"Configuration in {fleet_config_py} is not valid:\n{errors}")
+                raise Exception(f"Configuration in {fleet_config} is not valid:\n{errors}")
 
         # Load the configuration
-        root_cfg.set_inventory(fleet_config_py)
+        root_cfg.set_inventory(fleet_config)
 
         # Restart the SensorCore if it is running
         if self._is_running():

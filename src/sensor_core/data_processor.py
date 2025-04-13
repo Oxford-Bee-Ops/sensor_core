@@ -61,6 +61,7 @@ class DataProcessor:
 
         assert False, "DataProcessor subclass must implement process_data()"
 
+
     def get_derived_datastreams(self, ds_type_id: Optional[str] = None) -> list[Datastream]:
         """Return a list of derived Datastreams.
         This function is called by the DataProcessor subclass during process_data.

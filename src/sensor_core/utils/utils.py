@@ -7,6 +7,7 @@ import importlib
 import logging
 import os
 import random
+import shlex
 import shutil
 import subprocess
 import sys
@@ -19,6 +20,8 @@ from threading import Timer
 from typing import Any, Generator, Optional
 from zoneinfo import ZoneInfo
 
+import cv2
+import numpy as np
 import pandas as pd
 import psutil
 
@@ -264,11 +267,40 @@ def record_persistent_key_value(key: str, value: str) -> None:
 
 
 ############################################################
-# Run a linux command and return the output, or throw an exception on bad return code
+# Run a system command and return the output, or throw an exception on bad return code
 ############################################################
 def run_cmd(cmd: str, ignore_errors: bool=False, grep_strs: Optional[list[str]]=None) -> str:
+    """Run a system command and return the output, or throw an exception on bad return code.
+
+    Parameters:
+    ----------
+    cmd: str
+        The command to run.  This should be a string that can be passed to the shell.
+    ignore_errors: bool
+        If True, ignore errors and return an empty string.  If False, raise an exception on error.
+    grep_strs: list[str]
+        A list of strings to grep for in the output.  If None, return the full output.
+        If not None, return only the lines that contain all of the strings in the list.
+
+    Returns:
+    -------
+    str
+        The output of the command.  If ignore_errors is True, return an empty string on error.
+        If grep_strs is not None, return only the lines that contain all of the strings in the list.
+
+    Raises:
+    ------
+    Exception
+        If the command fails and ignore_errors is False, raise an exception with the error message.
+        
+    """
     if root_cfg.running_on_windows:
-        assert ignore_errors, "run_cmd is not supported on Windows"
+        if root_cfg.TEST_MODE:
+            # In test mode, we may stub out a command so that we can run a more realistic test scenario.
+            return run_cmd_test_stub(cmd, ignore_errors, grep_strs)
+        else:
+            assert ignore_errors, "run_cmd is not fully supported on Windows"
+
 
     # We don't support pipes for security reasons; call the command multiple times if needed
     # if "|" in cmd:
@@ -305,6 +337,95 @@ def run_cmd(cmd: str, ignore_errors: bool=False, grep_strs: Optional[list[str]]=
             return ""
         else:
             raise e
+
+def run_cmd_test_stub(cmd: str, ignore_errors: bool=False, grep_strs: Optional[list[str]]=None) -> str:
+    """For testing purposes, we emulate certain basic Linux sensor commands so that we can run more 
+     realistic test scenarios on Windows.
+
+    We currently emulate:
+    - rpicam-vid
+    - arecord
+
+    Parameters:
+    ----------
+    cmd: str
+        The command to run.  This should be a string that can be passed to the shell.
+    ignore_errors: bool
+        If True, ignore errors and return an empty string.  If False, raise an exception on error.
+    grep_strs: list[str]
+        A list of strings to grep for in the output.  If None, return the full output.
+        If not None, return only the lines that contain all of the strings in the list.
+
+    Returns:
+    -------
+    str
+        The output of the command.  If ignore_errors is True, return an empty string on error.
+        If grep_strs is not None, return only the lines that contain all of the strings in the list.
+
+    """
+    # Parse the command to get the command name and arguments
+    # We want to keep arguments in '' or "" together
+    # eg we split "grep -E "test.*tset"" into ['grep', '-E', 'test.*tset']
+    args = shlex.split(cmd, posix=False)
+
+    if cmd.startswith("rpicam-vid"):
+        # Emulate the rpicam-vid command
+        # We expect commands like:
+        #  "rpicam-vid --framerate 4 --width 640 --height 480 -o FILENAME -t 180000 -v 0"
+        # We create a video file with:
+        # - filename taken from the -o parameter
+        # - duration taken from the -t parameter (in milliseconds)
+        # - framerate taken from the --framerate parameter
+        # - width taken from the --width parameter
+        # - height taken from the --height parameter
+        if args.index("-o") == -1 or args.index("-t") == -1:
+            raise ValueError("Missing required arguments in command: " + cmd)
+        filename = args[args.index("-o") + 1]
+        suffix = filename.split(".")[-1]
+        duration = int(args[args.index("-t") + 1]) / 1000  # Convert to seconds
+        # We divide duration by 10 to get a 10x speedup for testing purposes
+        duration = int(duration / 10)
+
+        if "--framerate" not in args:
+            framerate = 30  # Default framerate
+        else:
+            framerate = int(args[args.index("--framerate") + 1])
+        if "--width" not in args:
+            width = 640
+        else:
+            width = int(args[args.index("--width") + 1])
+        if "--height" not in args:
+            height = 480
+        else:
+            height = int(args[args.index("--height") + 1])
+
+        # Use OpenCV to create a dummy video file
+        if suffix == "h264":
+            fourcc = cv2.VideoWriter.fourcc(*"h264")
+        elif suffix == "mp4":
+            fourcc = cv2.VideoWriter.fourcc(*"mp4v")
+        else:
+            raise ValueError("Unsupported video format: " + suffix)
+
+        out = cv2.VideoWriter(filename, fourcc, framerate, (width, height))
+        num_frames = int(framerate * duration)
+        for i in range(num_frames):
+            # Create a dummy frame (e.g., a solid color or gradient)
+            frame = np.zeros((height, width, 3), dtype=np.uint8)
+            frame[:] = (i % 256, (i * 2) % 256, (i * 3) % 256)  # Example gradient
+            out.write(frame)
+
+        # Release the VideoWriter
+        out.release()
+        time.sleep(duration)
+        return f"rpicam-vid command emulated successfully, created {filename}"
+        
+    elif cmd.startswith("arecord"):
+        # Emulate the arecord command
+        # This is a simple emulation that just returns a success code and a message.
+        # In a real scenario, we would run the command and return the output.
+        return "arecord command emulated successfully"
+    return "Command not run on windows: " + cmd
 
 
 # Get entries from the journalctl log

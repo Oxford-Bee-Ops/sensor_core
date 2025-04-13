@@ -7,7 +7,6 @@ from .config_objects import (
     DatastreamCfg,
     DeviceCfg,
     DpContext,
-    Inventory,
     SensorCfg,
     SensorDsCfg,
 )
@@ -24,7 +23,6 @@ __all__ = [
     "DatastreamCfg",
     "DeviceCfg",
     "DpContext",
-    "Inventory",
     "Sensor",
     "SensorCfg",
     "SensorCore",

@@ -22,7 +22,7 @@ def run_sensor_core():
         sc = SensorCore()
 
         logger.info("Configuring SensorCore.")
-        sc.configure(my_fleet_config.MyInventory())
+        sc.configure(my_fleet_config.INVENTORY)
 
         # If you want SensorCore to manage this device, uncomment the line below.
         # This is advised for production RPi devices.

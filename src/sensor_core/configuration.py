@@ -6,7 +6,7 @@ from typing import Optional
 import psutil
 from pydantic_settings import SettingsConfigDict
 
-from sensor_core.config_objects import FAILED_TO_LOAD, DeviceCfg, Inventory, Keys, SystemCfg
+from sensor_core.config_objects import FAILED_TO_LOAD, DeviceCfg, Keys, SystemCfg
 from sensor_core.utils.dc import create_root_working_dir
 
 ############################################################################################
@@ -250,29 +250,9 @@ def _load_system_cfg() -> Optional[SystemCfg | None]:
 system_cfg = _load_system_cfg()
 
 #############################################################################################
-# Load the inventory from the config python file
+# Store the provided inventory
 ##############################################################################################
-def load_inventory(inventory_class_ref: Inventory) -> list[DeviceCfg]:
-    """Load the inventory by calling get_inventory() on the class provided.
-    Does not set the inventory in SensorCore - call set_inventory() for that.
-    """
-    inventory: list[DeviceCfg] = []
-    if inventory_class_ref is None:
-        print("#################################################################")
-        print("# WARNING: no inventory class set")
-        print("#################################################################")
-    else:
-        try:
-            # The class ref must be to a class called Inventory with a method get_inventory()
-            inventory = inventory_class_ref.get_inventory() # type: ignore
-        except Exception as e:
-            print("#################################################################")
-            print(f"Failed to load Inventory class from {inventory_class_ref}: {e}")
-            print("#################################################################")
-
-    return inventory
-
-def set_inventory(inventory_class: Inventory) -> dict[str, DeviceCfg]:
+def set_inventory(inventory: list[DeviceCfg]) -> dict[str, DeviceCfg]:
     """Reload the inventory from the config file.
     It is assumed that the config has already been validated by SensorCore.configure().
     """
@@ -280,7 +260,6 @@ def set_inventory(inventory_class: Inventory) -> dict[str, DeviceCfg]:
     global system_cfg
     global my_device
 
-    inventory = load_inventory(inventory_class)
     for device in inventory:
         INVENTORY[device.device_id] = device
     if my_device_id in INVENTORY:
