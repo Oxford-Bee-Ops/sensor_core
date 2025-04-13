@@ -90,6 +90,10 @@ class SensorCore:
 
         # Load the configuration
         root_cfg.set_inventory(fleet_config)
+        if (root_cfg.my_device and 
+            (root_cfg.my_device.log_level != utils._LOG_LEVEL)):
+            # Reset the log level for the current process
+            utils.set_log_level(root_cfg.my_device.log_level)
 
         # Restart the SensorCore if it is running
         if self._is_running():
