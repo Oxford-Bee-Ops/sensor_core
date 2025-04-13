@@ -204,7 +204,7 @@ def display_errors() -> None:
     click.echo("# ERROR LOGS")
     click.echo("# Displaying error logs from the last 4 hours")
     click.echo("#################################################\n")
-    logs = device_health.get_logs(since=since_time, min_priority=5)
+    logs = device_health.get_logs(since=since_time, min_priority=4)
     display_logs(logs)
 
 
@@ -253,6 +253,48 @@ def update_software() -> None:
         click.echo(f"Error: scripts directory does not exist at {root_cfg.SCRIPTS_DIR}. "
                    f"Please check your installation.")
         return
+
+
+def start_sensor_core() -> None:
+    """Start the SensorCore service."""
+    click.echo("Starting SensorCore...")
+
+    # If run_my_sensor.py is a resolvable module in this environment, then we use that to start the service
+    # using that user-provided script.
+    try:
+        import run_my_sensor  # noqa: F401
+    except ImportError:
+        click.echo("No configuration script found (run_my_sensor.py)")
+        click.echo("Do you want to start SensorCore using the default configuration? (y/n)")
+        char = click.getchar()
+        click.echo(char)
+        if char != "y":
+            click.echo("Exiting...")
+            return
+        click.echo("Starting SensorCore using default configuration...")
+        sc = SensorCore()
+        sc.start()
+    else:
+        click.echo("Found run_my_sensor.py. Starting SensorCore with that script...")
+        if root_cfg.running_on_windows:
+            click.echo("This command only works on Linux. Exiting...")
+            return
+        if root_cfg.SCRIPTS_DIR.exists():
+            run_cmd_live_echo(f"sudo -u $USER {root_cfg.SCRIPTS_DIR}/run_sensor_core.sh")
+        else:
+            click.echo(f"Error: scripts directory does not exist at {root_cfg.SCRIPTS_DIR}. "
+                       f"Please check your installation.")
+
+    click.echo("SensorCore started.")
+    return
+
+
+def stop_sensor_core() -> None:
+    """Stop the SensorCore service."""
+    click.echo("Stopping SensorCore... this may take up to 180s to complete.")
+    # We just need to "touch" the stop file to stop the service
+    root_cfg.STOP_SENSOR_CORE_FLAG.touch()
+    return
 
 
 def set_hostname() -> None:
@@ -441,6 +483,7 @@ def interactive_menu() -> None:
         click.echo("6. Exit")
         try:
             choice = click.prompt("Enter your choice", type=int)
+            click.echo("\n")
         except ValueError:
             click.echo("Invalid input. Please enter a number.")
             continue
@@ -473,6 +516,7 @@ def debug_menu() -> None:
         click.echo("5. Back to Main Menu")
         try:
             choice = click.prompt("Enter your choice", type=int)
+            click.echo("\n")
         except ValueError:
             click.echo("Invalid input. Please enter a number.")
             continue
@@ -496,11 +540,14 @@ def maintenance_menu() -> None:
     while True:
         click.echo("\nMaintenance Menu:")
         click.echo("1. Update Software")
-        click.echo("2. Set Hostname")
-        click.echo("3. Show Crontab Entries")
-        click.echo("4. Back to Main Menu")
+        click.echo("2. Start SensorCore")
+        click.echo("3. Stop SensorCore")
+        click.echo("4. Set Hostname")
+        click.echo("5. Show Crontab Entries")
+        click.echo("6. Back to Main Menu")
         try:
             choice = click.prompt("Enter your choice", type=int)
+            click.echo("\n")
         except ValueError:
             click.echo("Invalid input. Please enter a number.")
             continue
@@ -508,10 +555,14 @@ def maintenance_menu() -> None:
         if choice == 1:
             update_software()
         elif choice == 2:
-            set_hostname()
+            start_sensor_core()
         elif choice == 3:
-            show_crontab_entries()
+            stop_sensor_core()
         elif choice == 4:
+            set_hostname()
+        elif choice == 5:
+            show_crontab_entries()
+        elif choice == 6:
             break
         else:
             click.echo("Invalid choice. Please try again.")
@@ -528,6 +579,7 @@ def sensors_menu() -> None:
         click.echo("5. Back to Main Menu")
         try:
             choice = click.prompt("Enter your choice", type=int)
+            click.echo("\n")
         except ValueError:
             click.echo("Invalid input. Please enter a number.")
             continue
@@ -555,6 +607,7 @@ def testing_menu() -> None:
         click.echo("3. Back to Main Menu")
         try:
             choice = click.prompt("Enter your choice", type=int)
+            click.echo("\n")
         except ValueError:
             click.echo("Invalid input. Please enter a number.")
             continue

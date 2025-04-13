@@ -1,7 +1,7 @@
 import os
 import socket
 import subprocess
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Optional
 
 import psutil

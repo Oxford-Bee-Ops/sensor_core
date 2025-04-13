@@ -333,7 +333,7 @@ class EdgeOrchestrator:
 
     def is_stop_requested(self) -> bool:
         """Check if a stop has been manually requested by the user.
-        This function is polled by the SensorFactory main thread to check if the user has requested a stop."""
+        This function is polled by the main thread every second to check if the user has requested a stop."""
         stop_requested = root_cfg.STOP_SENSOR_CORE_FLAG.exists()
         if stop_requested and not self.orchestrator_is_stopping:
             self.stop_all()
