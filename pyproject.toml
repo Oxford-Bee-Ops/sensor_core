@@ -5,20 +5,15 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[tool.setuptools.package-data]
-"sensor_core" = ["scripts/*"]
-
-[tool.setuptools.data-files]
-"scripts" = ["scripts/*"]
-
 [project]
 name = "sensor-core"
-version = "0.1.22"
+version = "0.1.23"
 description = "Python module to support using Raspberry Pi for scientific data collection"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
-  {name = "Estella Warwick", email = "estella@bee-ops.com"},
+  {name = "Estella", email = "estella@bee-ops.com"},
+  {name = "Stuart", email = "stuart@bee-ops.com"},
 ]
 dependencies = [
     "azure-storage-blob",
@@ -76,4 +71,4 @@ fixable = ["ALL"]
 convention = "google"
 
 [project.scripts]
-bcli = "sensor_core.scripts.bcli:main"
+bcli = "sensor_core.bcli:main"
