@@ -1,7 +1,7 @@
 import os
 import socket
 import subprocess
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import psutil
@@ -16,31 +16,44 @@ if root_cfg.running_on_rpi:
     from systemd import journal  # type: ignore
     def get_logs(since: Optional[datetime] = None, 
                  min_priority: Optional[int] = None,
-                 grep_str: Optional[str] = None) -> list[dict[str, Any]]:
+                 grep_str: Optional[str] = None,
+                 max_logs: Optional[int] = 1000) -> list[dict[str, Any]]:
         """
         Fetch logs from the system journal.
 
         Args:
-            since (str): A timestamp string (e.g., "2025-03-21T14:30:00") to fetch logs since.
-            priority (int): The priority level (e.g., 6 for informational, 4 for warnings).
+            since (datetime): A timestamp to fetch logs since.
+            min_priority (int): The priority level (e.g., 6 for informational, 4 for warnings).
+            grep_str (str): A string to filter logs by message content.
+            max_logs (int): Maximum number of logs to fetch.
 
         Returns:
-            list[str]: A list of log messages.
+            list[dict[str, Any]]: A list of log entries.
         """
         logs = []
-        reader = journal.Reader()
+        try:
+            reader = journal.Reader()
+        except Exception as e:
+            logger.error(f"Failed to initialize journal reader: {e}")
+            return logs
 
         # Set filters
         if since:
-            reader.seek_realtime(since.timestamp())
+            if isinstance(since, datetime):
+                reader.seek_realtime(since.timestamp())
+            else:
+                raise ValueError("The 'since' argument must be a datetime object.")
 
         # Iterate through the logs
-        for entry in reader:
+        for i, entry in enumerate(reader):
+            if i >= max_logs:
+                break
             priority = int(entry.get("PRIORITY", 0))
-            if ((min_priority is None or priority >= min_priority) and
+            if ((min_priority is None or priority <= min_priority) and
                 (grep_str is None or grep_str in entry.get("MESSAGE", ""))):
                 log_entry = {
-                    "time_logged": entry.get("__REALTIME_TIMESTAMP"),
+                    "time_logged": (datetime.fromtimestamp(entry["__REALTIME_TIMESTAMP"] / 
+                                                           1_000_000, tz=timezone.utc).isoformat()),
                     "message": entry.get("MESSAGE", "No message"),
                     "process_id": entry.get("_PID"),
                     "process_name": entry.get("_COMM"),
@@ -48,6 +61,7 @@ if root_cfg.running_on_rpi:
                     "priority": entry.get("PRIORITY"),
                 }
                 logs.append(log_entry)
+        logger.info(f"Fetched {len(logs)} logs from the journal.")
 
         return logs
 
