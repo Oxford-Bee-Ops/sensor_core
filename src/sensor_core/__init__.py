@@ -1,7 +1,7 @@
 # filepath: sensor_core/__init__.py
 
 # Re-export specific classes and functions
-from . import api
+from . import api, configuration
 from .config_objects import (
     DataProcessorCfg,
     DatastreamCfg,
@@ -17,6 +17,7 @@ from .sensor_core import SensorCore
 
 # Optionally, define an explicit __all__ to control what gets imported with "from sensor_core import *"
 __all__ = [
+    "configuration",
     "DataProcessor",
     "DataProcessorCfg",
     "Datastream",
@@ -27,5 +28,6 @@ __all__ = [
     "SensorCfg",
     "SensorCore",
     "SensorDsCfg",
-    "api"
+    "api",
+    "configuration"
 ]
