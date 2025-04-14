@@ -65,7 +65,7 @@ if root_cfg.running_on_rpi:
 
         return logs
 
-logger = utils.setup_logger("sensor_core")
+logger = root_cfg.setup_logger("sensor_core")
 
 class DeviceHealth():
     """Monitors device health and provides telemetry data as a SensorCore datastream.
@@ -216,7 +216,7 @@ class DeviceHealth():
                 if root_cfg.running_on_rpi:
                     DeviceHealth.log_top_memory_processes()
                     if memory_usage > 95:
-                        logger.error(utils.RAISE_WARN() + "Memory usage >95%, rebooting")
+                        logger.error(root_cfg.RAISE_WARN() + "Memory usage >95%, rebooting")
                         utils.run_cmd("sudo reboot", ignore_errors=True)
 
             health = {
@@ -245,7 +245,7 @@ class DeviceHealth():
             }
 
         except Exception as e:
-            logger.error(utils.RAISE_WARN() + "Failed to get telemetry: " + str(e), exc_info=True)
+            logger.error(root_cfg.RAISE_WARN() + "Failed to get telemetry: " + str(e), exc_info=True)
 
         return health
 

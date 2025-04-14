@@ -2,9 +2,9 @@ import logging
 import sys
 
 import pytest
-from sensor_core.utils import utils
+from sensor_core import configuration as root_cfg
 
-logger = utils.setup_logger("rpi")
+logger = root_cfg.setup_logger("sensor_core")
 
 
 class Test_video_aruco_processor:

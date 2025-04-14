@@ -36,7 +36,7 @@ from sensor_core import configuration as root_cfg
 from sensor_core.utils import audio_transforms as at
 from sensor_core.utils import utils
 
-logger = utils.setup_logger("rpi")
+logger = root_cfg.setup_logger("sensor_core")
 
 #############################################################################################################
 # Define the DataProcessorCfg objects
@@ -89,7 +89,7 @@ class HiveAudioProcessor(DataProcessor):
 
             except Exception as e:
                 logger.error(
-                    utils.RAISE_WARN() + "%s Exception occurred in audio processing of %s, exception: %s",
+                    root_cfg.RAISE_WARN() + "%s Exception occurred in audio processing of %s, exception: %s",
                     root_cfg.my_device_id,
                     str(f),
                     str(e),
@@ -497,7 +497,7 @@ class AudioFileProcessor:
                 saved_fft_images.append(image_fname)
             except Exception as e:
                 logger.error(
-                    utils.RAISE_WARN()
+                    root_cfg.RAISE_WARN()
                     + " Error creating spectrogram image for "
                     + event_fname
                     + ": "

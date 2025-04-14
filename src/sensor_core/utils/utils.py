@@ -10,7 +10,6 @@ import random
 import shlex
 import shutil
 import subprocess
-import sys
 import time
 import zipfile
 from contextlib import contextmanager
@@ -32,6 +31,7 @@ from sensor_core import configuration as root_cfg
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/copy_on_write.html#copy-on-write-enabling
 pd.options.mode.copy_on_write = True
 
+logger = root_cfg.setup_logger("sensor_core")
 
 ############################################################################################################
 # OpenCV color constants (BGR format)
@@ -44,84 +44,6 @@ BLACK = (0, 0, 0)
 YELLOW = (0, 255, 255)
 CYAN = (255, 255, 0)
 MAGENTA = (255, 0, 255)
-
-
-############################################################################################################
-# Set up logging
-#
-# The logging level is a combination of:
-#  - the value set in bee-ops.cfg
-#  - the value requested by the calling module (default is INFO)
-#
-# There is update code at the end of this file that sets the level once we've loaded bee-ops.cfg
-############################################################################################################
-TEST_LOG = root_cfg.LOG_DIR.joinpath("test.log")
-_DEFAULT_LOG: Optional[Path] = None
-_LOG_LEVEL = logging.INFO
-
-
-def set_log_level(level: int) -> None:
-    global _LOG_LEVEL
-    _LOG_LEVEL = level
-
-
-def setup_logger(name: str, level: Optional[int]=None, filename: Optional[str|Path]=None) -> logging.Logger:
-    global _DEFAULT_LOG
-    if level is not None:
-        set_log_level(level)
-    if root_cfg.running_on_rpi:
-        from systemd.journal import JournalHandler as JournaldLogHandler  # type: ignore
-
-        logger = logging.getLogger(name)
-        logger.setLevel(_LOG_LEVEL)
-        if len(logger.handlers) == 0:
-            handler = JournaldLogHandler()
-            handler.setFormatter(logging.Formatter("%(name)s %(levelname)-6s %(message)s"))
-            logger.addHandler(handler)
-    else:  # elif root_cfg.running_on_windows
-        logger = logging.getLogger(name)
-        logger.setLevel(_LOG_LEVEL)
-        formatter = logging.Formatter("%(asctime)-15s %(name)-6s %(levelname)-6s - %(message)s")
-
-        # Create a console handler and set the log level
-        # Check if we've already added a console handler
-        if len(logger.handlers) == 0:
-            console_handler = logging.StreamHandler(sys.stdout)
-            console_handler.setLevel(_LOG_LEVEL)
-            console_handler.setFormatter(formatter)
-            logger.addHandler(console_handler)
-
-        # By default, we always want to log to a file
-        # Check whether there are any FileHander handlers already
-        file_handler_count = 0
-        for handler in logger.handlers:
-            if isinstance(handler, logging.FileHandler):
-                file_handler_count += 1
-
-        if filename is None:
-            if _DEFAULT_LOG is None:
-                _DEFAULT_LOG = root_cfg.LOG_DIR.joinpath("default_" + api.utc_to_fname_str() + ".log")
-            if not _DEFAULT_LOG.parent.exists():
-                _DEFAULT_LOG.parent.mkdir(parents=True, exist_ok=True)
-            if file_handler_count == 0:
-                handler = logging.FileHandler(_DEFAULT_LOG)
-                handler.setFormatter(formatter)
-                logger.addHandler(handler)
-                print(f"Logging {name} to default file: {_DEFAULT_LOG} at level {_LOG_LEVEL}")
-        # Limit to 2 file loggers
-        elif file_handler_count <= 1:
-            handler = logging.FileHandler(filename)
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-            print(f"Logging {name} to file: {filename} at level {_LOG_LEVEL}")
-
-    logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.WARNING)
-    logging.getLogger("azure").setLevel(logging.WARNING)
-    logging.getLogger("PIL").setLevel(logging.WARNING)
-    return logger
-
-
-logger = setup_logger("sensor_core")
 
 
 ############################################################
@@ -159,7 +81,7 @@ def failing_to_keep_up()-> bool:
 
     if root_cfg.running_on_rpi and psutil.disk_usage("/sensor_core").percent > 50:
         # Check if we're running low on space
-        logger.warning(f"{RAISE_WARN()} Failing to keep up due to low disk space")
+        logger.warning(f"{root_cfg.RAISE_WARN()} Failing to keep up due to low disk space")
         last_check_outcome = True
     else:
         last_check_outcome = False
@@ -233,17 +155,6 @@ def is_sampling_period(
         sample_this_period = False
 
     return sample_this_period
-
-
-############################################################
-# Wrapper to enable easy manipulation of error logging
-# This prefix is then parsed by IOT_ETL.
-#
-# ETL_ERRORv1_[CUSTOMER]_[MAC_ADDRESS]: [ERROR_MESSAGE]
-# ETL_ERRORv2_[MAC_ADDRESS]: [ERROR_MESSAGE]
-############################################################
-def RAISE_WARN() -> str:
-    return f"{api.RAISE_WARN_TAG}_{root_cfg.my_device_id}: "
 
 
 ############################################################
@@ -321,7 +232,7 @@ def run_cmd(cmd: str, ignore_errors: bool=False, grep_strs: Optional[list[str]]=
                 logger.info("Ignoring failure running command: " + cmd + " Err output: " + str(err))
                 return ""
             else:
-                raise Exception(RAISE_WARN() + "Error running command: " + cmd + " Error: " + str(err))
+                raise Exception(f"{root_cfg.RAISE_WARN()}Error running command: {cmd}, Error: {err}")
 
         # Return lines that contain all of the entries in grep_strs
         output = out.decode("utf-8").strip()
@@ -332,7 +243,7 @@ def run_cmd(cmd: str, ignore_errors: bool=False, grep_strs: Optional[list[str]]=
         return output
 
     except FileNotFoundError as e:
-        logger.error(RAISE_WARN() + "Command not found: " + cmd)
+        logger.error(root_cfg.RAISE_WARN() + "Command not found: " + cmd)
         if ignore_errors:
             return ""
         else:
@@ -641,18 +552,6 @@ def convert_h264_to_mp4(src_file: Path, dst_file: Path) -> None:
         str(dst_file),
     ]
     subprocess.run(command, check=True)
-
-
-############################################################################################################
-# Update the logging to reflect the logging level requested in the cfg file
-#
-# We set the logging level to the lowest of what's set in cfg and the level requested in the code.
-############################################################################################################
-# if root_cfg.running_on_rpi:
-cfg_level = root_cfg.my_device.log_level
-level = min(cfg_level, _LOG_LEVEL)
-set_log_level(level)
-logger.info(f"Setting log level from {_LOG_LEVEL!s} to {level!s}")
 
 
 @contextmanager

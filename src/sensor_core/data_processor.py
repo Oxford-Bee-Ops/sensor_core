@@ -8,10 +8,10 @@ import pandas as pd
 
 if TYPE_CHECKING:
     from sensor_core.datastream import Datastream
+from sensor_core import configuration as root_cfg
 from sensor_core.config_objects import DataProcessorCfg, DpContext
-from sensor_core.utils import utils
 
-logger = utils.setup_logger("sensor_core")
+logger = root_cfg.setup_logger("sensor_core")
 
 
 ####################################################################################################

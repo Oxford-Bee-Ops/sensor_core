@@ -12,9 +12,9 @@ from typing import Optional
 from sensor_core import configuration as root_cfg
 from sensor_core.config_objects import DatastreamCfg, SensorDsCfg
 from sensor_core.datastream import Datastream
-from sensor_core.utils import file_naming, utils
+from sensor_core.utils import file_naming
 
-logger = utils.setup_logger("sensor_core")
+logger = root_cfg.setup_logger("sensor_core")
 
 
 #############################################################################################################
@@ -195,7 +195,7 @@ class Sensor(threading.Thread, ABC):
             return matching_datastreams[0]
         else:
             logger.error(
-                f"{utils.RAISE_WARN()}get_datastream() found multiple Datastreams for format={format}"
+                f"{root_cfg.RAISE_WARN()}get_datastream() found multiple Datastreams for format={format}"
             )
             return None
 
@@ -228,14 +228,14 @@ class Sensor(threading.Thread, ABC):
                 sample_probability = float(ds_config.sample_probability)
             except ValueError:
                 logger.error(
-                    f"{utils.RAISE_WARN()}Invalid sample_probability in Datastream config: "
+                    f"{root_cfg.RAISE_WARN()}Invalid sample_probability in Datastream config: "
                     f"{ds_config.sample_probability}"
                 )
                 return False
 
         if (sample_probability > 0) and (ds_config.sample_container is None):
             logger.error(
-                f"{utils.RAISE_WARN()}Datastream {ds_config.ds_type_id} has sample_probability "
+                f"{root_cfg.RAISE_WARN()}Datastream {ds_config.ds_type_id} has sample_probability "
                 f"but no sample_container defined"
             )
             return False

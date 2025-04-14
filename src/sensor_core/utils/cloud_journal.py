@@ -6,11 +6,11 @@ from typing import Optional
 import pandas as pd
 
 from sensor_core import api
+from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import CloudConnector
-from sensor_core.utils import utils
 from sensor_core.utils.journal import Journal
 
-logger = utils.setup_logger(name="sensor_core")
+logger = root_cfg.setup_logger(name="sensor_core")
 
 
 class _CloudJournalManager:

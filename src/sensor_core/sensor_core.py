@@ -10,7 +10,7 @@ from sensor_core.device_health import DeviceHealth
 from sensor_core.edge_orchestrator import EdgeOrchestrator, request_stop
 from sensor_core.utils import utils
 
-logger = utils.setup_logger("sensor_core")
+logger = root_cfg.setup_logger("sensor_core")
 
 ####################################################################################################
 # SensorCore provides the public interface to the sensor_core module.
@@ -90,10 +90,6 @@ class SensorCore:
 
         # Load the configuration
         root_cfg.set_inventory(fleet_config)
-        if (root_cfg.my_device and 
-            (root_cfg.my_device.log_level != utils._LOG_LEVEL)):
-            # Reset the log level for the current process
-            utils.set_log_level(root_cfg.my_device.log_level)
 
         # Restart the SensorCore if it is running
         if self._is_running():

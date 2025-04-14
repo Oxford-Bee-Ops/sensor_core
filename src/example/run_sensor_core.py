@@ -1,11 +1,11 @@
 from time import sleep
 
 from sensor_core import SensorCore
-from sensor_core.utils import utils
+from sensor_core import configuration as root_cfg
 
 from example import my_fleet_config
 
-logger = utils.setup_logger("sensor_core")
+logger = root_cfg.setup_logger("sensor_core")
 
 def run_sensor_core():
     """Run SensorCore as defined in the system.cfg and fleet_config.py files."""

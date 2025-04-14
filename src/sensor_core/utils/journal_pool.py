@@ -11,11 +11,11 @@ from sensor_core import api
 from sensor_core import configuration as root_cfg
 from sensor_core.config_objects import DatastreamCfg
 from sensor_core.configuration import Mode
-from sensor_core.utils import file_naming, utils
+from sensor_core.utils import file_naming
 from sensor_core.utils.cloud_journal import CloudJournal
 from sensor_core.utils.journal import Journal
 
-logger = utils.setup_logger("sensor_core")
+logger = root_cfg.setup_logger("sensor_core")
 
 
 class JournalPool(ABC):

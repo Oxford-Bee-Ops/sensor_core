@@ -8,9 +8,8 @@ from azure.storage.blob import BlobClient, BlobLeaseClient, ContainerClient, Sta
 
 from sensor_core import configuration as root_cfg
 from sensor_core.utils import file_naming as fn
-from sensor_core.utils import utils
 
-logger = utils.setup_logger(name="sensor_core")
+logger = root_cfg.setup_logger(name="sensor_core")
 
 
 class CloudConnector:
@@ -247,7 +246,7 @@ class CloudConnector:
             if safe_mode and not self._headers_match(blob_client, local_lines[0]):
                 # We bin out rather than set inconsistent fields
                 logger.error(
-                    f"{utils.RAISE_WARN()}Failed due to inconsistent headers: local={local_lines[0]}"
+                    f"{root_cfg.RAISE_WARN()}Failed due to inconsistent headers: local={local_lines[0]}"
                 )
                 return False
             # Drop the Headers in the first line so we don't have repeat header rows

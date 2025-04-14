@@ -1,9 +1,8 @@
 
 import pytest
 from sensor_core import configuration as root_cfg
-from sensor_core.utils import utils
 
-logger = utils.setup_logger("sensor_core")
+logger = root_cfg.setup_logger("sensor_core")
 root_cfg.TEST_MODE = True
 
 class Test_configuration:

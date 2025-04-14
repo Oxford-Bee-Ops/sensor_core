@@ -12,7 +12,7 @@ from sensor_core import configuration as root_cfg
 from sensor_core.sensors.config_object_defs import RpicamSensorCfg
 from sensor_core.utils import file_naming, utils
 
-logger = utils.setup_logger("sensor_core")
+logger = root_cfg.setup_logger("sensor_core")
 
 
 class RpicamSensor(Sensor):
@@ -83,7 +83,7 @@ class RpicamSensor(Sensor):
                 self.video_ds.save_recording(filename, start_time=start_time, end_time=api.utc_now())
 
             except Exception as e:
-                logger.error(f"{utils.RAISE_WARN()}Error in RpicamSensor: {e}", exc_info=True)
+                logger.error(f"{root_cfg.RAISE_WARN()}Error in RpicamSensor: {e}", exc_info=True)
                 break
 
         logger.warning("Exiting RpicamSensor loop")

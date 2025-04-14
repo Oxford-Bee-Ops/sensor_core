@@ -22,7 +22,7 @@ from sensor_core.system_datastreams import FAIRY_DS_TYPE, SCORE_DS_TYPE, SCORP_D
 from sensor_core.utils import file_naming, utils
 from sensor_core.utils.journal_pool import JournalPool
 
-logger = utils.setup_logger("sensor_core")
+logger = root_cfg.setup_logger("sensor_core")
 
 # Run frequency of the Datastream worker thread
 # Normally 60 seconds, but overridden in tests
@@ -414,7 +414,7 @@ class Datastream(Thread):
             # Call our superclass Thread start() method which schedule our run() method
             super().start()
         elif self.ds_config.ds_type_id != FAIRY_DS_TYPE.ds_type_id:
-            logger.warning(f"{utils.RAISE_WARN()}Datastream {self} already started.")
+            logger.warning(f"{root_cfg.RAISE_WARN()}Datastream {self} already started.")
 
     def stop(self) -> None:
         """Stop the Datastream worker thread"""
@@ -508,7 +508,7 @@ class Datastream(Thread):
                     )
                 except Exception as e:
                     logger.error(
-                        f"{utils.RAISE_WARN()}Error processing files for {self}. e={e!s}",
+                        f"{root_cfg.RAISE_WARN()}Error processing files for {self}. e={e!s}",
                         exc_info=True,
                     )
 
@@ -597,7 +597,7 @@ class Datastream(Thread):
                     )
                 except Exception as e:
                     logger.error(
-                        f"{utils.RAISE_WARN()}Error processing files for {self}. e={e!s}",
+                        f"{root_cfg.RAISE_WARN()}Error processing files for {self}. e={e!s}",
                         exc_info=True,
                     )
 
@@ -637,7 +637,8 @@ class Datastream(Thread):
         # Output DFs must always contain the core RECORD_ID fields
         if not all(x.value in output_data.columns for x in api.RECORD_ID):
             err_str = (
-                f"{utils.RAISE_WARN()}Not all RECORD_ID fields in output_df from {dp}: {output_data.columns}"
+                f"{root_cfg.RAISE_WARN()}Not all RECORD_ID fields in output_df from "
+                f"{dp}: {output_data.columns}"
             )
             logger.error(err_str)
             raise Exception(err_str)
@@ -645,7 +646,7 @@ class Datastream(Thread):
         # Check the values in the RECORD_ID are not nan or empty
         for field in api.REQD_RECORD_ID_FIELDS:
             if not output_data[field].notna().all():
-                err_str = f"{utils.RAISE_WARN()}{field} contains NaN or empty values in output_df from {dp}"
+                err_str = f"{root_cfg.RAISE_WARN()}{field} contains NaN or empty values in output_df {dp}"
                 logger.error(err_str)
                 raise Exception(err_str)
 
@@ -665,7 +666,8 @@ class Datastream(Thread):
         assert dp.dp_config.output_fields is not None and len(dp.dp_config.output_fields) > 0
         for field in dp.dp_config.output_fields:
             if field not in output_data.columns:
-                err_str = f"{utils.RAISE_WARN()}{field} missing from output_df on {dp}: {output_data.columns}"
+                err_str = (f"{root_cfg.RAISE_WARN()}{field} missing from output_df on "
+                           f"{dp}: {output_data.columns}")
                 logger.error(err_str)
                 raise Exception(err_str)
 
@@ -757,11 +759,11 @@ class Datastream(Thread):
             
         # Check that the start_time and end_time are both timezone aware
         if start_time.tzinfo is None:
-            logger.warning(f"{utils.RAISE_WARN}start_time must be timezone aware. "
+            logger.warning(f"{root_cfg.RAISE_WARN}start_time must be timezone aware. "
                            "Use api.utc_now() to get the current time.")
             start_time = start_time.replace(tzinfo=ZoneInfo("UTC"))
         if end_time is not None and end_time.tzinfo is None:
-            logger.warning(f"{utils.RAISE_WARN}end_time must be timezone aware. "
+            logger.warning(f"{root_cfg.RAISE_WARN}end_time must be timezone aware. "
                            "Use api.utc_now() to get the current time.")
             end_time = end_time.replace(tzinfo=ZoneInfo("UTC"))
 

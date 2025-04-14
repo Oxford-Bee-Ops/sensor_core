@@ -21,7 +21,7 @@ from sensor_core import configuration as root_cfg
 from sensor_core.sensors.config_object_defs import AudioSensorCfg
 from sensor_core.utils import file_naming, utils
 
-logger = utils.setup_logger("rpi")
+logger = root_cfg.setup_logger("sensor_core")
 
 
 ############################################################################################################
@@ -119,8 +119,8 @@ class AudioSensor(Sensor):
                 }
         else:
             # For simplicity we assume that the in_hive_port is always port 4
-            assert num_devices == 4, utils.RAISE_WARN() + " in_hive_mic set but num_devices not equal to 4"
-            assert in_hive_port == 4, utils.RAISE_WARN() + " in_hive_port must be port 4"
+            assert num_devices == 4, root_cfg.RAISE_WARN() + " in_hive_mic set but num_devices not equal to 4"
+            assert in_hive_port == 4, root_cfg.RAISE_WARN() + " in_hive_port must be port 4"
 
             # If we have an in-hive mic, we only record for a short period at the beginning of each hour
             # And we just turn off the other mics for that period
@@ -134,7 +134,7 @@ class AudioSensor(Sensor):
 
         if schedule is None:
             raise Exception(
-                f"{utils.RAISE_WARN()}Unsupported number of audio devices={num_devices!s};"
+                f"{root_cfg.RAISE_WARN()}Unsupported number of audio devices={num_devices!s};"
                 + f" in_hive_port={in_hive_port!s}"
             )
 
@@ -234,7 +234,7 @@ class AudioSensor(Sensor):
             )
         else:
             logger.error(
-                utils.RAISE_WARN()
+                root_cfg.RAISE_WARN()
                 + "No USB sound device plugged into port "
                 + str(port)
                 + "; card_info:"
@@ -303,7 +303,7 @@ class AudioSensor(Sensor):
                         else:
                             # To avoid a tight loop, we sleep for length_to_record
                             logger.error(
-                                f"{utils.RAISE_WARN()}Repeat exception occurred in arecord; e={e!s}",
+                                f"{root_cfg.RAISE_WARN()}Repeat exception occurred in arecord; e={e!s}",
                                 exc_info=True,
                             )
                             sleep(length_to_record)
@@ -349,6 +349,6 @@ class AudioSensor(Sensor):
                 f"Terminating AudioSensor for {self.port}; stop_requested={self.stop_requested}"
             )
         except Exception as e:
-            logger.error(f"{utils.RAISE_WARN()}Exception occurred in record_audio on {self.port}; {e}",
+            logger.error(f"{root_cfg.RAISE_WARN()}Exception occurred in record_audio on {self.port}; {e}",
                 exc_info=True,
             )

@@ -1,4 +1,6 @@
+import logging
 import platform
+import sys
 from enum import Enum
 from pathlib import Path
 from typing import Optional
@@ -6,6 +8,7 @@ from typing import Optional
 import psutil
 from pydantic_settings import SettingsConfigDict
 
+from sensor_core import api
 from sensor_core.config_objects import FAILED_TO_LOAD, DeviceCfg, Keys, SystemCfg
 from sensor_core.utils.dc import create_root_working_dir
 
@@ -177,6 +180,85 @@ DUMMY_DEVICE = DeviceCfg(device_id=DUMMY_MAC, name="DUMMY")
 INVENTORY: dict[str, DeviceCfg] = {DUMMY_MAC: DUMMY_DEVICE}
 my_device: DeviceCfg = DUMMY_DEVICE
 
+############################################################################################################
+# Set up logging
+#
+# The logging level is a combination of:
+#  - the value set in bee-ops.cfg
+#  - the value requested by the calling module (default is INFO)
+#
+# There is update code at the end of this file that sets the level once we've loaded bee-ops.cfg
+############################################################################################################
+TEST_LOG = LOG_DIR.joinpath("test.log")
+_DEFAULT_LOG: Optional[Path] = None
+_LOG_LEVEL = logging.INFO
+
+
+def set_log_level(level: int) -> None:
+    global _LOG_LEVEL
+    _LOG_LEVEL = level
+
+
+def setup_logger(name: str, level: Optional[int]=None, filename: Optional[str|Path]=None) -> logging.Logger:
+    global _DEFAULT_LOG
+    if level is not None:
+        set_log_level(level)
+    if running_on_rpi:
+        from systemd.journal import JournalHandler as JournaldLogHandler  # type: ignore
+
+        logger = logging.getLogger(name)
+        logger.setLevel(_LOG_LEVEL)
+        if len(logger.handlers) == 0:
+            handler = JournaldLogHandler()
+            handler.setFormatter(logging.Formatter("%(name)s %(levelname)-6s %(message)s"))
+            logger.addHandler(handler)
+    else:  # elif root_cfg.running_on_windows
+        logger = logging.getLogger(name)
+        logger.setLevel(_LOG_LEVEL)
+        formatter = logging.Formatter("%(asctime)-15s %(name)-6s %(levelname)-6s - %(message)s")
+
+        # Create a console handler and set the log level
+        # Check if we've already added a console handler
+        if len(logger.handlers) == 0:
+            console_handler = logging.StreamHandler(sys.stdout)
+            console_handler.setLevel(_LOG_LEVEL)
+            console_handler.setFormatter(formatter)
+            logger.addHandler(console_handler)
+
+        # By default, we always want to log to a file
+        # Check whether there are any FileHander handlers already
+        file_handler_count = 0
+        for handler in logger.handlers:
+            if isinstance(handler, logging.FileHandler):
+                file_handler_count += 1
+
+        if filename is None:
+            if _DEFAULT_LOG is None:
+                _DEFAULT_LOG = LOG_DIR.joinpath("default_" + api.utc_to_fname_str() + ".log")
+            if not _DEFAULT_LOG.parent.exists():
+                _DEFAULT_LOG.parent.mkdir(parents=True, exist_ok=True)
+            if file_handler_count == 0:
+                handler = logging.FileHandler(_DEFAULT_LOG)
+                handler.setFormatter(formatter)
+                logger.addHandler(handler)
+                print(f"Logging {name} to default file: {_DEFAULT_LOG} at level {_LOG_LEVEL}")
+        # Limit to 2 file loggers
+        elif file_handler_count <= 1:
+            handler = logging.FileHandler(filename)
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
+            print(f"Logging {name} to file: {filename} at level {_LOG_LEVEL}")
+
+    logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.WARNING)
+    logging.getLogger("azure").setLevel(logging.WARNING)
+    logging.getLogger("PIL").setLevel(logging.WARNING)
+    return logger
+
+def RAISE_WARN() -> str:
+    return f"{api.RAISE_WARN_TAG}_{my_device_id}: "
+
+logger = setup_logger("sensor_core")
+
 ################################################################################################
 # Load the keys.env file
 ################################################################################################
@@ -264,6 +346,11 @@ def set_inventory(inventory: list[DeviceCfg]) -> dict[str, DeviceCfg]:
         INVENTORY[device.device_id] = device
     if my_device_id in INVENTORY:
         my_device = INVENTORY[my_device_id]
+        if (my_device.log_level != _LOG_LEVEL):
+            logger.info(f"Setting log level from {_LOG_LEVEL!s} to {level!s}")
+            set_log_level(my_device.log_level)
+    else:
+        logger.error(f"{RAISE_WARN()}Device ID {my_device_id} not found in inventory")
     print(f"Inventory reloaded: found {len(INVENTORY)} devices")
 
     return INVENTORY
@@ -299,5 +386,15 @@ def display_config(device_id: Optional[str] = None) -> str:
     display_str += INVENTORY[device_id].display()
     return display_str
 
+############################################################################################################
+# Update the logging to reflect the logging level requested in the cfg file
+#
+# We set the logging level to the lowest of what's set in cfg and the level requested in the code.
+############################################################################################################
+# if root_cfg.running_on_rpi:
+cfg_level = my_device.log_level
+level = min(cfg_level, _LOG_LEVEL)
+set_log_level(level)
+logger.info(f"Setting log level from {_LOG_LEVEL!s} to {level!s}")
 
 

@@ -4,9 +4,8 @@ from typing import Optional
 
 from sensor_core import api
 from sensor_core import configuration as root_cfg
-from sensor_core.utils import utils
 
-logger = utils.setup_logger("sensor_core")
+logger = root_cfg.setup_logger("sensor_core")
 
 
 def create_ds_id(device_id: str, ds_type_id: str, sensor_index: int) -> str:

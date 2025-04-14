@@ -16,7 +16,7 @@ from sensor_core import configuration as root_cfg
 from sensor_core.utils import utils
 from sensor_core.utils.utils import disable_console_logging
 
-logger = utils.setup_logger("common")
+logger = root_cfg.setup_logger("common")
 
 dash_line = "########################################################"
 header = dash_line + "\n\n"

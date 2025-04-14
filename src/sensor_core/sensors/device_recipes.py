@@ -14,6 +14,7 @@
 #
 ###################################################################################################
 from sensor_core import DatastreamCfg, SensorDsCfg
+from sensor_core import configuration as root_cfg
 from sensor_core.sensors.config_object_defs import (
     ARUCO_DATA_DS,
     ARUCO_MARKED_UP_VIDEO_DS,
@@ -23,9 +24,8 @@ from sensor_core.sensors.config_object_defs import (
     RpicamSensorCfg,
     TrapCamProcessorCfg,
 )
-from sensor_core.utils import utils
 
-logger = utils.setup_logger("sensor_core")
+logger = root_cfg.setup_logger("sensor_core")
 
 
 ###################################################################################################

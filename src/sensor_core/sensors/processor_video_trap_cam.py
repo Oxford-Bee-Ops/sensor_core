@@ -6,10 +6,11 @@ import cv2
 import pandas as pd
 
 from sensor_core import DataProcessor, Datastream, DpContext, api
+from sensor_core import configuration as root_cfg
 from sensor_core.sensors.config_object_defs import TRAP_CAM_DS_TYPE_ID, TrapCamProcessorCfg
-from sensor_core.utils import file_naming, utils
+from sensor_core.utils import file_naming
 
-logger = utils.setup_logger("sensor_core")
+logger = root_cfg.setup_logger("sensor_core")
 
 class ProcessorVideoTrapCam(DataProcessor):
     def __init__(self):
@@ -42,7 +43,7 @@ class ProcessorVideoTrapCam(DataProcessor):
                 self.process_video(derived_ds, f, min_blob_size, max_blob_size)
             except Exception as e:
                 logger.error(
-                    f"{utils.RAISE_WARN()}Exception occurred processing video {f!s}; {e!s}",
+                    f"{root_cfg.RAISE_WARN()}Exception occurred processing video {f!s}; {e!s}",
                     exc_info=True,
                 )
         return None

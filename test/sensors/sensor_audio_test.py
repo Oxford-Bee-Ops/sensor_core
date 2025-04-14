@@ -2,10 +2,10 @@ from unittest.mock import patch
 
 import pandas as pd
 import pytest
+from sensor_core import configuration as root_cfg
 from sensor_core.sensors.sensor_audio import AudioSensor as ac
-from sensor_core.utils import utils
 
-logger = utils.setup_logger("rpi")
+logger = root_cfg.setup_logger("sensor_core")
 
 
 class Test_AudioSensor:

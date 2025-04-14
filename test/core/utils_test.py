@@ -6,7 +6,7 @@ from sensor_core import api
 from sensor_core import configuration as root_cfg
 from sensor_core.utils import utils
 
-logger = utils.setup_logger("sensor_core")
+logger = root_cfg.setup_logger("sensor_core")
 
 
 class Test_utils:
@@ -39,7 +39,7 @@ class Test_utils:
 
     @pytest.mark.quick
     def test_raise_warn(self) -> None:
-        logmsg = utils.RAISE_WARN() + "This is a test error message"
+        logmsg = root_cfg.RAISE_WARN() + "This is a test error message"
         logger.error(logmsg)
         assert logmsg.startswith(api.RAISE_WARN_TAG)
 

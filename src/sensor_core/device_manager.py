@@ -13,7 +13,7 @@ from sensor_core import api
 from sensor_core import configuration as root_cfg
 from sensor_core.utils import utils
 
-logger = utils.setup_logger("sensor_core")
+logger = root_cfg.setup_logger("sensor_core")
 
 
 class DeviceManager:
@@ -331,7 +331,7 @@ class DeviceManager:
                 # If the failure count gets to 4 hours then reboot the device
                 # Ping cycle is 2s, so 60*60*2 = 4 hours
                 if self.ping_failure_count_run == (60 * 60 * 2):
-                    logger.error(utils.RAISE_WARN() + "Rebooting device due to lack of internet for >4 hours")
+                    logger.error(f"{root_cfg.RAISE_WARN()}Rebooting device due to no internet for >4 hours")
                     utils.run_cmd("sudo reboot")
 
                 # If we're connected to wifi but the internet is down, then try a different SSID

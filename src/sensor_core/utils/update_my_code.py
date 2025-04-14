@@ -7,12 +7,12 @@ from git import Repo
 from sensor_core import configuration as root_cfg
 from sensor_core.utils import utils
 
-logger = utils.setup_logger("sensor_core")
+logger = root_cfg.setup_logger("sensor_core")
 
 
 def update_my_code():
     if root_cfg.system_cfg is None:
-        logger.error(f"{utils.RAISE_WARN()}No system configuration found")
+        logger.error(f"{root_cfg.RAISE_WARN()}No system configuration found")
         sys.exit(1)
 
     # Check for the .git file to see if the repository already exists

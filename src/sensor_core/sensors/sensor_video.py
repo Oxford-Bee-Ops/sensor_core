@@ -39,7 +39,7 @@ else:
         MEDIUM = 2
         HIGH = 3
 
-logger = utils.setup_logger("sensor_core")
+logger = root_cfg.setup_logger("sensor_core")
 
 
 ############################################################
@@ -183,7 +183,7 @@ class VideoSensor(Sensor):
                     failures += 1
                     # This is not an ETL_ERROR because we will retry
                     logger.error(
-                        f"{utils.RAISE_WARN()} Exception in Picamera2 loop. Fail count={failures!s}, {e!s}",
+                        f"{root_cfg.RAISE_WARN()}Exception in Picamera2 loop. Failcount={failures!s}, {e!s}",
                         exc_info=True,
                     )
                     # Dump some memory diagnostics before we clean up

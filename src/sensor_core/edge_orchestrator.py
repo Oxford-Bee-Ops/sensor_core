@@ -25,7 +25,7 @@ from sensor_core.system_datastreams import (
 )
 from sensor_core.utils import file_naming, utils
 
-logger = utils.setup_logger("sensor_core")
+logger = root_cfg.setup_logger("sensor_core")
 
 
 class EdgeOrchestrator:
@@ -151,7 +151,7 @@ class EdgeOrchestrator:
     #########################################################################################################
     def sensor_failed(self, sensor: Sensor) -> None:
         """Called by Sensor to indicate that it has failed; orchestrator will then restarting everything."""
-        logger.error(f"{utils.RAISE_WARN()}Sensor failed; restarting all; {sensor}")
+        logger.error(f"{root_cfg.RAISE_WARN()}Sensor failed; restarting all; {sensor}")
         logger.info(self.status())
         self.stop_all()
         # The orchestrator monitors it's own status and will re-register all Sensors and Datastreams.
@@ -492,7 +492,7 @@ def main() -> None:
 
     except Exception as e:
         logger.error(
-            f"{utils.RAISE_WARN()}({root_cfg.my_device_id}) Sensor exception: {e!s}",
+            f"{root_cfg.RAISE_WARN()}({root_cfg.my_device_id}) Sensor exception: {e!s}",
             exc_info=True,
         )
     finally:

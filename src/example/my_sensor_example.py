@@ -6,11 +6,11 @@ from sensor_core import configuration as root_cfg
 from sensor_core.config_objects import SensorDsCfg
 from sensor_core.datastream import Datastream
 from sensor_core.sensor import Sensor
-from sensor_core.utils import file_naming, utils
+from sensor_core.utils import file_naming
 
 from example.my_config_object_defs import EXAMPLE_FILE_DS_TYPE, EXAMPLE_LOG_DS_TYPE
 
-logger = utils.setup_logger("sensor_core")
+logger = root_cfg.setup_logger("sensor_core")
 
 
 #############################################################################################################

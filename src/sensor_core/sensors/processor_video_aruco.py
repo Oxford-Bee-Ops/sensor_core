@@ -13,12 +13,13 @@ import numpy as np
 import pandas as pd
 
 from sensor_core import DataProcessor, Datastream, DpContext, api
+from sensor_core import configuration as root_cfg
 from sensor_core.sensors.config_object_defs import ARUCO_MARKED_UP_VIDEOS_DS_TYPE_ID, ArucoProcessorCfg
-from sensor_core.utils import file_naming, utils
+from sensor_core.utils import file_naming
 
 cv2.setRNGSeed(42)
 
-logger = utils.setup_logger("sensor_core")
+logger = root_cfg.setup_logger("sensor_core")
 
 
 @dataclass
@@ -63,7 +64,7 @@ class VideoArucoProcessor(DataProcessor):
 
             except Exception as e:
                 logger.error(
-                    f"{utils.RAISE_WARN()}Exception occurred processing video {f!s}; {e!s}",
+                    f"{root_cfg.RAISE_WARN()}Exception occurred processing video {f!s}; {e!s}",
                     exc_info=True,
                 )
 

@@ -28,9 +28,9 @@ from sensor_core import api
 from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import CloudConnector
 from sensor_core.datastream import Datastream
-from sensor_core.utils import file_naming, utils
+from sensor_core.utils import file_naming
 
-logger = utils.setup_logger(name="sensor_core")
+logger = root_cfg.setup_logger(name="sensor_core")
 
 
 class ZipFileHandler(Thread):
