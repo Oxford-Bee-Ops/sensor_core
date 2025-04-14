@@ -254,7 +254,7 @@ class Keys(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
 
 
-class SystemCfg(BaseSettings):
+class SystemCfg(BaseSettings, Configuration):
     """Class to hold the keys for the system"""
     ############################################################
     # Mandatory custom settings

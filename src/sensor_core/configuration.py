@@ -383,6 +383,8 @@ def display_config(device_id: Optional[str] = None) -> str:
 
     # We want to display the my_device dataclass hierarchy of objects in a clean way
     display_str = f"Device: {device_id}\n"
+    if system_cfg:
+        display_str += f"SystemCfg:{system_cfg.display()}\n"
     display_str += INVENTORY[device_id].display()
     return display_str
 

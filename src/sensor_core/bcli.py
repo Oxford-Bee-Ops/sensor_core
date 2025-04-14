@@ -145,6 +145,13 @@ def view_sensor_core_config() -> None:
     if not check_keys_env():
         return
 
+    # Display system.cfg
+    if root_cfg.system_cfg:
+        click.echo(f"{dash_line}")
+        click.echo("# SYSTEM CONFIGURATION")
+        click.echo(f"{dash_line}")
+        click.echo(f"\n{root_cfg.system_cfg.display()}")
+
     # This function allows the user to set the fully qualified class ref for the sensor core config
     sc = SensorCore()
     click.echo(f"\n{sc.display_configuration()}")
@@ -264,19 +271,10 @@ def start_sensor_core() -> None:
 
     # If my_start_script is a resolvable module in this environment, then we use that to start the service
     # using that user-provided script.
-    try:
-        my_start_script = root_cfg.system_cfg.my_start_script
-        if my_start_script is None:
-            raise ImportError("my_start_script is not set in the system.cfg file")
-        # Try creating an instance and calling main()
-        # This will raise an ImportError if the module is not found
-        # or if the main() function is not defined in the module
-        module = __import__(my_start_script, fromlist=["main"])
-        main_func = getattr(module, "main", None)
-        if main_func is None:
-            raise ImportError(f"main() function not found in {my_start_script}")
-    except ImportError:
-        click.echo("No configuration script found (run_my_sensor.py)")
+    if (root_cfg.system_cfg is None or 
+        root_cfg.system_cfg.my_start_script is None or
+        root_cfg.system_cfg.my_start_script == root_cfg.FAILED_TO_LOAD):
+        click.echo("System.cfg has not my_start_script configuration")
         click.echo("Do you want to start SensorCore using the default configuration? (y/n)")
         char = click.getchar()
         click.echo(char)
@@ -287,15 +285,31 @@ def start_sensor_core() -> None:
         sc = SensorCore()
         sc.start()
     else:
-        click.echo("Found run_my_sensor.py. Starting SensorCore with that script...")
-        if root_cfg.running_on_windows:
-            click.echo("This command only works on Linux. Exiting...")
+        try:
+            my_start_script = root_cfg.system_cfg.my_start_script
+            # Try creating an instance and calling main()
+            # This will raise an ImportError if the module is not found
+            # or if the main() function is not defined in the module
+            module = __import__(my_start_script, fromlist=["main"])
+            main_func = getattr(module, "main", None)
+            if main_func is None:
+                click.echo(f"main() function not found in {my_start_script}")
+                click.echo("Exiting...")
+                return
+        except ImportError:
+            click.echo(f"Module {my_start_script} not resolvable")
+            click.echo("Exiting...")
             return
-        if root_cfg.SCRIPTS_DIR.exists():
-            run_cmd(f"nohup sudo -u $USER {root_cfg.SCRIPTS_DIR}/run_sensor_core.sh &")
         else:
-            click.echo(f"Error: scripts directory does not exist at {root_cfg.SCRIPTS_DIR}. "
-                       f"Please check your installation.")
+            click.echo(f"Found {my_start_script}. Starting SensorCore with that script...")
+            if root_cfg.running_on_windows:
+                click.echo("This command only works on Linux. Exiting...")
+                return
+            if root_cfg.SCRIPTS_DIR.exists():
+                run_cmd(f"nohup sudo -u $USER {root_cfg.SCRIPTS_DIR}/run_sensor_core.sh &")
+            else:
+                click.echo(f"Error: scripts directory does not exist at {root_cfg.SCRIPTS_DIR}. "
+                        f"Please check your installation.")
 
     click.echo("SensorCore started.")
     return
