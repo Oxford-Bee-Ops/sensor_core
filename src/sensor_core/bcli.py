@@ -262,10 +262,19 @@ def start_sensor_core() -> None:
     """Start the SensorCore service."""
     click.echo("Starting SensorCore...")
 
-    # If run_my_sensor.py is a resolvable module in this environment, then we use that to start the service
+    # If my_start_script is a resolvable module in this environment, then we use that to start the service
     # using that user-provided script.
     try:
-        import run_my_sensor  # noqa: F401
+        my_start_script = root_cfg.system_cfg.my_start_script
+        if my_start_script is None:
+            raise ImportError("my_start_script is not set in the system.cfg file")
+        # Try creating an instance and calling main()
+        # This will raise an ImportError if the module is not found
+        # or if the main() function is not defined in the module
+        module = __import__(my_start_script, fromlist=["main"])
+        main_func = getattr(module, "main", None)
+        if main_func is None:
+            raise ImportError(f"main() function not found in {my_start_script}")
     except ImportError:
         click.echo("No configuration script found (run_my_sensor.py)")
         click.echo("Do you want to start SensorCore using the default configuration? (y/n)")
