@@ -337,12 +337,12 @@ system_cfg = _load_system_cfg()
 ##############################################################################################
 def load_inventory() -> Optional[list[DeviceCfg] | None]:
     """Load the inventory using the my_fleet_config value defined in SystemCfg class."""
+    inventory: list[DeviceCfg] = []
     if (system_cfg and 
         system_cfg.my_fleet_config and
         system_cfg.my_fleet_config != FAILED_TO_LOAD):
 
         # Try to load the fleet config by instantiating the class
-        inventory: list[DeviceCfg] = []
         try:
             module_path, obj_name = system_cfg.my_fleet_config.rsplit(".", 1)
             module = importlib.import_module(module_path)
@@ -369,7 +369,7 @@ def set_inventory(inventory: list[DeviceCfg]) -> dict[str, DeviceCfg]:
             set_log_level(my_device.log_level)
     else:
         logger.error(f"{RAISE_WARN()}Device ID {my_device_id} not found in inventory")
-    print(f"Inventory reloaded: found {len(INVENTORY)} devices")
+    logger.info(f"Inventory reloaded: found {len(INVENTORY)} devices")
 
     return INVENTORY
 
