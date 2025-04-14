@@ -313,20 +313,24 @@ if SYSTEM_CFG_FILE.exists():
     localised_model_config = SettingsConfigDict(
         extra="ignore", env_file_encoding="utf-8", env_file=SYSTEM_CFG_FILE
     )
+    logger.info(f"{SYSTEM_CFG_FILE} exists")
 else:
     print("#################################################################")
     print(f"# {SYSTEM_CFG_FILE} does not exist")
     print("#################################################################")
+    logger.error(f"{SYSTEM_CFG_FILE} does not exist")
     localised_model_config = SettingsConfigDict()
 
 def _load_system_cfg() -> Optional[SystemCfg | None]:
     try:
         # Use the Keys class to load the configuration
+        logger.info(f"Loading {SYSTEM_CFG_FILE}...")
         return SystemCfg()
     except Exception as e:
         print("#################################################################")
         print(f"Failed to load {SYSTEM_CFG_FILE}: {e}")
         print("#################################################################")
+        logger.error(f"Failed to load {SYSTEM_CFG_FILE}: {e}")
         return None
 
 system_cfg = _load_system_cfg()

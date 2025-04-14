@@ -274,7 +274,7 @@ def start_sensor_core() -> None:
     if (root_cfg.system_cfg is None or 
         root_cfg.system_cfg.my_start_script is None or
         root_cfg.system_cfg.my_start_script == root_cfg.FAILED_TO_LOAD):
-        click.echo("System.cfg has not my_start_script configuration")
+        click.echo("System.cfg has no my_start_script configuration")
         click.echo("Do you want to start SensorCore using the default configuration? (y/n)")
         char = click.getchar()
         click.echo(char)
