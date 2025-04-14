@@ -62,6 +62,7 @@ check_prerequisites() {
         echo "Error: SSH is not enabled. Please enable SSH."
         exit 1
     fi
+    
     echo "All pre-requisites are met."
 }
 
@@ -101,6 +102,14 @@ export_system_cfg() {
 # Install SSH keys from the ./sensor_core directory to the ~/.ssh directory
 install_ssh_keys() {
     echo "Installing SSH keys..."
+
+    # Skip if the SSH keys already exist
+    if [ -f "$HOME/.ssh/$my_git_ssh_private_key_file" ]; then
+        echo "SSH keys already installed."
+        return
+    fi
+
+    # Otherwise, create the ~/.ssh directory if it doesn't exist
     if [ ! -d "$HOME/.ssh" ]; then
         mkdir -p "$HOME/.ssh" || { echo "Failed to create ~/.ssh directory"; exit 1; }
     fi
@@ -291,7 +300,7 @@ echo "Starting RPi installer..."
 check_prerequisites
 cd "$HOME/.sensor_core" || { echo "Failed to change directory to $HOME/.sensor_core"; exit 1; }
 export_system_cfg
-#install_ssh_keys
+install_ssh_keys
 create_venv
 install_os_packages
 install_sensor_core
