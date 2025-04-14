@@ -10,7 +10,7 @@ from pydantic_settings import SettingsConfigDict
 
 from sensor_core import api
 from sensor_core.config_objects import FAILED_TO_LOAD, DeviceCfg, Keys, SystemCfg
-from sensor_core.utils.dc import create_root_working_dir
+from sensor_core.utils import dc
 
 ############################################################################################
 # Test mode flag
@@ -94,7 +94,7 @@ elif running_on_rpi:
     SC_CODE_DIR = CODE_DIR / "sensor_core"
     CFG_DIR = HOME_DIR / ".sensor_core"  # In the base user directory on the RPi
     ROOT_WORKING_DIR = Path("/sensor_core")  # We always create a /sensor_core directory on the RPi
-    create_root_working_dir(ROOT_WORKING_DIR)
+    dc.create_root_working_dir(ROOT_WORKING_DIR)
 
 elif running_on_linux:
     # This is Docker on Linux
@@ -103,7 +103,7 @@ elif running_on_linux:
     SC_CODE_DIR = Path("/app")
     CFG_DIR = Path("/run/secrets")
     ROOT_WORKING_DIR = Path("/sensor_core")
-    create_root_working_dir(ROOT_WORKING_DIR)
+    dc.create_root_working_dir(ROOT_WORKING_DIR)
 else:
     raise Exception("Unknown platform: " + platform.platform())
 
@@ -309,29 +309,26 @@ def check_keys() -> tuple[bool, str]:
 ############################################################################################
 # Load system.cfg configuration
 ############################################################################################
-if SYSTEM_CFG_FILE.exists():
-    localised_model_config = SettingsConfigDict(
-        extra="ignore", env_file_encoding="utf-8", env_file=SYSTEM_CFG_FILE
-    )
-    logger.info(f"{SYSTEM_CFG_FILE} exists")
-else:
-    print("#################################################################")
-    print(f"# {SYSTEM_CFG_FILE} does not exist")
-    print("#################################################################")
-    logger.error(f"{SYSTEM_CFG_FILE} does not exist")
-    localised_model_config = SettingsConfigDict()
-
 def _load_system_cfg() -> Optional[SystemCfg | None]:
+    if not SYSTEM_CFG_FILE.exists():
+        print("#################################################################")
+        print(f"# {SYSTEM_CFG_FILE} does not exist")
+        print("#################################################################")
+        logger.error(f"{SYSTEM_CFG_FILE} does not exist")
+        return SystemCfg()
+
     try:
         # Use the Keys class to load the configuration
         logger.info(f"Loading {SYSTEM_CFG_FILE}...")
-        return SystemCfg()
+        cfg = SystemCfg(_env_file=SYSTEM_CFG_FILE, _env_file_encoding="utf-8")  # type: ignore
+        logger.info(f"my_git_repo_url={cfg.my_git_repo_url}")
+        return cfg
     except Exception as e:
         print("#################################################################")
         print(f"Failed to load {SYSTEM_CFG_FILE}: {e}")
         print("#################################################################")
         logger.error(f"Failed to load {SYSTEM_CFG_FILE}: {e}")
-        return None
+        return SystemCfg()
 
 system_cfg = _load_system_cfg()
 
@@ -387,8 +384,6 @@ def display_config(device_id: Optional[str] = None) -> str:
 
     # We want to display the my_device dataclass hierarchy of objects in a clean way
     display_str = f"Device: {device_id}\n"
-    if system_cfg:
-        display_str += f"SystemCfg:{system_cfg.display()}\n"
     display_str += INVENTORY[device_id].display()
     return display_str
 

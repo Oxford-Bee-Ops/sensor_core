@@ -13,7 +13,7 @@ from crontab import CronTab
 
 from sensor_core import SensorCore, api, device_health
 from sensor_core import configuration as root_cfg
-from sensor_core.utils import utils
+from sensor_core.utils import utils, dc
 from sensor_core.utils.utils import disable_console_logging
 
 logger = root_cfg.setup_logger("common")
@@ -150,7 +150,7 @@ def view_sensor_core_config() -> None:
         click.echo(f"{dash_line}")
         click.echo("# SYSTEM CONFIGURATION")
         click.echo(f"{dash_line}")
-        click.echo(f"\n{root_cfg.system_cfg.display()}")
+        click.echo(f"\n{dc.display_dataclass(root_cfg.system_cfg)}")
 
     # This function allows the user to set the fully qualified class ref for the sensor core config
     sc = SensorCore()
@@ -488,7 +488,7 @@ def self_test() -> None:
 ####################################################################################################
 def interactive_menu() -> None:
     """Interactive menu for navigating commands."""
-    click.clear()
+    #click.clear()
 
     # Check if we need to setup keys or git repo
     check_if_setup_required()
