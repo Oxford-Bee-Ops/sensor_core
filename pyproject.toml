@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sensor-core"
-version = "0.1.31"
+version = "0.1.32"
 description = "Python module to support using Raspberry Pi for scientific data collection"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -53,10 +53,10 @@ bcli = "sensor_core.bcli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"sensor_core" = ["scripts/*"]
+"sensor_core" = ["src/sensor_core/scripts/*"]
 
 [tool.setuptools.data-files]
-"scripts" = ["scripts/*"]
+"scripts" = ["src/sensor_core/scripts/*"]
 
 [tool.ruff]
 line-length = 110

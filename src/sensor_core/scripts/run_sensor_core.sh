@@ -18,6 +18,12 @@ export_system_cfg() {
             fi
         fi
     done < "$HOME/.sensor_core/system.cfg"
+
+    # Check if my_start_script is set
+    if [ ! -n "$my_start_script" ]; then
+        echo "Error: my_start_script is not set in system.cfg"
+        exit 1
+    fi
 }
 
 # Function to create a ramdisk mount
@@ -69,6 +75,6 @@ activate_venv() {
 export_system_cfg
 create_ramdisk_mount
 activate_venv
-echo "Calling run_my_sensor in $HOME/$venv_dir"
-python -m run_my_sensor 2>&1 | /usr/bin/logger -t SENSOR_CORE
+echo "Calling $my_start_script in $HOME/$venv_dir"
+python -m $my_start_script 2>&1 | /usr/bin/logger -t SENSOR_CORE
 
