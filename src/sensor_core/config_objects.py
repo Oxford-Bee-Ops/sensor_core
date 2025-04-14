@@ -263,6 +263,7 @@ class SystemCfg(BaseSettings):
     my_git_repo_url: str = FAILED_TO_LOAD
     my_git_branch: str = FAILED_TO_LOAD
     my_git_ssh_private_key_file: str = FAILED_TO_LOAD
+    my_fleet_config: str = FAILED_TO_LOAD
     my_start_script: str = FAILED_TO_LOAD
     ############################################################
     # Default-able settings

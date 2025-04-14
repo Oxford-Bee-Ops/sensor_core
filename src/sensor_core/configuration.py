@@ -1,3 +1,4 @@
+import importlib
 import logging
 import platform
 import sys
@@ -6,7 +7,6 @@ from pathlib import Path
 from typing import Optional
 
 import psutil
-from pydantic_settings import SettingsConfigDict
 
 from sensor_core import api
 from sensor_core.config_objects import FAILED_TO_LOAD, DeviceCfg, Keys, SystemCfg
@@ -335,6 +335,23 @@ system_cfg = _load_system_cfg()
 #############################################################################################
 # Store the provided inventory
 ##############################################################################################
+def load_inventory() -> Optional[list[DeviceCfg] | None]:
+    """Load the inventory using the my_fleet_config value defined in SystemCfg class."""
+    if (system_cfg and 
+        system_cfg.my_fleet_config and
+        system_cfg.my_fleet_config != FAILED_TO_LOAD):
+
+        # Try to load the fleet config by instantiating the class
+        inventory: list[DeviceCfg] = []
+        try:
+            module_path, obj_name = system_cfg.my_fleet_config.rsplit(".", 1)
+            module = importlib.import_module(module_path)
+            inventory = getattr(module, obj_name)
+        except Exception as e:
+            logger.error(f"Failed to load config from {system_cfg.my_fleet_config}: {e}")
+
+    return inventory
+
 def set_inventory(inventory: list[DeviceCfg]) -> dict[str, DeviceCfg]:
     """Reload the inventory from the config file.
     It is assumed that the config has already been validated by SensorCore.configure().
@@ -377,7 +394,6 @@ def update_my_device_id(new_device_id: str) -> None:
     if my_device_id in INVENTORY:
         my_device = INVENTORY[my_device_id]
 
-
 def display_config(device_id: Optional[str] = None) -> str:
     if device_id is None:
         device_id = my_device_id
@@ -386,6 +402,7 @@ def display_config(device_id: Optional[str] = None) -> str:
     display_str = f"Device: {device_id}\n"
     display_str += INVENTORY[device_id].display()
     return display_str
+
 
 ############################################################################################################
 # Update the logging to reflect the logging level requested in the cfg file

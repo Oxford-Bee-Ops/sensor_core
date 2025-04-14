@@ -13,7 +13,7 @@ from crontab import CronTab
 
 from sensor_core import SensorCore, api, device_health
 from sensor_core import configuration as root_cfg
-from sensor_core.utils import utils, dc
+from sensor_core.utils import dc, utils
 from sensor_core.utils.utils import disable_console_logging
 
 logger = root_cfg.setup_logger("common")
@@ -152,8 +152,11 @@ def view_sensor_core_config() -> None:
         click.echo(f"{dash_line}")
         click.echo(f"\n{dc.display_dataclass(root_cfg.system_cfg)}")
 
-    # This function allows the user to set the fully qualified class ref for the sensor core config
     sc = SensorCore()
+    inventory = root_cfg.load_inventory()
+    if inventory:
+        sc.configure(fleet_config=inventory)
+        
     click.echo(f"\n{sc.display_configuration()}")
 
 
