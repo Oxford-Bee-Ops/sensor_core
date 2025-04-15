@@ -52,7 +52,7 @@ class SensorCore:
         return (is_valid, errors)                
 
 
-    def configure(self, fleet_config: list[DeviceCfg], force_update: bool = False) -> None:
+    def configure(self, fleet_config: list[DeviceCfg]) -> None:
         """
         Set the SensorCore configuration.
         See the /examples folder for configuration file templates.
@@ -66,9 +66,6 @@ class SensorCore:
         - Exception: If the sensor core is running (and force_update is not set).
         - Exception: If no configuration exists.
         """
-        if not force_update and self._is_running():
-            raise Exception("SensorCore is running; either stop SensorCore or use force_update.")
-
         if not fleet_config:
             raise Exception("No configuration files provided.")
         
@@ -90,16 +87,6 @@ class SensorCore:
 
         # Load the configuration
         root_cfg.set_inventory(fleet_config)
-
-        # Restart the SensorCore if it is running
-        if self._is_running():
-            print("##########################################################")
-            print("# SensorCore is running but force_update has been used.")
-            print("# The system will reboot in 5 seconds.")
-            print("##########################################################")
-            self.stop()
-            sleep(5)
-            utils.run_cmd("sudo reboot")
 
     def start(self) -> None:
         """

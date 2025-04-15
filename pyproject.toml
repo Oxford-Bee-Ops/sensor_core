@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sensor-core"
-version = "0.1.40"
+version = "0.1.41"
 description = "Python module to support using Raspberry Pi for scientific data collection"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -19,7 +19,7 @@ dependencies = [
     "gitpython",
     "gpiozero",
     "numpy",
-    "opencv-python",
+    'opencv-python; sys_platform == "win32"',
     "pandas",
     "psutil",
     "pydantic-settings",

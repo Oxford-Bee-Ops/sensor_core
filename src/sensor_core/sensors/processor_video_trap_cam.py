@@ -63,7 +63,9 @@ class ProcessorVideoTrapCam(DataProcessor):
 
         cap = cv2.VideoCapture(str(video_path))
         if not cap.isOpened():
-            raise ValueError(f"Unable to open video file: {video_path}")
+            exists = video_path.exists()
+            raise ValueError(f"Unable to open video file (exists={exists}): {video_path};"
+                             f" opencv installation issue?")
 
         fname_details = file_naming.parse_record_filename(video_path)
         start_time = fname_details[api.RECORD_ID.TIMESTAMP.value]
