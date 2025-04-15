@@ -107,11 +107,12 @@ elif running_on_linux:
 else:
     raise Exception("Unknown platform: " + platform.platform())
 
-FLAGS_DIR: Path = CFG_DIR / "flags"  # For the flag files
 TMP_DIR: Path = ROOT_WORKING_DIR / "tmp"
 LOG_DIR: Path = ROOT_WORKING_DIR / "logs"
 TEST_DIR: Path = SC_CODE_DIR / "test"
 SCRIPTS_DIR: Path = SC_CODE_DIR / "scripts"  # For the shell scripts
+FLAGS_DIR: Path = CFG_DIR / "flags"  # For persistent flags
+TMP_FLAGS_DIR: Path = TMP_DIR / "tmp_flags"  # For transient flags
 
 ###########################################################################################
 # SensorCore uses 3 directories on the edge device:
@@ -126,11 +127,12 @@ ETL_UNZIP_DIR = ROOT_WORKING_DIR / "unzip"  # Where zip files are downloaded to
 ETL_PROCESSING_DIR = ROOT_WORKING_DIR / "processing"  # Awaiting ETL DP processing
 ETL_ARCHIVE_DIR = ROOT_WORKING_DIR / "etl_archive"  # Awaiting archive by Datastream
 dirs = [
-    FLAGS_DIR,
     TMP_DIR,
     LOG_DIR,
     TEST_DIR,
     SCRIPTS_DIR,
+    FLAGS_DIR,
+    TMP_FLAGS_DIR,
     EDGE_PROCESSING_DIR,
     EDGE_STAGING_DIR,
     EDGE_UPLOAD_DIR,
@@ -165,15 +167,17 @@ def set_mode(mode: Mode) -> None:
 ############################################################
 # Flag files set in FLAGS_DIR
 ############################################################
+# Used by the CLI and SensorCore.py to start / stop SensorCore
+STOP_SENSOR_CORE_FLAG = FLAGS_DIR / "STOP_SENSOR_CORE_FLAG"
+
+# Used by EdgeOrchestrator to check if SensorCore is running
+SENSOR_CORE_IS_RUNNING_FLAG = TMP_FLAGS_DIR / "SENSOR_CORE_IS_RUNNING_FLAG"
+
 # Used by BCLI to signal to VideoCapture to take a picture
 TAKE_PICTURE_FLAG = FLAGS_DIR / "TAKE_PICTURE"
 
 # Used by BCLI to signal to AudioCapture and VideoCapture to pause recording
 PERMANENT_PAUSE_RECORDING_FLAG = FLAGS_DIR / "PAUSE_RECORDING_FLAG"
-
-# Used by the CLI and SensorCore.py to start / stop SensorCore
-STOP_SENSOR_CORE_FLAG = FLAGS_DIR / "STOP_SENSOR_CORE_FLAG"
-
 
 # We use a dummy device for testing purposes and when no config is specified
 DUMMY_DEVICE = DeviceCfg(device_id=DUMMY_MAC, name="DUMMY")

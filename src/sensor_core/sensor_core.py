@@ -356,15 +356,7 @@ class SensorCore:
 
     def _is_running(self)-> bool:
         """Check if an instance of SensorCore is running."""
-        is_running = False
-
-        if root_cfg.running_on_rpi:
-            is_running = utils.is_already_running(".sensor_core")
-        elif root_cfg.running_on_windows:
-            orchestrator = EdgeOrchestrator.get_instance()
-            is_running = orchestrator.orchestrator_is_running
-
-        return is_running
+        return EdgeOrchestrator.is_running()
 
     @staticmethod
     def _is_configured() -> bool:

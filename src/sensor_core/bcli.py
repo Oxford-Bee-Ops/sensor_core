@@ -207,6 +207,7 @@ class InteractiveMenu():
         except KeyboardInterrupt:
             click.echo("\nExiting...")
 
+    @staticmethod
     def display_logs(logs: list[dict]) -> None:
         for log in logs:
             # Nicely format the log by printing the timestamp and message

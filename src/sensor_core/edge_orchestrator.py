@@ -27,6 +27,8 @@ from sensor_core.utils import file_naming, utils
 
 logger = root_cfg.setup_logger("sensor_core")
 
+# Seconds between polls of is_stop_requested / touch is_running flag
+WATCHDOG_FREQUENCY = 1  
 
 class EdgeOrchestrator:
     """The EdgeOrchestrator manages the state of the sensors and their associated Datastreams.
@@ -99,13 +101,13 @@ class EdgeOrchestrator:
             # Create the DeviceHealth object
             self.device_health = DeviceHealth()
 
-            self.orchestrator_is_running = False
+            self._orchestrator_is_running = False
 
 
     def status(self) -> dict[str, str]:
         """Return a key-value status describing the state of the EdgeOrchestrator"""
         status = {
-            "Orchestrator running": str(self.orchestrator_is_running),
+            "Orchestrator running": str(self._orchestrator_is_running),
             "Sensor threads": str(self._sensorThreads),
             "Observability timer": str(self._observability_timer),
             "Upload timer": str(self._upload_timer),
@@ -228,7 +230,7 @@ class EdgeOrchestrator:
     def start_all(self) -> None:
         """Start all Sensor, Datastream and observability threads"""
 
-        if self.orchestrator_is_running:
+        if self._orchestrator_is_running:
             logger.warning(f"Sensor_manager is already running; {self}")
             logger.info(self.status())
             return
@@ -238,7 +240,7 @@ class EdgeOrchestrator:
         self.orchestrator_is_stopping = False
 
         # Set the flag monitored by the SensorFactory
-        self.orchestrator_is_running = True
+        self._orchestrator_is_running = True
 
         # Start the Datastreams threads
         # Start FAIRY first, so that we can use it to save other FAIR archive records
@@ -280,7 +282,7 @@ class EdgeOrchestrator:
 
         self.orchestrator_is_stopping = True
 
-        if not self.orchestrator_is_running:
+        if not self._orchestrator_is_running:
             logger.warning(f"EdgeOrchestrator not started when stop called; {self}")
             logger.info(self.status())
             if self._observability_timer:
@@ -328,7 +330,7 @@ class EdgeOrchestrator:
 
         # Clear our thread lists
         self.reset_orchestrator_state()
-        self.orchestrator_is_running = False
+        self._orchestrator_is_running = False
         logger.info("Stopped all sensors and datastreams")
 
     def is_stop_requested(self) -> bool:
@@ -339,6 +341,28 @@ class EdgeOrchestrator:
             self.stop_all()
 
         return stop_requested
+
+    @staticmethod
+    def is_running() -> bool:
+        """Check if the SensorCore is running"""
+        # If the SENSOR_CORE_IS_RUNNING_FLAG exists and was touched within the last 2x _FREQUENCY seconds,
+        # and the timestamp on the file is < than the timestamp on the STOP_SENSOR_CORE_FLAG file,
+        # then we are running.
+        # If the file doesn't exist, we are not running.
+        # If the file exists, but was not touched within the last 2x _FREQUENCY seconds, we are not running.
+
+        if not root_cfg.SENSOR_CORE_IS_RUNNING_FLAG.exists():
+            return False
+        if root_cfg.STOP_SENSOR_CORE_FLAG.exists():
+            if (root_cfg.SENSOR_CORE_IS_RUNNING_FLAG.stat().st_mtime < 
+                root_cfg.STOP_SENSOR_CORE_FLAG.stat().st_mtime):
+                return False
+        time_threshold = api.utc_now() - timedelta(seconds=2 * WATCHDOG_FREQUENCY)
+        if root_cfg.SENSOR_CORE_IS_RUNNING_FLAG.stat().st_mtime < time_threshold.timestamp():
+            return False
+        # If we get here, the file exists, was touched within the last 2x _FREQUENCY seconds,
+        # and the timestamp is > than the timestamp on the STOP_SENSOR_CORE_FLAG file.
+        return True
 
     #########################################################################################################
     #
@@ -467,6 +491,9 @@ def request_stop() -> None:
     """Request all sensors to stop and SensorCore to exit"""
     root_cfg.STOP_SENSOR_CORE_FLAG.touch()
 
+def _touch_running_file() -> None:
+    """Touch the running file to indicate that the script is running"""
+    root_cfg.SENSOR_CORE_IS_RUNNING_FLAG.touch()
 
 def main() -> None:
     try:
@@ -474,7 +501,11 @@ def main() -> None:
         logger.info(root_cfg.my_device.display())
 
         orchestrator = EdgeOrchestrator.get_instance()
-        assert not orchestrator.orchestrator_is_running, "Sensor manager should not be running"
+        if orchestrator.is_running():
+            logger.warning("SensorCore is already running; exiting")
+            sys.exit(0)
+
+        assert not orchestrator._orchestrator_is_running, "Sensor manager should not be running"
         orchestrator.load_sensors()
 
         # Start all the sensor threads
@@ -482,10 +513,11 @@ def main() -> None:
 
         # Keep the main thread alive
         while not orchestrator.is_stop_requested():
-            sleep(1)
+            sleep(WATCHDOG_FREQUENCY)
+            _touch_running_file()
 
             # Restart the re-load and re-start the EdgeOrchestrator if it fails.
-            if not orchestrator.orchestrator_is_running:
+            if not orchestrator._orchestrator_is_running:
                 logger.error("Sensor manager has stopped; restarting")
                 orchestrator.load_sensors()
                 orchestrator.start_all()
@@ -510,10 +542,5 @@ def main() -> None:
 #############################################################################################################
 # Main loop called from crontab on boot up
 if __name__ == "__main__":
-    # Check if an instance of this script is already running
-    if utils.is_already_running("sensor_core"):
-        logger.warning("Sensor.py script already running; exiting")
-        sys.exit(0)
-
     print("Starting EdgeOrchestrator")
     main()

@@ -83,16 +83,16 @@ class Test_Orchestrator:
         factory_thread = Thread(target=edge_orchestrator.main)
         factory_thread.start()
         sleep(1)
-        assert orchestrator.orchestrator_is_running
+        assert orchestrator._orchestrator_is_running
 
         # Sensor fails; factory_thread should restart everything after 1s
         logger.info("sensor_test: # Sensor fails; factory_thread should restart everything after 1s")
         sensor = orchestrator._get_sensor(ExampleSensorCfg.sensor_type, 1)
         assert sensor is not None
         orchestrator.sensor_failed(sensor)
-        assert not orchestrator.orchestrator_is_running
+        assert not orchestrator._orchestrator_is_running
         start_clock = api.utc_now()
-        while not orchestrator.orchestrator_is_running:
+        while not orchestrator._orchestrator_is_running:
             sleep(1)
             assert (api.utc_now() - start_clock).total_seconds() < 10, (
                 "Orchestrator did not restart quickly enough")
