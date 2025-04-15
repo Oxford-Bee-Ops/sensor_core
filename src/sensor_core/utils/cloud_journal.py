@@ -84,15 +84,25 @@ class _CloudJournalManager:
             # Add the items in the queue to a local file that we can then append to the cloud file
             lj = Journal(journal.local_fname,
                          reqd_columns=journal.reqd_columns)
+            empty = True
             while not jqueue.empty():
                 data_list_dict: list[dict] = jqueue.get()
                 lj.add_rows(data_list_dict)
-            # The Journal.save() function ignores any columns that are not in the reqd_columns
-            # list
-            lj.save()
+                empty = False
+ 
+            if not empty:
+                # The Journal.save() function ignores any columns that are not in the reqd_columns list
+                lj.save()
 
-            # Append the contents of lj to the cloud blob
-            self.cloud_connector.append_to_cloud(journal.cloud_container, journal.local_fname)
+                # Append the contents of lj to the cloud blob
+                success = self.cloud_connector.append_to_cloud(journal.cloud_container, journal.local_fname)
+
+                # If successful, delete the local file
+                if success:
+                    try:
+                        journal.local_fname.unlink()
+                    except FileNotFoundError:
+                        logger.warning(f"Unable to delete local file {journal.local_fname}")
 
         time_diff = (api.utc_now() - start_time).total_seconds()
         logger.debug(f"Completed flush_all started at {start_time} after {time_diff} seconds")

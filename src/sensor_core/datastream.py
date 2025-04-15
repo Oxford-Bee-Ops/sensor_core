@@ -195,12 +195,11 @@ class Datastream(Thread):
         The raw_format field of the DatastreamType object must be set to df or csv for this to be used.
         """
         logger.debug(f"Saving data on sensor {self!r}")
-        ts_now = api.utc_now()
         self.journal_pool.add_rows_from_df(self.ds_config, sensor_data)
 
         # Track the number of measurements recorded
         # These data points don't have a duration - that only applies to recordings.
-        self._datastream_stats.append(DatastreamStats(ts_now, 1))
+        self._datastream_stats.append(DatastreamStats(api.utc_now(), 1))
 
     def save_recording(
         self,
@@ -289,28 +288,22 @@ class Datastream(Thread):
             suffix="yaml",
             override_ds_id=self.ds_id)
 
-    def log_sample_data(self, record_hour: datetime) -> dict:
+    def log_sample_data(self, sample_period_start_time: datetime) -> dict:
         """Provide the count & duration of data samples recorded (environmental, media, etc)
-        during record_hour.
+        since the last time log_sample_data was called.
 
         This is used by EdgeOrchestrator to periodically log observability data
         """
-        # Aggregate all entries where the timestamp in the DatastreamStats object matches
-        # the requested hour.
-        matching_records = [x for x in self._datastream_stats if x.timestamp.hour == record_hour.hour]
-        # Sum the count values in matching_records
-        count = sum(x.count for x in matching_records)
-        duration = sum(x.duration for x in matching_records)
+        count = sum(x.count for x in self._datastream_stats)
+        duration = sum(x.duration for x in self._datastream_stats)
 
-        # We only maintain data for the rolling last 2 hours
-        # Delete records from the list that are older than that so we don't leak memory
-        too_old = record_hour - timedelta(hours=2)
-        self._datastream_stats = [x for x in self._datastream_stats if x.timestamp >= too_old]
+        # Reset the datastream stats for the next period
+        self._datastream_stats = []
 
         # Log sample data
         sample_data = {}
         sample_data["observed_ds_type_id"] = self.ds_config.ds_type_id
-        sample_data["sample_period"] = api.utc_to_iso_str(record_hour)
+        sample_data["sample_period"] = api.utc_to_iso_str(sample_period_start_time)
         sample_data["count"] = str(count)
         sample_data["duration"] = str(duration)
         Datastream._score_ds.log(sample_data)
@@ -773,7 +766,8 @@ class Datastream(Thread):
 
         # Check that the Datastream has been started
         if self.ds_start_time is None:
-            raise ValueError(f"Datastream has not been started: {self}")
+            # This is most likely a race condition on start up.
+            logger.warning(f"Datastream has not been started: {self}; race condition on start up?")
 
         ds_id = self.ds_id
 

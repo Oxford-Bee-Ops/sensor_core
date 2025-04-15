@@ -214,7 +214,7 @@ class CloudConnector:
         ----------
         dst_container: destination container
         src_file: source file Path
-        safe_mode: if safe_mode is enabled, the function checks the local and remove column headers are 
+        safe_mode: if safe_mode is enabled, the function checks the local and remote column headers are 
         consistent
 
         Return
@@ -227,34 +227,38 @@ class CloudConnector:
         It the responsibility of the calling function to ensure that the columns & headers in the
         CSV data are consistent between local and remote files"""
 
-        dst_container = self._validate_container(dst_container)
+        try:
+            dst_container = self._validate_container(dst_container)
 
-        # Read the local file data ready to append
-        with src_file.open("r") as file:
-            local_lines = file.readlines()
-            if len(local_lines) == 1:
-                return False  # No data beyond headers
+            # Read the local file data ready to append
+            with src_file.open("r") as file:
+                local_lines = file.readlines()
+                if len(local_lines) == 1:
+                    return False  # No data beyond headers
 
-        # Get the blob client
-        blob_client = dst_container.get_blob_client(src_file.name)
+            # Get the blob client
+            blob_client = dst_container.get_blob_client(src_file.name)
 
-        if not blob_client.exists():
-            blob_client.create_append_blob()
-            # Include the Headers
-            data_to_append = "".join(local_lines[:])
-        else:
-            if safe_mode and not self._headers_match(blob_client, local_lines[0]):
-                # We bin out rather than set inconsistent fields
-                logger.error(
-                    f"{root_cfg.RAISE_WARN()}Failed due to inconsistent headers: local={local_lines[0]}"
-                )
-                return False
-            # Drop the Headers in the first line so we don't have repeat header rows
-            data_to_append = "".join(local_lines[1:])
+            if not blob_client.exists():
+                blob_client.create_append_blob()
+                # Include the Headers
+                data_to_append = "".join(local_lines[:])
+            else:
+                if safe_mode and not self._headers_match(blob_client, local_lines[0]):
+                    # We bin out rather than set inconsistent fields
+                    logger.error(
+                        f"{root_cfg.RAISE_WARN()}Failed due to inconsistent headers: local={local_lines[0]}"
+                    )
+                    return False
+                # Drop the Headers in the first line so we don't have repeat header rows
+                data_to_append = "".join(local_lines[1:])
 
-        # Append the data
-        blob_client.append_block(data_to_append)
-        return True
+            # Append the data
+            blob_client.append_block(data_to_append)
+            return True
+        except Exception as e:
+            logger.error(f"{root_cfg.RAISE_WARN()}Failed to append data to {blob_client.blob_name}: {e!s}")
+            return False
 
     def container_exists(self, container: str | ContainerClient) -> bool:
         """Check if the specified container exists"""

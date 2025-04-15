@@ -16,11 +16,8 @@ logger = root_cfg.setup_logger("sensor_core")
 class ProcessorVideoTrapCam(DataProcessor):
     def __init__(self):
         super().__init__()
-        self.background_subtractor = cv2.createBackgroundSubtractorMOG2(
-            history=100,
-            varThreshold=50,
-            detectShadows=False,
-        )
+        self.kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
+        self.background_subtractor = cv2.createBackgroundSubtractorMOG2()
 
     def process_data(
         self, 
@@ -115,7 +112,7 @@ class ProcessorVideoTrapCam(DataProcessor):
 
             current_frame += 1
             fg_mask = self.background_subtractor.apply(frame)
-            fg_mask = self._apply_mask_transforms(fg_mask)
+            fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, self.kernel)
             contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             movement = False
             for c in contours:
@@ -124,7 +121,7 @@ class ProcessorVideoTrapCam(DataProcessor):
                     movement = True
                     break
 
-            if movement and (current_frame > 2): # Ignore the first 3 frames while the BS settles
+            if movement and (current_frame > 1): # Ignore the first 2 frames while the BS settles
                 if not output_stream:
                     # Not currently recording; start recording
                     sample_first_frame = current_frame
@@ -175,14 +172,3 @@ class ProcessorVideoTrapCam(DataProcessor):
         logger.info(f"Saved {samples_saved} from video: {video_path}")
         cap.release()
 
-    # Apply transforms to the fg mask
-    def _apply_mask_transforms(self, fgmask) -> np.ndarray:
-
-        # Apply the closing morphological operation to the mask to reduce noise
-        # OPEN reduces small background noise (ERODE followed by DILTAE)
-        # CLOSE removes small holes in a mask (DILATION followed by EROSION)
-        kernel = np.ones((3, 3), np.uint8)
-        fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_OPEN, kernel, iterations=1)
-        fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_CLOSE, kernel, iterations=1)
-
-        return fgmask

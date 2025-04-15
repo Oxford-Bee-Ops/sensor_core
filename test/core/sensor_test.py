@@ -78,6 +78,26 @@ class Test_Orchestrator:
         sleep(1)
         orchestrator.stop_all()
 
+        # Repeat runs of observability logging
+        logger.info("sensor_test: # Repeat runs of observability logging")
+        orchestrator.load_sensors()
+        orchestrator.start_all()
+        sleep(2)
+        orchestrator.observability_run()
+        sleep(2)
+        orchestrator.observability_run()
+        #orchestrator.upload_to_cloud()
+        orchestrator.stop_all()
+
+        # There may be files left waiting to be processed, so we can't assert there aren't.
+        # filelist: list[Path] = list(root_cfg.EDGE_PROCESSING_DIR.glob("*"))
+        # filelist = [x for x in filelist if not x.suffix.endswith("csv")]
+        # assert len(filelist) == 0
+
+    def test_orchestrator_main(self) -> None:
+        
+        orchestrator = EdgeOrchestrator.get_instance()
+
         # Direct use of edge_orchestrator to include main() keep-alive
         logger.info("sensor_test: Direct use of EdgeOrchestor to include keep-alive")
         factory_thread = Thread(target=edge_orchestrator.main)
@@ -103,19 +123,3 @@ class Test_Orchestrator:
         edge_orchestrator.request_stop()
         if factory_thread.is_alive():
             factory_thread.join()
-
-        # Repeat runs of observability logging
-        logger.info("sensor_test: # Repeat runs of observability logging")
-        orchestrator.load_sensors()
-        orchestrator.start_all()
-        sleep(2)
-        orchestrator.observability_run()
-        sleep(2)
-        orchestrator.observability_run()
-        #orchestrator.upload_to_cloud()
-        orchestrator.stop_all()
-
-        # There may be files left waiting to be processed, so we can't assert there aren't.
-        # filelist: list[Path] = list(root_cfg.EDGE_PROCESSING_DIR.glob("*"))
-        # filelist = [x for x in filelist if not x.suffix.endswith("csv")]
-        # assert len(filelist) == 0

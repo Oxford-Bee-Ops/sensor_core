@@ -443,22 +443,21 @@ class EdgeOrchestrator:
             self._upload_timer.start()
 
     def upload_to_cloud(self, dst_container: Optional[str] = None) -> None:
-        """Method to zip up all sensor data and upload it to the cloud
+        """Method to zip up sensor data and upload it to the cloud, if it's not been 
+        uploaded directly.
 
         Looks for all files in the root_cfg.EDGE_UPLOAD_DIR except zip files.
-        This should include all raw recordings that are to be uploaded.
-        We flush the JournalPool to ensure all data is saved to disk in the EDGE_UPLOAD_DIR.
         """
 
         logger.debug("Upload from edge device to cloud")
 
-        # First, flush all the data from the JournalPool (which saves the files to the EDGE_UPLOAD_DIR)
-        # This is synchronous, but it locks all the journals until it completes.
-        JournalPool.get(root_cfg.Mode.EDGE).flush_journals()
-
         files_to_zip = root_cfg.EDGE_UPLOAD_DIR.glob("*")
         zip_filename = file_naming.get_zip_filename()
 
+        if not files_to_zip:
+            logger.info("No files to zip in upload_to_cloud")
+            return
+        
         with zipfile.ZipFile(zip_filename, "w", zipfile.ZIP_DEFLATED) as zipf:
             for file in files_to_zip:
                 if not file.is_file():
