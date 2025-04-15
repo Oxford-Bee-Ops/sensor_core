@@ -76,5 +76,5 @@ export_system_cfg
 create_ramdisk_mount
 activate_venv
 echo "Calling $my_start_script in $HOME/$venv_dir"
-python -m $my_start_script 2>&1 | /usr/bin/logger -t SENSOR_CORE
+nohup python -m $my_start_script 2>&1 | /usr/bin/logger -t SENSOR_CORE &
 
