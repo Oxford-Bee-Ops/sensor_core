@@ -73,6 +73,12 @@ class RpicamSensor(Sensor):
 
                 # Replace the FILENAME placeholder in the command with the actual filename
                 cmd = self.rpicam_cmd.replace("FILENAME", str(filename))
+
+                # If the "--camera SENSOR_INDEX" string is present, replace SENSOR_INDEX with
+                # the actual sensor index - 1
+                if "--camera SENSOR_INDEX" in cmd:
+                    cmd = cmd.replace("SENSOR_INDEX", str(self.sds_config.sensor_cfg.sensor_index - 1))
+
                 logger.info(f"Recording video with command: {cmd}")
 
                 # Start the video recording process

@@ -42,7 +42,7 @@ continuous_video_4fps_device = [
     )
 ]
 ###################################################################################################
-# Trap camera
+# Trap cameras
 #
 # We start with a low FPS continuous video recording device, and add a trap camera processor to it.
 # This creates a derived TRAP_CAM_DS datastream with the sub-sampled videos.
@@ -52,7 +52,61 @@ continuous_video_4fps_device = [
 trap_cam_device = [
     SensorDsCfg(
         sensor_cfg=RpicamSensorCfg(
-            rpicam_cmd = "rpicam-vid --framerate 4 --width 640 --height 480 -o FILENAME -t 180000 -v 0"
+            rpicam_cmd = ("rpicam-vid --autofocus-mode manual --lens-position 6 "
+                          "--framerate 4 --width 640 --height 480 -o FILENAME -t 180000 -v 0")
+        ),
+        datastream_cfgs=[
+            DatastreamCfg(
+                ds_type_id = CONTINUOUS_VIDEO_DS_TYPE_ID,
+                raw_format = "mp4",
+                archived_format = "mp4",
+                archived_data_description = "Basic continuous video recording.",
+                cloud_container = "sensor-core-upload",
+                edge_processors=[
+                    TrapCamProcessorCfg(
+                        min_blob_size=1000,
+                        max_blob_size=1000000,
+                        derived_datastreams=[
+                            TRAP_CAM_DS,
+                        ],
+                    )
+                ],
+            ),
+        ],
+    )
+]
+
+double_trap_cam_device = [
+    SensorDsCfg(
+        sensor_cfg=RpicamSensorCfg(
+            sensor_index = 0,
+            rpicam_cmd = ("rpicam-vid --camera SENSOR_INDEX --autofocus-mode manual --lens-position 6 "
+                          "--framerate 4 --width 640 --height 480 -o FILENAME -t 180000 -v 0")
+        ),
+        datastream_cfgs=[
+            DatastreamCfg(
+                ds_type_id = CONTINUOUS_VIDEO_DS_TYPE_ID,
+                raw_format = "mp4",
+                archived_format = "mp4",
+                archived_data_description = "Basic continuous video recording.",
+                cloud_container = "sensor-core-upload",
+                edge_processors=[
+                    TrapCamProcessorCfg(
+                        min_blob_size=1000,
+                        max_blob_size=1000000,
+                        derived_datastreams=[
+                            TRAP_CAM_DS,
+                        ],
+                    )
+                ],
+            ),
+        ],
+    ),
+    SensorDsCfg(
+        sensor_cfg=RpicamSensorCfg(
+            sensor_index = 1,
+            rpicam_cmd = ("rpicam-vid --camera SENSOR_INDEX --autofocus-mode manual --lens-position 6 "
+                          "--framerate 4 --width 640 --height 480 -o FILENAME -t 180000 -v 0")
         ),
         datastream_cfgs=[
             DatastreamCfg(

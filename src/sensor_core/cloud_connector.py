@@ -84,7 +84,7 @@ class CloudConnector:
                         standard_blob_tier=standard_blob_tier,
                     )
                 if delete_src:
-                    logger.debug(f"Deleting {file}")
+                    logger.debug(f"Deleting uploaded file: {file}")
                     file.unlink()
             else:
                 logger.error(f"Upload failed because file {file} does not exist")
