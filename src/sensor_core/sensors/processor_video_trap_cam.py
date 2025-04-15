@@ -172,7 +172,7 @@ class ProcessorVideoTrapCam(DataProcessor):
                                         f" frames of movement as noise")
                             temp_filename.unlink(missing_ok=True)
                             
-        logger.info(f"Finished processing video: {video_path}")
+        logger.info(f"Saved {samples_saved} from video: {video_path}")
         cap.release()
 
     # Apply transforms to the fg mask
