@@ -263,34 +263,6 @@ install_ufw() {
     sudo ufw --force enable
 }
 
-# Function to start SensorCore if auto_start is set in the system.cfg file
-auto_start_if_required() {
-    if [ -z "$auto_start" ]; then
-        echo "Error: auto_start is not set in system.cfg"
-    elif [ "$auto_start" == "Yes" ]; then
-        echo "Starting SensorCore..."
-        # Verify sensor_core_code_dir is set
-        if [ -z "$sensor_core_code_dir" ]; then
-            echo "Error: sensor_core_code_dir is not set in system.cfg"
-            exit 1
-        fi
-        # Verify run_sensor_core.sh exists
-        if [ ! -f "$HOME/$sensor_core_code_dir/scripts/run_sensor_core.sh" ]; then
-            echo "Error: run_sensor_core.sh file is missing in $HOME/$sensor_core_code_dir/scripts"
-            exit 1
-        fi
-        # Start SensorCore in the background and redirect output to stdout
-        "$HOME/$sensor_core_code_dir/scripts/run_sensor_core.sh" 2>&1
-        if [ $? -ne 0 ]; then
-            echo "Error: Failed to start SensorCore"
-            exit 1
-        fi
-        echo "SensorCore started successfully."
-    else
-        echo "auto_start is not set to 'Yes'. Not starting SensorCore."
-    fi
-}
-
 ###################################################################################################
 #
 # Main script execution to configure a RPi device suitable for long-running SensorCore operations
@@ -306,7 +278,6 @@ install_os_packages
 install_sensor_core
 install_user_code
 #install_ufw
-#auto_start_if_required
 
 # Add a flag file in the .sensor_core directory to indicate that the installer has run
 touch "$HOME/.sensor_core/rpi_installer_ran"

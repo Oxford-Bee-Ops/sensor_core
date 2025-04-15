@@ -273,7 +273,7 @@ class SystemCfg(BaseSettings):
     enable_volatile_logs: str ="Yes"
     journald_SystemMaxUse: str ="50M"
     # Do you want SensorCore to start automatically after running the rpi_installer.sh script?
-    enable_auto_start: str ="Yes"
+    auto_start: str ="Yes"
     # Enable the UFW firewall
     enable_firewall: str = "Yes"
     # Enable use of predictable network interface names
