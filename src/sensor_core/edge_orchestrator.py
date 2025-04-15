@@ -272,6 +272,16 @@ class EdgeOrchestrator:
         # Dump status to log
         logger.info(f"EdgeOrchestrator started: {self.status()}")
 
+    @staticmethod
+    def start_all_with_watchdog() -> None:
+        """This function starts the orchestrator and maintains it with a watchdog.
+        This is a non-blocking function that starts a new thread and returns.
+        It calls the edge_orchestrator main() function."""
+
+        logger.debug("Start orchestrator with watchdog")
+        orchestrator_thread = threading.Thread(target=main, name="EdgeOrchestrator")
+        orchestrator_thread.start()
+
     def stop_all(self) -> None:
         """Stop all Sensor, Datastream and observability threads
 

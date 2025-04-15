@@ -201,6 +201,9 @@ _LOG_LEVEL = logging.INFO
 def set_log_level(level: int) -> None:
     global _LOG_LEVEL
     _LOG_LEVEL = level
+    module_logger = logging.getLogger("sensor_core")
+    module_logger.setLevel(level)
+    module_logger.debug("Debug logging enabled for sensor_core")
 
 
 def setup_logger(name: str, level: Optional[int]=None, filename: Optional[str|Path]=None) -> logging.Logger:
@@ -368,8 +371,8 @@ def set_inventory(inventory: list[DeviceCfg]) -> dict[str, DeviceCfg]:
         INVENTORY[device.device_id] = device
     if my_device_id in INVENTORY:
         my_device = INVENTORY[my_device_id]
-        if (my_device.log_level != _LOG_LEVEL):
-            logger.info(f"Setting log level from {_LOG_LEVEL!s} to {level!s}")
+        if (my_device.log_level < _LOG_LEVEL):
+            logger.info(f"Setting log level in inventory from {_LOG_LEVEL!s} to {my_device.log_level!s}")
             set_log_level(my_device.log_level)
     else:
         logger.error(f"{RAISE_WARN()}Device ID {my_device_id} not found in inventory")
@@ -406,17 +409,5 @@ def display_config(device_id: Optional[str] = None) -> str:
     display_str = f"Device: {device_id}\n"
     display_str += INVENTORY[device_id].display()
     return display_str
-
-
-############################################################################################################
-# Update the logging to reflect the logging level requested in the cfg file
-#
-# We set the logging level to the lowest of what's set in cfg and the level requested in the code.
-############################################################################################################
-# if root_cfg.running_on_rpi:
-cfg_level = my_device.log_level
-level = min(cfg_level, _LOG_LEVEL)
-set_log_level(level)
-logger.info(f"Setting log level from {_LOG_LEVEL!s} to {level!s}")
 
 

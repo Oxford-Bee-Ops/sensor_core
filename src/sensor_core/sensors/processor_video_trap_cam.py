@@ -40,6 +40,7 @@ class ProcessorVideoTrapCam(DataProcessor):
 
         for f in files:
             try:
+                logger.info(f"Processing video file: {f!s}")
                 self.process_video(derived_ds, f, min_blob_size, max_blob_size)
             except Exception as e:
                 logger.error(

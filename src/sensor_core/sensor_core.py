@@ -113,14 +113,9 @@ class SensorCore:
 
         logger.info("Starting SensorCore")
 
-        # Check there isn't already a SensorCore process running
-        # @@@ How?!?
-
         # Trigger the orchestrator to start the sensors
         # This will run the sensors in the current process
-        orchestrator = EdgeOrchestrator.get_instance()
-        orchestrator.load_sensors()
-        orchestrator.start_all()
+        EdgeOrchestrator.start_all_with_watchdog()
 
 
     def stop(self) -> None:

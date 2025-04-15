@@ -1,6 +1,7 @@
 ####################################################################################################
 # Description: This script is used to run the bcli command.
 ####################################################################################################
+import os
 import queue
 import subprocess
 import sys
@@ -671,4 +672,5 @@ def main():
         im.interactive_menu()
 
 if __name__ == "__main__":
+    os.chdir(root_cfg.HOME_DIR)
     main()
