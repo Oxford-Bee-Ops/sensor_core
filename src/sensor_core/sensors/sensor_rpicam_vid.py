@@ -88,6 +88,9 @@ class RpicamSensor(Sensor):
                 # Save the video file to the datastream
                 self.video_ds.save_recording(filename, start_time=start_time, end_time=api.utc_now())
 
+            except FileNotFoundError as e:
+                logger.error(f"{root_cfg.RAISE_WARN()}FileNotFoundError in RpicamSensor: {e}", exc_info=True)
+                
             except Exception as e:
                 logger.error(f"{root_cfg.RAISE_WARN()}Error in RpicamSensor: {e}", exc_info=True)
                 break
