@@ -374,14 +374,17 @@ class SensorCore:
         if isinstance(my_script, str):
             my_script = Path(my_script)
 
-        from crontab import CronTab
-        cron = CronTab(user=utils.get_current_user())
-        cron.remove_all(comment='Run_my_script_on_reboot')
         restart_on_reboot_cmd=(f"source {Path.home()}/{root_cfg.system_cfg.venv_dir}/bin/activate && "
-                               f"python3 {my_script}"),
-        job = cron.new(command=restart_on_reboot_cmd, 
-                       comment='Run_my_script_on_reboot',
-                       pre_comment=True)
-        job.every_reboot()
-        cron.write()
-        logger.info("Cron job added to run this script on reboot.")
+                               f"python3 {my_script}")
+        try:
+            from crontab import CronTab
+            cron = CronTab(user=utils.get_current_user())
+            cron.remove_all(comment='Run_my_script_on_reboot')
+            job = cron.new(command=restart_on_reboot_cmd, 
+                        comment='Run_my_script_on_reboot',
+                        pre_comment=True)
+            job.every_reboot()
+            cron.write()
+            logger.info("Cron job added to run this script on reboot.")
+        except Exception as e:
+            raise ValueError(f"Failed to add cron job ({restart_on_reboot_cmd}): {e}", exc_info=True)
