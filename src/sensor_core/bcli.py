@@ -306,8 +306,9 @@ class InteractiveMenu():
                     click.echo(f"main() function not found in {my_start_script}")
                     click.echo("Exiting...")
                     return
-            except ImportError:
-                click.echo(f"Module {my_start_script} not resolvable")
+            except ImportError as e:
+                logger.error(f"Module {my_start_script} not resolvable ({e})", exc_info=True)
+                click.echo(f"Module {my_start_script} not resolvable ({e})")
                 click.echo("Exiting...")
                 return
             else:
