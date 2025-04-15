@@ -64,8 +64,6 @@ trap_cam_device = [
                 cloud_container = "sensor-core-upload",
                 edge_processors=[
                     TrapCamProcessorCfg(
-                        min_blob_size=1000,
-                        max_blob_size=1000000,
                         derived_datastreams=[
                             TRAP_CAM_DS,
                         ],

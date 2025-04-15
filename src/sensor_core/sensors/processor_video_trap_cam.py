@@ -4,6 +4,7 @@ from typing import Optional
 
 import cv2
 import pandas as pd
+import numpy as np
 
 from sensor_core import DataProcessor, Datastream, DpContext, api
 from sensor_core import configuration as root_cfg
@@ -15,7 +16,11 @@ logger = root_cfg.setup_logger("sensor_core")
 class ProcessorVideoTrapCam(DataProcessor):
     def __init__(self):
         super().__init__()
-        self.background_subtractor = cv2.createBackgroundSubtractorMOG2()
+        self.background_subtractor = cv2.createBackgroundSubtractorMOG2(
+            history=100,
+            varThreshold=50,
+            detectShadows=False,
+        )
 
     def process_data(
         self, 
@@ -80,6 +85,7 @@ class ProcessorVideoTrapCam(DataProcessor):
         else:
             raise ValueError(f"Unsupported video format: {suffix}")
 
+        samples_saved = 0
         output_stream: Optional[cv2.VideoWriter | None] = None
         current_frame = -1
         sample_first_frame = 0
@@ -104,17 +110,21 @@ class ProcessorVideoTrapCam(DataProcessor):
                         start_time=sample_start_time,
                         end_time=sample_end_time,
                     )
+                    samples_saved += 1
                 break
 
             current_frame += 1
             fg_mask = self.background_subtractor.apply(frame)
-            _, thresh = cv2.threshold(fg_mask, 25, 255, cv2.THRESH_BINARY)
-            movement = cv2.countNonZero(thresh)
+            fg_mask = self._apply_mask_transforms(fg_mask)
+            contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            movement = False
+            for c in contours:
+                contour_area = cv2.contourArea(c)
+                if contour_area > min_blob_size and contour_area < max_blob_size:
+                    movement = True
+                    break
 
-            # This is based on total change rather than blob size 
-            # Is this ok or move to blobs? @@@
-            if ((movement > min_blob_size) and # Threshold for movement detection
-                (current_frame > 2)): # Ignore the first 3 frames while the BS settles
+            if movement and (current_frame > 2): # Ignore the first 3 frames while the BS settles
                 if not output_stream:
                     # Not currently recording; start recording
                     sample_first_frame = current_frame
@@ -155,6 +165,7 @@ class ProcessorVideoTrapCam(DataProcessor):
                                 start_time=sample_start_time,
                                 end_time=sample_end_time,
                             )
+                            samples_saved += 1
                         else: 
                             # Discard the video segment
                             logger.info(f"Discarding {(sample_last_movement_frame - sample_first_frame)}"
@@ -163,3 +174,15 @@ class ProcessorVideoTrapCam(DataProcessor):
                             
         logger.info(f"Finished processing video: {video_path}")
         cap.release()
+
+    # Apply transforms to the fg mask
+    def _apply_mask_transforms(self, fgmask) -> np.ndarray:
+
+        # Apply the closing morphological operation to the mask to reduce noise
+        # OPEN reduces small background noise (ERODE followed by DILTAE)
+        # CLOSE removes small holes in a mask (DILATION followed by EROSION)
+        kernel = np.ones((3, 3), np.uint8)
+        fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_OPEN, kernel, iterations=1)
+        fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_CLOSE, kernel, iterations=1)
+
+        return fgmask
