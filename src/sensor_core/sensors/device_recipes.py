@@ -79,7 +79,7 @@ double_trap_cam_device = [
         sensor_cfg=RpicamSensorCfg(
             sensor_index = 0,
             rpicam_cmd = ("rpicam-vid --camera SENSOR_INDEX --autofocus-mode manual --lens-position 6 "
-                          "--framerate 4 --width 640 --height 480 -o FILENAME -t 180000 -v 0")
+                          "--framerate 8 --width 640 --height 480 -o FILENAME -t 180000 -v 0")
         ),
         datastream_cfgs=[
             DatastreamCfg(
@@ -104,7 +104,7 @@ double_trap_cam_device = [
         sensor_cfg=RpicamSensorCfg(
             sensor_index = 1,
             rpicam_cmd = ("rpicam-vid --camera SENSOR_INDEX --autofocus-mode manual --lens-position 6 "
-                          "--framerate 4 --width 640 --height 480 -o FILENAME -t 180000 -v 0")
+                          "--framerate 8 --width 640 --height 480 -o FILENAME -t 180000 -v 0")
         ),
         datastream_cfgs=[
             DatastreamCfg(
