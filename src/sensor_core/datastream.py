@@ -69,11 +69,11 @@ class Datastream(Thread):
         self.sensor_cfg = sensor_config
 
         # device_id is the machine ID (mac address) of the device that produces this datastream.
-        self.ds_device_id = device_id
+        self.device_id = device_id
 
         # sensor_id is an index (eg port number) identifying the sensor that produces this datastream.
         # This is not unique on the device, but must be unique in combination with the datastream_type_id.
-        self.ds_sensor_index = sensor_index
+        self.sensor_index = sensor_index
 
         self.ds_id = file_naming.create_ds_id(device_id, datastream_config.ds_type_id, sensor_index)
 
@@ -179,8 +179,8 @@ class Datastream(Thread):
         # timestamp to the log_data
         log_data[api.RECORD_ID.VERSION.value] = "V3"
         log_data[api.RECORD_ID.DS_TYPE_ID.value] = self.ds_config.ds_type_id
-        log_data[api.RECORD_ID.DEVICE_ID.value] = self.ds_device_id
-        log_data[api.RECORD_ID.SENSOR_INDEX.value] = self.ds_sensor_index
+        log_data[api.RECORD_ID.DEVICE_ID.value] = self.device_id
+        log_data[api.RECORD_ID.SENSOR_INDEX.value] = self.sensor_index
         log_data[api.RECORD_ID.TIMESTAMP.value] = api.utc_to_iso_str()
 
         self.journal_pool.add_rows(self.ds_config, [log_data], api.utc_now())
@@ -272,8 +272,8 @@ class Datastream(Thread):
         wrap: dict[str, dict | str] = {}
         wrap[api.RECORD_ID.VERSION.value] = "V3"
         wrap[api.RECORD_ID.DS_TYPE_ID.value] = self.ds_config.ds_type_id
-        wrap[api.RECORD_ID.DEVICE_ID.value] = self.ds_device_id
-        wrap[api.RECORD_ID.SENSOR_INDEX.value] = str(self.ds_sensor_index)
+        wrap[api.RECORD_ID.DEVICE_ID.value] = self.device_id
+        wrap[api.RECORD_ID.SENSOR_INDEX.value] = str(self.sensor_index)
         wrap[api.RECORD_ID.TIMESTAMP.value] = api.utc_to_iso_str()
         wrap["record"] = record
 
@@ -305,12 +305,13 @@ class Datastream(Thread):
         self._datastream_stats = []
 
         # Log sample data
-        sample_data = {}
-        sample_data["observed_ds_type_id"] = self.ds_config.ds_type_id
-        sample_data["sample_period"] = api.utc_to_iso_str(sample_period_start_time)
-        sample_data["count"] = str(count)
-        sample_data["duration"] = str(duration)
-        Datastream._score_ds.log(sample_data)
+        Datastream._score_ds.log({
+            "observed_ds_type_id": self.ds_config.ds_type_id,
+            "observed_sensor_index": self.sensor_index,
+            "sample_period": api.utc_to_iso_str(sample_period_start_time),
+            "count": str(count),
+            "duration": str(duration),
+        })
 
         return {"count": count, "duration": duration}
 
@@ -499,6 +500,7 @@ class Datastream(Thread):
                         {
                             "mode": Mode.EDGE.value,
                             "observed_ds_type_id": ds_type.ds_type_id,
+                            "observed_sensor_index": self.sensor_index,
                             "data_processor_id": dp_config.dp_class_ref,
                             "duration": exec_time.total_seconds(),
                         }
@@ -588,6 +590,7 @@ class Datastream(Thread):
                         {
                             "mode": Mode.ETL.value,
                             "observed_ds_type_id": ds_type.ds_type_id,
+                            "observed_sensor_index": self.sensor_index,
                             "data_processor_id": dp_config.dp_class_ref,
                             "duration": exec_time.total_seconds(),
                         }

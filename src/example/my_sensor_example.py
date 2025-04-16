@@ -27,10 +27,10 @@ class ExampleSensor(Sensor):
 
         # Get the Datastream objects for this sensor so we can log / save data to them
         self.example_log_ds: Optional[Datastream] = self.get_datastream(
-            ds_type_id=EXAMPLE_LOG_DS_TYPE.ds_type_id, sensor_index=1
+            ds_type_id=EXAMPLE_LOG_DS_TYPE.ds_type_id,
         )
         self.example_file_ds: Optional[Datastream] = self.get_datastream(
-            ds_type_id=EXAMPLE_FILE_DS_TYPE.ds_type_id, sensor_index=1
+            ds_type_id=EXAMPLE_FILE_DS_TYPE.ds_type_id
         )
 
         assert self.example_log_ds is not None

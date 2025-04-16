@@ -69,7 +69,7 @@ class HiveAudioProcessor(DataProcessor):
         assert isinstance(context.sensor, AudioSensorCfg)
         sensor_cfg: AudioSensorCfg = context.sensor
         in_hive_port = sensor_cfg.in_hive_mic_port
-        port = datastream.ds_sensor_index
+        port = datastream.sensor_index
 
         events_written = 0
 
@@ -112,7 +112,7 @@ class AudioFileProcessor:
         self.wav_fname = wav_fname
         self.datastream = datastream
         self.in_hive_port = in_hive_port
-        self.port = datastream.ds_sensor_index
+        self.port = datastream.sensor_index
         self.display_name = wav_fname.name
 
         # Read the wav file

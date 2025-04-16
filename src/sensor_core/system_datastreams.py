@@ -14,12 +14,19 @@ from sensor_core.config_objects import DatastreamCfg
 #############################################################################################################
 
 # SCORE - DatastreamType for recording sample count / duration from the data pipeline
+SCORE_FIELDS = [
+    "observed_ds_type_id",
+    "observed_sensor_index",
+    "sample_period",
+    "count",
+    "duration",
+]
 SCORE_DS_TYPE = DatastreamCfg(
     ds_type_id="SCORE",
     raw_format="log",
-    raw_fields=[*api.REQD_RECORD_ID_FIELDS, "observed_ds_type_id", "sample_period", "count", "duration"],
+    raw_fields=[*api.REQD_RECORD_ID_FIELDS, *SCORE_FIELDS],
     archived_format="csv",
-    archived_fields=[*api.REQD_RECORD_ID_FIELDS, "observed_ds_type_id", "sample_period", "count", "duration"],
+    archived_fields=[*api.REQD_RECORD_ID_FIELDS, *SCORE_FIELDS],
     archived_data_description=(
         "Data on sample counts and recording period durations from all Datastreams. "
         "The data is automatically recorded by the SensorCore for all datastreams when "
@@ -30,12 +37,18 @@ SCORE_DS_TYPE = DatastreamCfg(
 )
 
 # SCORP - special DatastreamType for recording performance of the data pipeline
+SCORP_FIELDS = [
+    "data_processor_id", 
+    "observed_ds_type_id", 
+    "observed_sensor_index", 
+    "duration"
+]
 SCORP_DS_TYPE = DatastreamCfg(
     ds_type_id="SCORP",
     raw_format="log",
-    raw_fields=[*api.REQD_RECORD_ID_FIELDS, "data_processor_id", "observed_ds_type_id", "duration"],
+    raw_fields=[*api.REQD_RECORD_ID_FIELDS, *SCORP_FIELDS],
     archived_format="csv",
-    archived_fields=[*api.REQD_RECORD_ID_FIELDS, "data_processor_id", "observed_ds_type_id", "duration"],
+    archived_fields=[*api.REQD_RECORD_ID_FIELDS, *SCORP_FIELDS],
     archived_data_description=(
         "Performance data from the data pipeline. "
         "The data is recorded as a log file on the device and archived as a CSV file."

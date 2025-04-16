@@ -136,7 +136,6 @@ class Sensor(threading.Thread, ABC):
     # We expect the Sensor subclass to call this from the run() method
     def get_datastream(self, 
                        ds_type_id: Optional[str]=None, 
-                       sensor_index: Optional[int]=None,
                        format: Optional[str]=None) -> Optional[Datastream]:
         """Called by the Sensor subclass to get a specific Datastream associated with this sensor.
         All parameters are treated as optional parts of a filter.  
@@ -156,29 +155,18 @@ class Sensor(threading.Thread, ABC):
 
         if ds_type_id is not None:
             # If we have both ds_type_id and sensor_index, we can filter by ds_id
-            if sensor_index is not None:
-                ds_id = file_naming.create_ds_id(
-                        root_cfg.my_device_id, ds_type_id, sensor_index)
-                if ds_id in self._datastreams:
-                    matching_datastreams = [self._datastreams[ds_id]]
-            else:
-                # If we have ds_type_id but not sensor_index, we can filter by ds_type_id
-                matching_datastreams = [
-                    ds
-                    for ds in self._datastreams.values()
-                    if ds.ds_config.ds_type_id == ds_type_id
-                ]
+            ds_id = file_naming.create_ds_id(
+                    root_cfg.my_device_id, ds_type_id, self._sensor_index)
+            if ds_id in self._datastreams:
+                matching_datastreams = [self._datastreams[ds_id]]
 
         # If we have the sensor_index but not ds_type_id, we have to walk the list to check sensor_index
-        elif sensor_index is not None:
+        else:
             for ds_id, ds in self._datastreams.items():
                 would_be_ds_id = file_naming.create_ds_id(
-                    root_cfg.my_device_id, ds.ds_config.ds_type_id, sensor_index)
+                    root_cfg.my_device_id, ds.ds_config.ds_type_id, self._sensor_index)
                 if ds_id == would_be_ds_id:
                     matching_datastreams = [ds]
-
-        else: 
-            matching_datastreams = list(self._datastreams.values())
 
         # Now filter by format & exclude derived datastreams
         if format is not None:
@@ -197,7 +185,10 @@ class Sensor(threading.Thread, ABC):
             logger.error(
                 f"{root_cfg.RAISE_WARN()}get_datastream() found multiple Datastreams for format={format}"
             )
-            return None
+            raise ValueError(
+                f"{root_cfg.RAISE_WARN()}get_datastream() found multiple Datastreams for format="
+                f"{format} in {self._sensor_type}"
+            )
 
     # All Sensor sub-classes must implement this method
     # Implementations should respect the stop_requested flag and terminate within a reasonable time (~3min)
