@@ -4,7 +4,6 @@ from typing import Optional
 
 import cv2
 import pandas as pd
-import numpy as np
 
 from sensor_core import DataProcessor, Datastream, DpContext, api
 from sensor_core import configuration as root_cfg
@@ -83,6 +82,7 @@ class ProcessorVideoTrapCam(DataProcessor):
             raise ValueError(f"Unsupported video format: {suffix}")
 
         samples_saved = 0
+        sum_sample_duration = 0
         output_stream: Optional[cv2.VideoWriter | None] = None
         current_frame = -1
         sample_first_frame = 0
@@ -102,12 +102,15 @@ class ProcessorVideoTrapCam(DataProcessor):
                     output_stream = None
                     sample_start_time = start_time + timedelta(seconds=(sample_first_frame / fps))
                     sample_end_time = start_time + timedelta(seconds=(current_frame / fps))
-                    derived_ds.save_recording(
-                        temp_filename,
-                        start_time=sample_start_time,
-                        end_time=sample_end_time,
-                    )
-                    samples_saved += 1
+                    sample_duration = (sample_end_time - sample_start_time).total_seconds()
+                    if (sample_last_movement_frame - sample_first_frame) > discard_threshold:
+                        derived_ds.save_recording(
+                            temp_filename,
+                            start_time=sample_start_time,
+                            end_time=sample_end_time,
+                        )
+                        samples_saved += 1
+                        sum_sample_duration += sample_duration
                 break
 
             current_frame += 1
@@ -163,12 +166,13 @@ class ProcessorVideoTrapCam(DataProcessor):
                                 end_time=sample_end_time,
                             )
                             samples_saved += 1
+                            sum_sample_duration += sample_duration
                         else: 
                             # Discard the video segment
                             logger.info(f"Discarding {(sample_last_movement_frame - sample_first_frame)}"
                                         f" frames of movement as noise")
                             temp_filename.unlink(missing_ok=True)
                             
-        logger.info(f"Saved {samples_saved} from video: {video_path}")
+        logger.info(f"Saved {samples_saved} samples ({sum_sample_duration}s) from video: {video_path}")
         cap.release()
 
