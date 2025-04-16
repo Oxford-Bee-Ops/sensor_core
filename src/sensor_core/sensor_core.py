@@ -387,4 +387,6 @@ class SensorCore:
             cron.write()
             logger.info("Cron job added to run this script on reboot.")
         except Exception as e:
-            raise ValueError(f"Failed to add cron job ({restart_on_reboot_cmd}): {e}", exc_info=True)
+            logger.error(f"{root_cfg.RAISE_WARN()}Failed to add cron job ({restart_on_reboot_cmd}): {e}", 
+                         exc_info=True)
+            raise ValueError(f"Failed to add cron job ({restart_on_reboot_cmd}): {e}")
