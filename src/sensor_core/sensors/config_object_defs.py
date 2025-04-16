@@ -140,7 +140,7 @@ MARKER_INFO_REQD_COLUMNS: list[str] = [
     "bottomRightX",
     "bottomRightY",
 ]
-@dataclass(frozen=True)
+@dataclass
 class ArucoProcessorCfg(DataProcessorCfg):
     #######################################################################
     # Standard DataProcessorCfg fields
@@ -161,7 +161,7 @@ class ArucoProcessorCfg(DataProcessorCfg):
     aruco_dict_name: str = "DICT_4X4_50"
     save_marked_up_video: bool = True  # Save the marked up video
 
-@dataclass(frozen=True)
+@dataclass
 class TrapCamProcessorCfg(DataProcessorCfg):
     #######################################################################
     # Standard DataProcessorCfg fields

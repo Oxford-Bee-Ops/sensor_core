@@ -14,7 +14,7 @@ def initialize_git_repo(git_url: str,
     """Initialize a Git repository by cloning it if it doesn't exist."""
     
     if not git_url or git_url == root_cfg.FAILED_TO_LOAD:
-        logger.error("my_git_repo_url is not defined in system configuration.")
+        logger.error(f"{root_cfg.RAISE_WARN()}my_git_repo_url is not defined in system configuration.")
         return
     
     if git_branch == root_cfg.FAILED_TO_LOAD:
@@ -41,7 +41,7 @@ def initialize_git_repo(git_url: str,
         git.Repo.clone_from(git_url, repo_path, branch=git_branch, depth=1)  
         logger.info(f"Repository successfully cloned on branch '{git_branch}'.")
     except Exception as e:
-        logger.error(f"Failed to clone the repository: {e}")
+        logger.error(f"{root_cfg.RAISE_WARN()}Failed to clone the repository: {e}")
 
 def refresh_git_repo(git_url: str, git_branch: str = "main", ssh_key_path: Optional[Path|str] = None) -> None:
     """Refresh the Git repository by pulling the latest changes."""
@@ -58,7 +58,7 @@ def refresh_git_repo(git_url: str, git_branch: str = "main", ssh_key_path: Optio
         # Ensure the remote URL uses SSH
         remote_url = repo.remotes.origin.url
         if not remote_url.startswith("git@"):
-            logger.error("Remote URL is not configured for SSH access.")
+            logger.error(f"{root_cfg.RAISE_WARN()}Remote URL is not configured for SSH access.")
             return
 
         if ssh_key_path:
@@ -80,7 +80,7 @@ def refresh_git_repo(git_url: str, git_branch: str = "main", ssh_key_path: Optio
         repo.remotes.origin.pull(git_branch)  # Pull specific branch
         logger.info(f"Repository successfully updated on branch '{git_branch}'.")
     except Exception as e:
-        logger.error(f"Failed to refresh code from {git_url}: {e}")
+        logger.error(f"{root_cfg.RAISE_WARN()}Failed to refresh code from {git_url}: {e}")
 
 def _get_repo_path(git_url: str) -> Path:
     """Get the path to the Git repository."""
@@ -93,12 +93,12 @@ def main() -> None:
     """Main function to refresh the Git repository.
     This is called from crontab - which is setup in DeviceManager."""
     if not root_cfg.system_cfg:
-        logger.error("system.cfg does not exist or has not been loaded.")
+        logger.error(f"{root_cfg.RAISE_WARN()}system.cfg does not exist or has not been loaded.")
         return
     
     if ((not root_cfg.system_cfg.my_git_repo_url) or 
         (root_cfg.system_cfg.my_git_repo_url == root_cfg.FAILED_TO_LOAD)):
-        logger.error("my_git_repo_url is not defined in system configuration.")
+        logger.error(f"{root_cfg.RAISE_WARN()}my_git_repo_url is not defined in system configuration.")
         return
     
     # Refresh the user's code

@@ -53,7 +53,7 @@ EXAMPLE_DF_DATASTREAM_TYPE = ExampleDfDsCfg()
 #############################################################################################################
 # Define the DataProcessorCfg objects for the ExampleSensor
 #############################################################################################################
-@dataclass(frozen=True)
+@dataclass
 class ExampleFileProcessorCfg(DataProcessorCfg):
     dp_class_ref: str = "example.my_processor_example.ExampleProcessor"
     dp_description: str = "Dummy file processor for testing"

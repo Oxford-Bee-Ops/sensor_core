@@ -41,7 +41,7 @@ logger = root_cfg.setup_logger("sensor_core")
 #############################################################################################################
 # Define the DataProcessorCfg objects
 #############################################################################################################
-@dataclass(frozen=True)
+@dataclass
 class AudioProcessorCfg(DataProcessorCfg):
     #######################################################################
     # Standard DataProcessorCfg fields

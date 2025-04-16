@@ -308,7 +308,8 @@ class InteractiveMenu():
                     click.echo("Exiting...")
                     return
             except ImportError as e:
-                logger.error(f"Module {my_start_script} not resolvable ({e})", exc_info=True)
+                logger.error(f"{root_cfg.RAISE_WARN()}Module {my_start_script} not resolvable ({e})", 
+                             exc_info=True)
                 click.echo(f"Module {my_start_script} not resolvable ({e})")
                 click.echo("Exiting...")
                 return

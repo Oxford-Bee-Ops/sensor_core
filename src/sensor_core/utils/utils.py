@@ -243,7 +243,7 @@ def run_cmd(cmd: str, ignore_errors: bool=False, grep_strs: Optional[list[str]]=
         return output
 
     except FileNotFoundError as e:
-        logger.error(root_cfg.RAISE_WARN() + "Command not found: " + cmd)
+        logger.error(f"{root_cfg.RAISE_WARN()}Command not found: {cmd}; {e}", exc_info=True)
         if ignore_errors:
             return ""
         else:

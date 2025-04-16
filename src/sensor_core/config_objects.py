@@ -67,7 +67,7 @@ class SensorCfg:
     sensor_model_description: str
 
 
-@dataclass(frozen=True)
+@dataclass
 class DataProcessorCfg:
     """Defines the configuration for a concrete DataProcessor class implementation.
     Can be subclassed to add additional configuration parameters specific to the DataProcessor class."""

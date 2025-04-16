@@ -50,7 +50,7 @@ def run_sensor_core():
         logger.error("Keyboard interrupt => stopping SensorCore... this may take up to 180s.")
         sc.stop()
     except Exception as e:
-        logger.error(f"Error: {e}")
+        logger.error(f"{root_cfg.RAISE_WARN()}Error: {e}")
         sc.stop()
 
 

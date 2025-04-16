@@ -101,15 +101,17 @@ class Datastream(Thread):
                         try:
                             dp = utils.get_class_instance(dp_config.dp_class_ref)
                         except TypeError as e:
-                            logger.error(f"Failed to instantiate {dp_config.dp_class_ref}.")
+                            logger.error(f"{root_cfg.RAISE_WARN()}Failed to instantiate "
+                                         f"{dp_config.dp_class_ref} {e}", exc_info=True)
                             raise e
                         if i + 1 == len(self.ds_config.edge_processors):
                             dp._set_dp_config(dp_config, i, is_last=True)
                         else:
                             dp._set_dp_config(dp_config, i, is_last=False)
                         self._edge_dps.append(dp)
-                    except Exception:
-                        logger.error(f"Failed to instantiate {dp_config.dp_class_ref}")
+                    except Exception as e:
+                        logger.error(f"{root_cfg.RAISE_WARN()}Failed to instantiate {dp_config.dp_class_ref} "
+                                     f"{e}", exc_info=True)
         else:
             self._cloud_dps: list[DataProcessor] = []
             if self.ds_config.cloud_processors is not None:
@@ -119,15 +121,17 @@ class Datastream(Thread):
                         try:
                             dp = utils.get_class_instance(dp_config.dp_class_ref)
                         except TypeError as e:
-                            logger.error(f"Failed to instantiate {dp_config.dp_class_ref}.")
+                            logger.error(f"{root_cfg.RAISE_WARN()}Failed to instantiate "
+                                         f"{dp_config.dp_class_ref} {e}", exc_info=True)
                             raise e
                         if i + 1 == len(self.ds_config.cloud_processors):
                             dp._set_dp_config(dp_config, i, is_last=True)
                         else:
                             dp._set_dp_config(dp_config, i, is_last=False)
                         self._cloud_dps.append(dp)
-                    except Exception:
-                        logger.error(f"Failed to instantiate {dp_config.dp_class_ref}")
+                    except Exception as e:
+                        logger.error(f"{root_cfg.RAISE_WARN()}Failed to instantiate {dp_config.dp_class_ref} "
+                                     f"{e}", exc_info=True)
 
         # start_time is a datetime object that describes the time the datastream was started.
         # This should be set by calling the start() method, and not set during initialization.
@@ -696,7 +700,7 @@ class Datastream(Thread):
                 df = pd.read_csv(csv_file)
                 return df
             except Exception as e:
-                logger.error(f"Error reading CSV file {csv_file}: {e}", exc_info=True)
+                logger.error(f"{root_cfg.RAISE_WARN()}Error reading CSV file {csv_file}: {e}", exc_info=True)
         return None
 
     #########################################################################################################

@@ -136,14 +136,15 @@ class EdgeOrchestrator:
                 # __init__ to use the index as it sees fit.
                 try:
                     sensor = utils.get_class_instance(sensor_cfg.sensor_class_ref, sds_config)
-                except Exception:
-                    logger.error(f"Failed to instantiate {sensor_cfg.sensor_class_ref}")
+                except Exception as e:
+                    logger.error(f"{root_cfg.RAISE_WARN()}Failed to instantiate "
+                                 f"{sensor_cfg.sensor_class_ref} {e}", exc_info=True)
                     continue
 
                 if sensor is not None:
                     self._register_sensor(sensor)
         else:
-            logger.error(f"No sensor_ds_list defined for {root_cfg.my_device}")
+            logger.error(f"{root_cfg.RAISE_WARN()}No sensor_ds_list defined for {root_cfg.my_device}")
 
 
     #########################################################################################################

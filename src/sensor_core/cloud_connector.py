@@ -87,7 +87,7 @@ class CloudConnector:
                     logger.debug(f"Deleting uploaded file: {file}")
                     file.unlink()
             else:
-                logger.error(f"Upload failed because file {file} does not exist")
+                logger.error(f"{root_cfg.RAISE_WARN()}Upload failed because file {file} does not exist")
 
     def download_from_container(
         self, src_container: str | ContainerClient, src_file: str, dst_file: Path

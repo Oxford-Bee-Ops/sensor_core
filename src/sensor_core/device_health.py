@@ -34,7 +34,7 @@ if root_cfg.running_on_rpi:
         try:
             reader = journal.Reader()
         except Exception as e:
-            logger.error(f"Failed to initialize journal reader: {e}")
+            logger.error(f"{root_cfg.RAISE_WARN()}Failed to initialize journal reader: {e}")
             return logs
 
         # Set filters

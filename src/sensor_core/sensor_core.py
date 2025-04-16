@@ -313,7 +313,7 @@ class SensorCore:
             utils.run_cmd("sudo ufw --force enable")
             # Check if UFW is enabled
             if not utils.run_cmd("sudo ufw status", ignore_errors=True).startswith("Status: active"):
-                logger.error("UFW firewall not enabled.")
+                logger.error(f"{root_cfg.RAISE_WARN()}UFW firewall not enabled.")
             else: 
                 logger.info("UFW firewall installed and enabled.")
 

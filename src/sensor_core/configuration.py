@@ -321,7 +321,7 @@ def _load_system_cfg() -> Optional[SystemCfg | None]:
         print("#################################################################")
         print(f"# {SYSTEM_CFG_FILE} does not exist")
         print("#################################################################")
-        logger.error(f"{SYSTEM_CFG_FILE} does not exist")
+        logger.error(f"{RAISE_WARN()}{SYSTEM_CFG_FILE} does not exist")
         return SystemCfg()
 
     try:
@@ -334,7 +334,7 @@ def _load_system_cfg() -> Optional[SystemCfg | None]:
         print("#################################################################")
         print(f"Failed to load {SYSTEM_CFG_FILE}: {e}")
         print("#################################################################")
-        logger.error(f"Failed to load {SYSTEM_CFG_FILE}: {e}")
+        logger.error(f"{RAISE_WARN()}Failed to load {SYSTEM_CFG_FILE}: {e}")
         return SystemCfg()
 
 system_cfg = _load_system_cfg()
@@ -355,7 +355,7 @@ def load_inventory() -> Optional[list[DeviceCfg] | None]:
             module = importlib.import_module(module_path)
             inventory = getattr(module, obj_name)
         except Exception as e:
-            logger.error(f"Failed to load config from {system_cfg.my_fleet_config}: {e}")
+            logger.error(f"{RAISE_WARN()}Failed to load config from {system_cfg.my_fleet_config}: {e}")
 
     return inventory
 
