@@ -22,6 +22,7 @@ class RECORD_ID(Enum):
     OFFSET = "primary_offset_index"
     SECONDARY_OFFSET = "secondary_offset_index"
     SUFFIX = "file_suffix"
+    INCREMENT = "increment"
 
 
 REQD_RECORD_ID_FIELDS = [
@@ -35,7 +36,8 @@ ALL_RECORD_ID_FIELDS = [*REQD_RECORD_ID_FIELDS,
                         RECORD_ID.END_TIME.value, 
                         RECORD_ID.OFFSET.value, 
                         RECORD_ID.SECONDARY_OFFSET.value, 
-                        RECORD_ID.SUFFIX.value]
+                        RECORD_ID.SUFFIX.value,
+                        RECORD_ID.INCREMENT.value]
 
 
 ############################################################

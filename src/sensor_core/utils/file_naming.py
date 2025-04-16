@@ -32,6 +32,7 @@ def parse_record_filename(fname: Path | str) -> dict:
         bapi.RECORD_ID.END_TIME         - if present
         bapi.RECORD_ID.OFFSET           - if present
         bapi.RECORD_ID.SECONDARY_OFFSET - if present
+        bapi.RECORD_ID.INCREMENT        - always
     """
 
     logger.debug(f"Parsing filename: {fname}")
@@ -43,8 +44,16 @@ def parse_record_filename(fname: Path | str) -> dict:
         logger.warning(f"Invalid filename format - too few _ in {fname.name}")
         return {}
 
-    # Extract the fields from the filename, parsing with the "_" delimiter
     stem = fname.stem
+
+    # First remove any increment counter used to create a unique filename
+    # This is a double underscore, so we can split on it and take the first part
+    increment = 0
+    if "__" in stem:
+        stem = stem.split("__")[0]
+        increment = stem.split("__")[1]
+
+    # Extract the fields from the filename, parsing with the "_" delimiter
     fields = stem.split("_")
     end_time = None
     primary_offset_index = None
@@ -76,6 +85,7 @@ def parse_record_filename(fname: Path | str) -> dict:
         api.RECORD_ID.OFFSET.value: primary_offset_index,
         api.RECORD_ID.SECONDARY_OFFSET.value: secondary_offset_index,
         api.RECORD_ID.SUFFIX.value: fname.suffix[1:],
+        api.RECORD_ID.INCREMENT.value: increment,
     }
     logger.debug(f"Parsed fname {fname} to {fields_dict}")
     return fields_dict
@@ -158,7 +168,7 @@ def increment_filename(fname: Path) -> Path:
     new_fname = fname
     count = 1
     while new_fname.exists():
-        new_fname = fname.with_name(f"{fname.stem}_{count}{fname.suffix}")
+        new_fname = fname.with_name(f"{fname.stem}__{count}{fname.suffix}")
         count += 1
         if count > 100:
             raise Exception(f"Error incrementing filename {fname}, count > 100")
