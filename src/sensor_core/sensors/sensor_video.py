@@ -23,7 +23,7 @@ import subprocess
 from datetime import datetime, timedelta
 from time import sleep
 
-from sensor_core import Datastream, Sensor, SensorDsCfg, api
+from sensor_core import Sensor, SensorDsCfg, api
 from sensor_core import configuration as root_cfg
 from sensor_core.sensors.config_object_defs import VideoSensorCfg
 from sensor_core.utils import file_naming, utils
@@ -123,16 +123,8 @@ class VideoSensor(Sensor):
         # Get the Datastream objects for this sensor so we can log / save data to them
         # We expect 0 or 1 video datastreams with raw_format="h264" or "mp4"
         # We expect 0 or 1 still image datastreams with raw_format="jpg"
-        video_ds = self.get_datastream(format=self.sensor_cfg.video_format)
-        assert video_ds is not None, (
-            f"Video datastream not found for format {self.sensor_cfg.video_format}"
-        )
-        self.video_ds: Datastream = video_ds
-        image_ds = self.get_datastream(format="jpg")
-        assert image_ds is not None, (
-            "Image datastream not found for format jpg"
-        )
-        self.image_ds: Datastream = image_ds
+        self.video_ds = self.get_datastreams(format=self.sensor_cfg.video_format, expected=1)[0]
+        self.image_ds = self.get_datastreams(format="jpg", expected=1)[0]
 
         # Use the "with" context manager to ensure camera is closed after use
         failures = 0

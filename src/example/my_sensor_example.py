@@ -8,8 +8,6 @@ from sensor_core.datastream import Datastream
 from sensor_core.sensor import Sensor
 from sensor_core.utils import file_naming
 
-from example.my_config_object_defs import EXAMPLE_FILE_DS_TYPE, EXAMPLE_LOG_DS_TYPE
-
 logger = root_cfg.setup_logger("sensor_core")
 
 
@@ -26,12 +24,8 @@ class ExampleSensor(Sensor):
         """The run method is called when the Sensor is started."""
 
         # Get the Datastream objects for this sensor so we can log / save data to them
-        self.example_log_ds: Optional[Datastream] = self.get_datastream(
-            ds_type_id=EXAMPLE_LOG_DS_TYPE.ds_type_id,
-        )
-        self.example_file_ds: Optional[Datastream] = self.get_datastream(
-            ds_type_id=EXAMPLE_FILE_DS_TYPE.ds_type_id
-        )
+        self.example_log_ds = self.get_datastreams(format="csv", expected=1)[0]
+        self.example_file_ds = self.get_datastreams(format="jpg", expected=1)[0]
 
         assert self.example_log_ds is not None
         assert self.example_file_ds is not None

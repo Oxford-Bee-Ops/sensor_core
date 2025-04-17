@@ -6,7 +6,7 @@ from sensor_core import DataProcessor, Datastream, DpContext
 from sensor_core import configuration as root_cfg
 from sensor_core.utils import file_naming
 
-from example.my_config_object_defs import EXAMPLE_DF_DS_TYPE_ID, EXAMPLE_FILE_DS_TYPE_ID
+from example.my_config_object_defs import EXAMPLE_FILE_DS_TYPE_ID
 
 logger = root_cfg.setup_logger("sensor_core")
 

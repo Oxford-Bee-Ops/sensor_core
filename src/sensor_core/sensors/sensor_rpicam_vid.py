@@ -7,7 +7,7 @@
 
 from time import sleep
 
-from sensor_core import Datastream, Sensor, SensorDsCfg, api
+from sensor_core import Sensor, SensorDsCfg, api
 from sensor_core import configuration as root_cfg
 from sensor_core.sensors.config_object_defs import RpicamSensorCfg
 from sensor_core.utils import file_naming, utils
@@ -48,11 +48,7 @@ class RpicamSensor(Sensor):
 
         # Get the Datastream objects for this sensor so we can log / save data to them
         # We expect 1 video datastream with raw_format="h264" or "mp4"
-        video_ds = self.get_datastream(format=self.raw_format)
-        assert video_ds is not None, (
-            f"Datastream with raw_format={self.raw_format} not found in {self.sds_config.datastream_cfgs}"
-        ) 
-        self.video_ds: Datastream = video_ds
+        self.video_ds = self.get_datastreams(format=self.raw_format, expected=1)[0]
 
         # Main loop to record video and take still images
         while not self.stop_requested:
@@ -90,7 +86,7 @@ class RpicamSensor(Sensor):
 
             except FileNotFoundError as e:
                 logger.error(f"{root_cfg.RAISE_WARN()}FileNotFoundError in RpicamSensor: {e}", exc_info=True)
-                
+
             except Exception as e:
                 logger.error(f"{root_cfg.RAISE_WARN()}Error in RpicamSensor: {e}", exc_info=True)
                 break

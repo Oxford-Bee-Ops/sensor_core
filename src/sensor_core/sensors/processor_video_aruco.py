@@ -14,7 +14,7 @@ import pandas as pd
 
 from sensor_core import DataProcessor, Datastream, DpContext, api
 from sensor_core import configuration as root_cfg
-from sensor_core.sensors.config_object_defs import ARUCO_MARKED_UP_VIDEOS_DS_TYPE_ID, ArucoProcessorCfg
+from sensor_core.sensors.config_object_defs import ArucoProcessorCfg
 from sensor_core.utils import file_naming
 
 cv2.setRNGSeed(42)
