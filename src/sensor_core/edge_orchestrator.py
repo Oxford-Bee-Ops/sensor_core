@@ -465,6 +465,18 @@ class EdgeOrchestrator:
         logger.debug("Upload from edge device to cloud")
 
         files_to_zip = list(root_cfg.EDGE_UPLOAD_DIR.glob("*"))
+
+        # We only want to zip files that have not been written in the last 60 seconds
+        # This is to avoid zipping files that are still being written to.
+        # We also don't want to zip zip files
+        for file in files_to_zip:
+            if not file.is_file() or file.suffix.endswith("zip"):
+                files_to_zip.remove(file)
+                continue
+            if file.stat().st_mtime > (api.utc_now() - timedelta(seconds=60)).timestamp():
+                files_to_zip.remove(file)
+                continue
+
         if not files_to_zip:
             logger.info("No files to zip in upload_to_cloud")
             return
@@ -472,10 +484,6 @@ class EdgeOrchestrator:
         zip_filename = file_naming.get_zip_filename()
         with zipfile.ZipFile(zip_filename, "w", zipfile.ZIP_DEFLATED) as zipf:
             for file in files_to_zip:
-                if not file.is_file():
-                    continue
-                if file.suffix.endswith("zip"):
-                    continue
                 logger.debug(f"Add {file} to zip archive")
                 zipf.write(file, file.name)
                 # Delete the file after adding it to the zip archive
