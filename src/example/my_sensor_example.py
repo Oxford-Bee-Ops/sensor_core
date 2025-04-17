@@ -1,10 +1,8 @@
 from time import sleep
-from typing import Optional
 
 from sensor_core import api
 from sensor_core import configuration as root_cfg
 from sensor_core.config_objects import SensorDsCfg
-from sensor_core.datastream import Datastream
 from sensor_core.sensor import Sensor
 from sensor_core.utils import file_naming
 
@@ -24,7 +22,7 @@ class ExampleSensor(Sensor):
         """The run method is called when the Sensor is started."""
 
         # Get the Datastream objects for this sensor so we can log / save data to them
-        self.example_log_ds = self.get_datastreams(format="csv", expected=1)[0]
+        self.example_log_ds = self.get_datastreams(format="log", expected=1)[0]
         self.example_file_ds = self.get_datastreams(format="jpg", expected=1)[0]
 
         assert self.example_log_ds is not None
