@@ -102,7 +102,10 @@ class Test_Orchestrator:
         logger.info("sensor_test: Direct use of EdgeOrchestor to include keep-alive")
         factory_thread = Thread(target=edge_orchestrator.main)
         factory_thread.start()
-        sleep(1)
+        while not orchestrator._orchestrator_is_running:
+            sleep(1)
+            assert (api.utc_now() - start_clock).total_seconds() < 10, (
+                "Orchestrator did not restart quickly enough")
         assert orchestrator._orchestrator_is_running
 
         # Sensor fails; factory_thread should restart everything after 1s

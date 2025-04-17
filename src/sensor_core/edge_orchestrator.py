@@ -428,20 +428,32 @@ class EdgeOrchestrator:
     ########################################################################################################
     def start_upload_timer(self) -> None:
         logger.debug("Start upload timer")
-        self.schedule_next_upload_run()
+        self.check_upload_status()
 
     def stop_upload_timer(self) -> None:
         logger.debug("Stop upload timer")
         self._stop_upload_requested.set()
         if self._upload_timer:
             self._upload_timer.cancel()
+            self._upload_timer = None
 
     def schedule_next_upload_run(self) -> None:
         logger.debug("Schedule next upload timer")
         if not self._stop_upload_requested.is_set():
+            if self._upload_timer:
+                self._upload_timer.cancel()
             self._upload_timer = threading.Timer(30 * 60, self.check_upload_status)
             self._upload_timer.name = "upload_timer"
             self._upload_timer.start()
+
+    def check_upload_status(self) -> None:
+        """Method called by a timer to check storage capacity and call upload_to_cloud if required
+
+        We upload_to_cloud every 30mins or if storage space is running low"""
+
+        logger.debug("Check upload status")
+        self.upload_to_cloud()
+        self.schedule_next_upload_run()
 
     def upload_to_cloud(self, dst_container: Optional[str] = None) -> None:
         """Method to zip up sensor data and upload it to the cloud, if it's not been 
@@ -452,13 +464,12 @@ class EdgeOrchestrator:
 
         logger.debug("Upload from edge device to cloud")
 
-        files_to_zip = root_cfg.EDGE_UPLOAD_DIR.glob("*")
-        zip_filename = file_naming.get_zip_filename()
-
+        files_to_zip = list(root_cfg.EDGE_UPLOAD_DIR.glob("*"))
         if not files_to_zip:
             logger.info("No files to zip in upload_to_cloud")
             return
         
+        zip_filename = file_naming.get_zip_filename()
         with zipfile.ZipFile(zip_filename, "w", zipfile.ZIP_DEFLATED) as zipf:
             for file in files_to_zip:
                 if not file.is_file():
@@ -480,17 +491,6 @@ class EdgeOrchestrator:
         connector = CloudConnector()
         zip_files = list(root_cfg.EDGE_UPLOAD_DIR.glob("*.zip"))
         connector.upload_to_cloud(dst_container, zip_files)
-
-    def check_upload_status(self) -> None:
-        """Method called by a timer to check storage capacity and call upload_to_cloud if required
-
-        We upload_to_cloud every 30mins or if storage space is running low"""
-
-        logger.debug("Check upload status")
-        # @@@ For now, just call upload_to_cloud.  Need to implement storage space checking
-        self.upload_to_cloud()
-        if self._upload_timer is not None and self._upload_timer.is_alive():
-            self.schedule_next_upload_run()
 
 #############################################################################################################
 # Orchestrator main loop
