@@ -3,7 +3,6 @@
 ####################################################################################################
 import sys
 import threading
-import traceback
 import zipfile
 from dataclasses import asdict
 from datetime import timedelta

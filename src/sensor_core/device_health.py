@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import Any, Optional
 
 import psutil
-from git import Repo  # Requires GitPython library
 
 from sensor_core import api
 from sensor_core import configuration as root_cfg
@@ -199,12 +198,13 @@ class DeviceHealth():
                 target_interface = "WiFi"
             ip_addresses = get_ip_address(target_interface)
 
-            # Grab the commit hash of the current code
+            # Grab the code version of the current SensorCore code
             try:
-                repo = Repo(root_cfg.SC_CODE_DIR)
-                git_commit_hash = repo.head.commit.hexsha[:7]
-            except Exception:
-                git_commit_hash = "unknown"
+                from sensor_core import __version__
+                sensor_core_version = __version__
+            except ImportError:
+                logger.warning(f"{root_cfg.RAISE_WARN()}Failed to get SensorCore version, using unknown")
+                sensor_core_version = "unknown"
 
             # Total memory
             total_memory = psutil.virtual_memory().total
@@ -241,7 +241,7 @@ class DeviceHealth():
                 "ip_address": str(ip_addresses),
                 "power_status": str(get_throttled_output),
                 "process_list": process_list_str,
-                "git_commit_hash": str(git_commit_hash),  # "git_branch_cfgd" : git_branch_cfgd, \
+                "sensor_core_version": str(sensor_core_version),
             }
 
         except Exception as e:

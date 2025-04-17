@@ -86,7 +86,7 @@ HEART_FIELDS = [
     "ip_address",
     "power_status",
     "process_list",
-    "git_commit_hash",
+    "sensor_core_version",
 ]
 
 HEART_DS_TYPE = DatastreamCfg(
