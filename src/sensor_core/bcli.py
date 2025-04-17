@@ -376,6 +376,15 @@ class InteractiveMenu():
         click.echo(f"{dash_line}")
 
 
+    def reboot_device(self) -> None:
+        """Reboot the device."""
+        if not root_cfg.running_on_rpi:
+            click.echo("This command only works on a Raspberry Pi")
+            return
+        click.echo("Rebooting the device...")
+        run_cmd_live_echo("sudo reboot")
+
+
     ####################################################################################################
     # Sensor menu functions
     ####################################################################################################
@@ -585,7 +594,8 @@ class InteractiveMenu():
             click.echo("3. Stop SensorCore")
             click.echo("4. Set Hostname")
             click.echo("5. Show Crontab Entries")
-            click.echo("6. Back to Main Menu")
+            click.echo("6. Restart the Device")  # Added reboot option
+            click.echo("7. Back to Main Menu")  # Updated option number
             try:
                 choice = click.prompt("\nEnter your choice", type=int)
                 click.echo("\n")
@@ -603,7 +613,9 @@ class InteractiveMenu():
                 self.set_hostname()
             elif choice == 5:
                 self.show_crontab_entries()
-            elif choice == 6:
+            elif choice == 6:  # Handle reboot option
+                self.reboot_device()
+            elif choice == 7:  # Updated option number
                 break
             else:
                 click.echo("Invalid choice. Please try again.")
