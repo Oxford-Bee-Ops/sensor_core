@@ -51,7 +51,7 @@ def parse_record_filename(fname: Path | str) -> dict:
     increment = 0
     if "__" in stem:
         stem = stem.split("__")[0]
-        increment = stem.split("__")[1]
+        increment = int(stem.split("__")[1])
 
     # Extract the fields from the filename, parsing with the "_" delimiter
     fields = stem.split("_")

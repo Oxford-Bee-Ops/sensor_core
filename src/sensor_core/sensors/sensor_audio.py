@@ -254,8 +254,7 @@ class AudioSensor(Sensor):
         logger.info(f"Starting AudioSensor.run on {self.port}")
 
         # Get the audio Datastream for this port (sensor_index)
-        self.audio_ds = self.get_datastream(sensor_index=self.port, 
-                                            format="wav")
+        self.audio_ds = self.get_datastream(format="wav")
         assert self.audio_ds is not None, "ERROR: Audio Datastream not found"
 
         try:

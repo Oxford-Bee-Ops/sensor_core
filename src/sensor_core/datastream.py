@@ -269,13 +269,16 @@ class Datastream(Thread):
             return
 
         # Wrap the "record" data in a FAIR record
-        wrap: dict[str, dict | str] = {}
+        wrap: dict[str, dict | str | list] = {}
         wrap[api.RECORD_ID.VERSION.value] = "V3"
         wrap[api.RECORD_ID.DS_TYPE_ID.value] = self.ds_config.ds_type_id
         wrap[api.RECORD_ID.DEVICE_ID.value] = self.device_id
         wrap[api.RECORD_ID.SENSOR_INDEX.value] = str(self.sensor_index)
         wrap[api.RECORD_ID.TIMESTAMP.value] = api.utc_to_iso_str()
         wrap["record"] = record
+        # We always include the list of mac addresses for all devices in this experiment (fleet_config)
+        # This enables the dashboard to check that all devices are present and working.
+        wrap["fleet"] = list(root_cfg.INVENTORY.keys())
 
         # Dump the config record to a YAML file
         tmp_file = file_naming.get_temporary_filename(suffix="yaml")
