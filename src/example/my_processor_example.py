@@ -51,7 +51,7 @@ class ExampleProcessor(DataProcessor):
                 output_data.append(fields_dict)
 
                 # Generate data for the derived datastream
-                derived_dss = self.get_derived_datastreams(EXAMPLE_DF_DS_TYPE_ID)
+                derived_dss = self.get_derived_datastreams()
                 assert len(derived_dss) == 1
                 derived_dss[0].log({"pixel_count_transformed": 25*25})
 

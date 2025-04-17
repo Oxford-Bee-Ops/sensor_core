@@ -62,19 +62,22 @@ class DataProcessor:
         assert False, "DataProcessor subclass must implement process_data()"
 
 
-    def get_derived_datastreams(self, ds_type_id: Optional[str] = None) -> list[Datastream]:
+    def get_derived_datastreams(self, format: Optional[str] = None) -> list[Datastream]:
         """Return a list of derived Datastreams.
         This function is called by the DataProcessor subclass during process_data.
+        The DataProcessor should know how many datastreams it is expected to output and their format,
+        but it should not check the ds_type_id because that is a tag that reflects the particular
+        experimental setup and is often re-configured for different use cases.
 
         Parameters
         ----------
         ds_id : str, optional
             The Datastream ID to return. If None, all derived Datastreams are returned.
         """
-        if ds_type_id is None:
+        if format is None:
             return self._derived_datastreams  
         else:
-            return [ds for ds in self._derived_datastreams if ds.ds_config.ds_type_id == ds_type_id]
+            return [ds for ds in self._derived_datastreams if ds.ds_config.raw_format == format]
 
 
     def _set_derived_datastreams(self, derived_datastreams: list[Datastream]) -> None:

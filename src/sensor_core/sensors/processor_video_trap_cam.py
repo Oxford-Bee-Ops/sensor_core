@@ -7,7 +7,7 @@ import pandas as pd
 
 from sensor_core import DataProcessor, Datastream, DpContext, api
 from sensor_core import configuration as root_cfg
-from sensor_core.sensors.config_object_defs import TRAP_CAM_DS_TYPE_ID, TrapCamProcessorCfg
+from sensor_core.sensors.config_object_defs import TrapCamProcessorCfg
 from sensor_core.utils import file_naming
 
 logger = root_cfg.setup_logger("sensor_core")
@@ -34,9 +34,9 @@ class ProcessorVideoTrapCam(DataProcessor):
         max_blob_size = dp_cfg.max_blob_size
 
         # We save the processed video segments to a derived datastream
-        derived_ds = self.get_derived_datastreams(TRAP_CAM_DS_TYPE_ID)[0]
+        derived_ds = self.get_derived_datastreams()[0]
         assert derived_ds is not None, (
-            f"Derived datastream {TRAP_CAM_DS_TYPE_ID} not found"
+            f"Derived datastream not found for {datastream.ds_id}"
         )
 
         for f in files:

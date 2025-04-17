@@ -160,7 +160,7 @@ class VideoArucoProcessor(DataProcessor):
                 out_video.release()
 
         # Save the marked up video to the derived datastream
-        derived_dss = self.get_derived_datastreams(ARUCO_MARKED_UP_VIDEOS_DS_TYPE_ID)
+        derived_dss = self.get_derived_datastreams()
         assert len(derived_dss) == 1
         marked_up_ds: Datastream = derived_dss[0]
         parts = file_naming.parse_record_filename(source_file)
