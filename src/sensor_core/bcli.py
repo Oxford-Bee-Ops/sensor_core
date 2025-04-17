@@ -141,7 +141,7 @@ class InteractiveMenu():
     def view_status(self) -> None:
         """View the current status of the device."""
         try:
-            click.echo(self.sc.status())
+            click.echo(self.sc.status(verbose=False))
         except Exception as e:
             click.echo(f"Error in script start up: {e}")
 
@@ -328,11 +328,15 @@ class InteractiveMenu():
         return
 
 
-    def stop_sensor_core(self) -> None:
+    def stop_sensor_core(self, pkill: bool) -> None:
         """Stop the SensorCore service."""
         click.echo("Stopping SensorCore... this may take up to 180s to complete.")
         # We just need to "touch" the stop file to stop the service
         root_cfg.STOP_SENSOR_CORE_FLAG.touch()
+
+        if pkill:
+            # pkill -f "python -m bee_ops.run_my_sensor"
+            run_cmd("sudo pkill -f 'python -m bee_ops.run_my_sensor'")
         return
 
 
@@ -522,15 +526,15 @@ class InteractiveMenu():
         click.echo(f"{dash_line}")
         click.echo(f"# SensorCore CLI on {root_cfg.my_device_id} {root_cfg.my_device.name}")
         click.echo(f"{dash_line}")
-        self.view_status()
         while True:
             click.echo(f"{header}Main Menu:")
             click.echo("1. View Config")
-            click.echo("2. Sensor Commands")
-            click.echo("3. Debugging Commands")
-            click.echo("4. Maintenance Commands")
-            click.echo("5. Testing Commands")
-            click.echo("6. Exit")
+            click.echo("2. View Status")
+            click.echo("3. Sensor Commands")
+            click.echo("4. Debugging Commands")
+            click.echo("5. Maintenance Commands")
+            click.echo("6. Testing Commands")
+            click.echo("7. Exit")
             try:
                 choice = click.prompt("\nEnter your choice", type=int)
                 click.echo("\n")
@@ -541,14 +545,16 @@ class InteractiveMenu():
             if choice == 1:
                 self.view_sensor_core_config()
             elif choice == 2:
-                self.sensors_menu()
+                self.view_status()
             elif choice == 3:
-                self.debug_menu()
+                self.sensors_menu()
             elif choice == 4:
-                self.maintenance_menu()
+                self.debug_menu()
             elif choice == 5:
-                self.testing_menu()
+                self.maintenance_menu()
             elif choice == 6:
+                self.testing_menu()
+            elif choice == 7:
                 click.echo("Exiting...")
                 break
             else:
@@ -591,7 +597,8 @@ class InteractiveMenu():
             click.echo(f"{header}Maintenance Menu:")
             click.echo("1. Update Software")
             click.echo("2. Start SensorCore")
-            click.echo("3. Stop SensorCore")
+            click.echo("3. Stop SensorCore (graceful stop)")
+            click.echo("4. Hard stop SensorCore (pkill)")
             click.echo("4. Set Hostname")
             click.echo("5. Show Crontab Entries")
             click.echo("6. Restart the Device")  # Added reboot option
@@ -608,14 +615,16 @@ class InteractiveMenu():
             elif choice == 2:
                 self.start_sensor_core()
             elif choice == 3:
-                self.stop_sensor_core()
+                self.stop_sensor_core(pkill=False)
             elif choice == 4:
-                self.set_hostname()
+                self.stop_sensor_core(pkill=True)  # Hard stop using pkill
             elif choice == 5:
+                self.set_hostname()
+            elif choice == 6:
                 self.show_crontab_entries()
-            elif choice == 6:  # Handle reboot option
+            elif choice == 7:  # Handle reboot option
                 self.reboot_device()
-            elif choice == 7:  # Updated option number
+            elif choice == 8:  # Updated option number
                 break
             else:
                 click.echo("Invalid choice. Please try again.")

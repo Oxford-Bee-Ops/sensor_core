@@ -106,7 +106,7 @@ class EdgeOrchestrator:
     def status(self) -> dict[str, str]:
         """Return a key-value status describing the state of the EdgeOrchestrator"""
         status = {
-            "Orchestrator running": str(self._orchestrator_is_running),
+            "SensorCore running": str(self.is_running()),
             "Sensor threads": str(self._sensorThreads),
             "Observability timer": str(self._observability_timer),
             "Upload timer": str(self._upload_timer),

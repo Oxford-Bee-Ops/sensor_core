@@ -125,14 +125,14 @@ class SensorCore:
             cron.write()
 
 
-    def status(self) -> str:
+    def status(self, verbose: bool = True) -> str:
         """
         Get the current status of the sensor core.
 
         Return:
-        - A string message and a dictionary containing the status of the sensor core.
+        - A string describing the status of the sensor core.
         """
-        display_message = f"\nSensorCore running: {self._is_running()}"
+        display_message = "\n"
 
         # Check config is clean
         success, error = root_cfg.check_keys()
@@ -142,12 +142,15 @@ class SensorCore:
         # Display the orchestrator status
         orchestrator = EdgeOrchestrator.get_instance()
         if orchestrator is not None:
-            status = orchestrator.status()
-            if status:
-                display_message += "\n\n# SENSOR CORE STATUS\n"
-                for key, value in status.items():
-                    # Left pad the key to 24 characters
-                    display_message += f"  {key:<24} {value}\n"
+            display_message += f"\n\nSensorCore running: {orchestrator.is_running()}\n"
+
+            if verbose:
+                status = orchestrator.status()
+                if status:
+                    display_message += "\n\n# SENSOR CORE STATUS\n"
+                    for key, value in status.items():
+                        # Left pad the key to 24 characters
+                        display_message += f"  {key:<24} {value}\n"
 
         # Get the device health
         health = DeviceHealth.get_health()
