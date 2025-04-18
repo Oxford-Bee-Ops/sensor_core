@@ -1,12 +1,11 @@
 
-from sensor_core.config_objects import DeviceCfg, SensorDsCfg, WifiClient
+from sensor_core.config_objects import DeviceCfg, WifiClient
 
-from example.my_device_types import (
-    experiment1_standard_camera_device,
-    experiment1_double_camera_device,
-)
 from example import my_config_object_defs as my_config_object_defs
-from example.my_config_object_defs import ExampleDfDsCfg, ExampleSensorCfg
+from example.my_device_types import (
+    experiment1_double_camera_device,
+    experiment1_standard_camera_device,
+)
 
 ###############################################################################
 # SensorCore config model

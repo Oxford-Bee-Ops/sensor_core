@@ -14,13 +14,14 @@ import shutil
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from time import sleep
 from typing import Optional
 
 import cv2
 import numpy as np
 
 from sensor_core import configuration as root_cfg
-from sensor_core.cloud_connector import CloudConnector, LocalCloudConnector, local_cloud
+from sensor_core.cloud_connector import CloudConnector, LocalCloudConnector
 
 logger = root_cfg.setup_logger("sensor_core")
 
@@ -33,21 +34,32 @@ class ScEmulator():
     """The test harness enables thorough testing of the sensor code without RPi hardware."""
     _instance = None
 
-    def __init__(self):
+    @staticmethod
+    def get_instance() -> "ScEmulator":
+        """Get the singleton instance of ScEmulator."""
+        if ScEmulator._instance is None:
+            ScEmulator._instance = ScEmulator()
+        return ScEmulator._instance
+
+    def __enter__(self) -> "ScEmulator":
+        """Enter the context manager."""
+        logger.info("Entering ScEmulator context.")
         self.previous_recordings_index: int = 0
         self.recordings_saved: dict[str, int] = {}
         self.recording_cap: int = -1
         root_cfg.TEST_MODE = root_cfg.MODE.TEST
-        cc = CloudConnector().get_instance()
+        cc = CloudConnector.get_instance()
         if not isinstance(cc, LocalCloudConnector):
             raise TypeError("Expected LocalCloudConnector, but got a different type.")
-        cc.clear_local_cloud()
+        self.cc = cc
+        self.local_cloud = cc.get_local_cloud() # Newly created local cloud
+        return self
 
-    @staticmethod
-    def get_instance() -> "ScEmulator":
-        if ScEmulator._instance is None:
-            ScEmulator._instance = ScEmulator()
-        return ScEmulator._instance
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        """Exit the context manager."""
+        logger.info("Exiting ScEmulator context.")
+        self.cc.clear_local_cloud()
+        sleep(1)
 
     ##################################################################################################
     # Test harness functions
@@ -72,8 +84,13 @@ class ScEmulator():
             The keys are the prefixes of the file names.
             The values are the expected number of recordings.
         """
+        assert self.local_cloud is not None, (
+            "Local cloud not set. Use ScEmulator as a context manager to set it."
+            "with ScEmulator.get_instance() as scem: "
+            "   ..."
+        )
         for file_prefix, count in expected.items():
-            files = list((local_cloud /container).glob(file_prefix))
+            files = list((self.local_cloud /container).glob(file_prefix))
             assert len(files) == count, (
                 f"Expected {count} files with prefix {file_prefix}, "
                 f"but found {len(files)} files."
@@ -101,12 +118,12 @@ class ScEmulator():
         return None
 
     def ok_to_save_recording(self, ds_id) -> bool:
-        if self.recording_cap != -1:
+        if (self.recording_cap == -1) or ("FAIRY" in ds_id):
+            return True
+        else:
             previous_recordings = self.recordings_saved.get(ds_id, 0)
             self.recordings_saved[ds_id] = previous_recordings + 1
             return previous_recordings < self.recording_cap
-        else:
-            return True
 
     #################################################################################################
     # Sensor command emulation

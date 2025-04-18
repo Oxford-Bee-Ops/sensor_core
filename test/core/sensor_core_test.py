@@ -4,9 +4,9 @@ import pytest
 from example import my_fleet_config
 from sensor_core import configuration as root_cfg
 from sensor_core.sensor_core import SensorCore
+from sensor_core.utils.sc_test_emulator import ScEmulator
 
 logger = root_cfg.setup_logger("sensor_core")
-root_cfg.TEST_MODE = root_cfg.MODE.TEST
 
 class Test_SensorFactory:
     @pytest.mark.quick
@@ -22,19 +22,20 @@ class Test_SensorFactory:
         # Standard flow
         # We reset cfg.my_device_id to override the computers mac_address
         # This is a test device defined in BeeOps.cfg to have a DummySensor.
-        root_cfg.update_my_device_id("d01111111111")
+        with ScEmulator.get_instance():
+            root_cfg.update_my_device_id("d01111111111")
 
-        sc = SensorCore()
-        sc.configure(my_fleet_config.INVENTORY)
-        sc.start()
-        sleep(2)
-        sc.status()
-        # This should be rejected because the sensor is already running
-        #with pytest.raises(Exception):
-        #    sc.configure("example.my_fleet_config.Inventory")
-        sc.stop()
-        sc.status()
+            sc = SensorCore()
+            sc.configure(my_fleet_config.INVENTORY)
+            sc.start()
+            sleep(2)
+            sc.status()
+            # This should be rejected because the sensor is already running
+            #with pytest.raises(Exception):
+            #    sc.configure("example.my_fleet_config.Inventory")
+            sc.stop()
+            sc.status()
 
-        # Start again
-        sc.start()
-        sc.stop()
+            # Start again
+            sc.start()
+            sc.stop()

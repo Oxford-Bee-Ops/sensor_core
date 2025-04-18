@@ -6,7 +6,7 @@ from sensor_core import config_validator
 from sensor_core import configuration as root_cfg
 from sensor_core.config_objects import DeviceCfg
 from sensor_core.device_health import DeviceHealth
-from sensor_core.edge_orchestrator import EdgeOrchestrator, request_stop
+from sensor_core.edge_orchestrator import EdgeOrchestrator
 from sensor_core.utils import utils
 
 logger = root_cfg.setup_logger("sensor_core")
@@ -109,10 +109,6 @@ class SensorCore:
         Stop SensorCore.
         And remove any crontab entries added by make_my_script_persistent.
         """
-        # Set the STOP_SENSOR_CORE_FLAG file; this is polled by the main() method in 
-        # the EdgeOrchestrator which will continue to restart the SensorCore until the flag is removed.
-        request_stop()
-
         # Ask the EdgeOrchestrator to stop all sensors
         EdgeOrchestrator.get_instance().stop_all()
         print(f"SensorCore stopping - this may take up to {root_cfg.my_device.max_recording_timer}s.")

@@ -7,6 +7,7 @@ from typing import Optional
 
 from azure.storage.blob import BlobClient, BlobLeaseClient, ContainerClient, StandardBlobTier
 
+from sensor_core import api
 from sensor_core import configuration as root_cfg
 from sensor_core.utils import file_naming as fn
 
@@ -386,20 +387,29 @@ class CloudConnector:
 # This class is used to connect to the local cloud emulator.  It is a subclass of CloudConnector and
 # implements the same interface.  It is used for testing purposes only and should not be used in production.
 #########################################################################################################
-local_cloud = root_cfg.ROOT_WORKING_DIR / "local_cloud"
+local_cloud_root = root_cfg.ROOT_WORKING_DIR / "local_cloud"
+local_cloud: Path = local_cloud_root / api.utc_to_fname_str()
 
 class LocalCloudConnector(CloudConnector):
     def __init__(self) -> None:
         if root_cfg.my_device is None:
             raise ValueError("System configuration not set; cannot connect to cloud")
-        
         self.local_cloud = local_cloud
+        
+    def get_local_cloud(self) -> Path:
+        """Creates a local cloud directory.  Usually called by ScEmulator.__enter__() as
+        when the ScEmulator is used as a context manager.
+
+        This is an unpredictable string so we don't clash with other local cloud instances."""
+        if self.local_cloud.exists():
+            shutil.rmtree(self.local_cloud)
+        self.local_cloud.mkdir(parents=True, exist_ok=True)
+        return self.local_cloud
 
     def clear_local_cloud(self):
         """Clear the local cloud storage - this is used for testing only"""
         if self.local_cloud.exists():
             shutil.rmtree(self.local_cloud)
-        self.local_cloud.mkdir(parents=True, exist_ok=True)
 
     def upload_to_container(
         self,

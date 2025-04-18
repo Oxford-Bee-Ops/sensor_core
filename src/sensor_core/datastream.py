@@ -492,7 +492,11 @@ class Datastream(Thread):
                             # Sampling is done on initial save_recording.
                             for f in input_files:
                                 if f.exists():
-                                    f.unlink()
+                                    try:
+                                        f.unlink()
+                                    except Exception as e:
+                                        logger.error(f"{root_cfg.RAISE_WARN()}Failed to unlink {f} {e!s}", 
+                                                     exc_info=True)
 
                     # Validate the output_df before passing it to the next DP in the chain
                     if output_df is not None:
@@ -692,9 +696,9 @@ class Datastream(Thread):
         files = list(src.glob(f"*{self.ds_id}*.{dp.dp_config.input_format}"))
 
         # We must return only files that are not currently being written to
-        # Do not return files modified in the last 10s
+        # Do not return files modified in the last few seconds
         now = api.utc_now().timestamp()
-        files = [f for f in files if (now - f.stat().st_mtime) > 10]
+        files = [f for f in files if (now - f.stat().st_mtime) > 5]
 
         logger.debug(f"_get_ds_files returning {files}")
         return files

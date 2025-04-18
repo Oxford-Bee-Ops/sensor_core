@@ -155,7 +155,7 @@ class EdgeOrchestrator:
         """Called by Sensor to indicate that it has failed; orchestrator will then restarting everything."""
         logger.error(f"{root_cfg.RAISE_WARN()}Sensor failed; restarting all; {sensor}")
         logger.info(self.status())
-        self.stop_all()
+        self.stop_all(restart=True)
         # The orchestrator monitors it's own status and will re-register all Sensors and Datastreams.
 
     def _register_sensor(self, sensor: Sensor) -> None:
@@ -281,8 +281,11 @@ class EdgeOrchestrator:
         logger.debug("Start orchestrator with watchdog")
         orchestrator_thread = threading.Thread(target=main, name="EdgeOrchestrator")
         orchestrator_thread.start()
+        # Block for long enough for the main thread to be scheduled
+        # So we avoid race conditions with subsequence calls to stop_all()
+        sleep(1)
 
-    def stop_all(self) -> None:
+    def stop_all(self, restart: Optional[bool] = False) -> None:
         """Stop all Sensor, Datastream and observability threads
 
         Blocks until all threads have exited"""
@@ -290,6 +293,16 @@ class EdgeOrchestrator:
         logger.info(f"stop_all on {self!r} called by {threading.current_thread().name}")
 
         self.orchestrator_is_stopping = True
+
+        # Set the STOP_SENSOR_CORE_FLAG file; this is polled by the main() method in 
+        # the EdgeOrchestrator which will continue to restart the SensorCore until the flag is removed.
+        # This is also important when we are not the running instance of the orchestrator,
+        # as the running instance will check the file and stop itself.
+        if not restart:
+            root_cfg.STOP_SENSOR_CORE_FLAG.touch()
+        else:
+            # We use stop_all to restart the orchestrator cleanly in the event of a sensor failure.
+            logger.info("Restart requested; not touching stop file")
 
         if not self._orchestrator_is_running:
             logger.warning(f"EdgeOrchestrator not started when stop called; {self}")
@@ -502,10 +515,6 @@ class EdgeOrchestrator:
 #
 # Main loop called from crontab on boot up
 #############################################################################################################
-def request_stop() -> None:
-    """Request all sensors to stop and SensorCore to exit"""
-    root_cfg.STOP_SENSOR_CORE_FLAG.touch()
-
 def _touch_running_file() -> None:
     """Touch the running file to indicate that the script is running"""
     root_cfg.SENSOR_CORE_IS_RUNNING_FLAG.touch()
@@ -532,7 +541,7 @@ def main() -> None:
 
             # Restart the re-load and re-start the EdgeOrchestrator if it fails.
             if not orchestrator._orchestrator_is_running:
-                logger.error("Sensor manager has stopped; restarting")
+                logger.error("Sensor manager failed; restarting")
                 orchestrator.load_sensors()
                 orchestrator.start_all()
 
@@ -545,6 +554,7 @@ def main() -> None:
         # To get here, we hit an exception on one thread or have been explicitly asked to stop.
         # Tell all threads to terminate so we can cleanly restart all via cron
         if orchestrator is not None:
+            logger.info("Stopping all sensors and datastreams")
             orchestrator.stop_all()
         logger.info("Sensor script finished")
 

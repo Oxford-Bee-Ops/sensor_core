@@ -24,31 +24,30 @@ class Test_trap_cam_device:
     @pytest.mark.quick
     def test_trap_cam_device(self):
 
-        # The ScEmulator creates / clears local cloud storage and sets the test mode
-        th = ScEmulator.get_instance()
+        with ScEmulator.get_instance() as th:
 
-        # Set the file to be fed into the trap camera device
-        th.set_recordings([
-            ScTestRecording(
-                cmd_prefix="rpicam-vid",
-                recordings=[
-                    root_cfg.TEST_DIR / "sensors" / "resources" / "V3_TRAPCAM_Bees_in_a_tube.mp4"
-                ],
-            )
-        ])
+            # Set the file to be fed into the trap camera device
+            th.set_recordings([
+                ScTestRecording(
+                    cmd_prefix="rpicam-vid",
+                    recordings=[
+                        root_cfg.TEST_DIR / "sensors" / "resources" / "V3_TRAPCAM_Bees_in_a_tube.mp4"
+                    ],
+                )
+            ])
 
-        # Limit the SensorCore to 1 recording so we can easily validate the results
-        th.set_recording_cap(1)
+            # Limit the SensorCore to 1 recording so we can easily validate the results
+            th.set_recording_cap(1)
 
-        # Configure SensorCore with the trap camera device
-        sc = SensorCore()
-        sc.configure(INVENTORY)
-        sc.start()
-        sleep(10)
-        sc.stop()
+            # Configure SensorCore with the trap camera device
+            sc = SensorCore()
+            sc.configure(INVENTORY)
+            sc.start()
+            sleep(10)
+            sc.stop()
 
-        # We should have identified bees in the video and save the info to the EXITCAM datastream
-        th.assert_records("sensor-core-fair", 
-                          {"V3_RAWVIDEO*": 1, "V3_TRAPCAM*": 1})
-        th.assert_records("sensor-core-journals", 
-                          {"*": 0})
+            # We should have identified bees in the video and save the info to the EXITCAM datastream
+            th.assert_records("sensor-core-fair", 
+                            {"V3_RAWVIDEO*": 1, "V3_TRAPCAM*": 1})
+            th.assert_records("sensor-core-journals", 
+                            {"*": 0})
