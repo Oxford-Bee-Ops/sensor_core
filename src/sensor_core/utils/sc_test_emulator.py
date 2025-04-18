@@ -35,8 +35,8 @@ class ScEmulator():
 
     def __init__(self):
         self.previous_recordings_index: int = 0
-        self.recordings_saved: int = 0
-        self.recording_cap: int = 0
+        self.recordings_saved: dict[str, int] = {}
+        self.recording_cap: int = -1
         root_cfg.TEST_MODE = root_cfg.MODE.TEST
         cc = CloudConnector().get_instance()
         if not isinstance(cc, LocalCloudConnector):
@@ -100,9 +100,11 @@ class ScEmulator():
                 return recording.recordings
         return None
 
-    def ok_to_save_recording(self) -> bool:
+    def ok_to_save_recording(self, ds_id) -> bool:
         if self.recording_cap != -1:
-            return self.recordings_saved < self.recording_cap
+            previous_recordings = self.recordings_saved.get(ds_id, 0)
+            self.recordings_saved[ds_id] = previous_recordings + 1
+            return previous_recordings < self.recording_cap
         else:
             return True
 

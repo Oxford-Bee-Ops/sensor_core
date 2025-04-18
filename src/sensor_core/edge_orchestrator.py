@@ -516,11 +516,10 @@ def main() -> None:
         logger.info(root_cfg.my_device.display())
 
         orchestrator = EdgeOrchestrator.get_instance()
-        if orchestrator.is_running():
+        if orchestrator.is_running() or orchestrator._orchestrator_is_running:
             logger.warning("SensorCore is already running; exiting")
             sys.exit(0)
 
-        assert not orchestrator._orchestrator_is_running, "Sensor manager should not be running"
         orchestrator.load_sensors()
 
         # Start all the sensor threads

@@ -5,13 +5,15 @@ from time import sleep
 import pytest
 import yaml
 from example import my_fleet_config
-from example.my_config_object_defs import ExampleSensorCfg
+from example.my_config_object_defs import (
+    ExampleSensorCfg, EXAMPLE_LOG_DS_TYPE, EXAMPLE_FILE_DS_TYPE)
 from sensor_core import api, edge_orchestrator
 from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import CloudConnector
 from sensor_core.edge_orchestrator import EdgeOrchestrator
 from sensor_core.sensor_core import SensorCore
 from sensor_core.utils import file_naming, sc_test_emulator
+from sensor_core.config_objects import DeviceCfg, SensorDsCfg
 
 logger = root_cfg.setup_logger("sensor_core")
 
@@ -35,7 +37,23 @@ class Test_Orchestrator:
         root_cfg.update_my_device_id("d01111111111")
 
         sc = SensorCore()
-        sc.configure(my_fleet_config.INVENTORY)
+        sc.configure(
+            [DeviceCfg(  # This is the DUMMY MAC address for windows
+                name="Alex",
+                device_id="d01111111111",
+                notes="Using Alex as an all-defaults camera in Experiment A",
+                sensor_ds_list=[
+                    SensorDsCfg(
+                        sensor_cfg=ExampleSensorCfg(sensor_index=1),
+                        datastream_cfgs=[
+                            EXAMPLE_LOG_DS_TYPE,
+                            EXAMPLE_FILE_DS_TYPE,
+                        ],
+                    )
+                ],
+            )]
+        )
+            
 
         orchestrator = EdgeOrchestrator.get_instance()
         orchestrator.load_sensors()
@@ -51,21 +69,8 @@ class Test_Orchestrator:
                           {"V3_DUMML*": 1, "V3_DUMMF*": 1, "V3_DUMMD*": 1})
         th.assert_records("sensor-core-system-records",
                           {"V3_SCORE*": 1, "V3_SCORP*": 1})
-
-        # Check that a FAIR yaml file has been created in the last 10s
-        files = CloudConnector.get_instance().list_cloud_files(root_cfg.my_device.cc_for_fair, 
-                                                  more_recent_than=api.utc_now() - dt.timedelta(seconds=60))
-        assert files, f"No FAIR files found in {root_cfg.my_device.cc_for_fair}"
-
-        # Check we can download the FAIR yaml and recreate the object
-        tmp_fname = file_naming.get_temporary_filename("yaml")
-        CloudConnector.get_instance().download_from_container(root_cfg.my_device.cc_for_fair, 
-                                                files[0],
-                                                tmp_fname)
-        with open(tmp_fname, "r") as f:
-            fair_dict = yaml.safe_load(f)
-        fair_device_id = fair_dict[api.RECORD_ID.DEVICE_ID.value]
-        assert len(fair_device_id) == 12
+        th.assert_records("sensor-core-fair",
+                          {"V3_DUMM*": 3})
 
         # Stop without start
         orchestrator.load_sensors()

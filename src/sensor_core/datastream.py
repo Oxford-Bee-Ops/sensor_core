@@ -801,7 +801,7 @@ class Datastream(Thread):
 
         # If we're in test mode, we may cap the number of recordings we save.
         if root_cfg.TEST_MODE == root_cfg.MODE.TEST:
-            if not ScEmulator.get_instance().ok_to_save_recording():
+            if not ScEmulator.get_instance().ok_to_save_recording(self.ds_id):
                 logger.info(f"Test mode recording cap hit; deleting {src_file.name}")
                 src_file.unlink()
                 return new_fname
