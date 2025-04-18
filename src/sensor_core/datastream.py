@@ -803,7 +803,8 @@ class Datastream(Thread):
         if root_cfg.TEST_MODE == root_cfg.MODE.TEST:
             if not ScEmulator.get_instance().ok_to_save_recording(self.ds_id):
                 logger.info(f"Test mode recording cap hit; deleting {src_file.name}")
-                src_file.unlink()
+                if src_file.exists():
+                    src_file.unlink()
                 return new_fname
 
         # Move the file to the dst_dir (EDGE_UPLOAD_DIR or EDGE_PROCESSING_DIR)
