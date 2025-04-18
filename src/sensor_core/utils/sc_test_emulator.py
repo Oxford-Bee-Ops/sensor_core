@@ -38,7 +38,9 @@ class ScEmulator():
         self.recordings_saved: int = 0
         self.recording_cap: int = 0
         root_cfg.TEST_MODE = root_cfg.MODE.TEST
-        cc: LocalCloudConnector = CloudConnector().get_instance()
+        cc = CloudConnector().get_instance()
+        if not isinstance(cc, LocalCloudConnector):
+            raise TypeError("Expected LocalCloudConnector, but got a different type.")
         cc.clear_local_cloud()
 
     @staticmethod

@@ -639,13 +639,19 @@ class Datastream(Thread):
             return None
 
         # Output DFs must always contain the core RECORD_ID fields
-        if not all(x.value in output_data.columns for x in api.RECORD_ID):
-            err_str = (
-                f"{root_cfg.RAISE_WARN()}Not all RECORD_ID fields in output_df from "
-                f"{dp}: {output_data.columns}"
-            )
-            logger.error(err_str)
-            raise Exception(err_str)
+        # If not already present, add the RECORD_ID fields to the output_df
+        for field in api.REQD_RECORD_ID_FIELDS:
+            if field not in output_data.columns:
+                if field == api.RECORD_ID.VERSION.value:
+                    output_data[field] = "V3"
+                elif field == api.RECORD_ID.TIMESTAMP.value:
+                    output_data[field] = api.utc_to_iso_str()
+                elif field == api.RECORD_ID.DEVICE_ID.value:
+                    output_data[field] = self.device_id
+                elif field == api.RECORD_ID.SENSOR_INDEX.value:
+                    output_data[field] = self.sensor_index
+                elif field == api.RECORD_ID.DS_TYPE_ID.value:
+                    output_data[field] = self.ds_config.ds_type_id
 
         # Check the values in the RECORD_ID are not nan or empty
         for field in api.REQD_RECORD_ID_FIELDS:

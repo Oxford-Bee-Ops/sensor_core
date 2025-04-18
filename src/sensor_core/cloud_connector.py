@@ -550,6 +550,9 @@ class LocalCloudConnector(CloudConnector):
             if not blob_client.exists():
                 # Include the Headers
                 data_to_append = "".join(local_lines[:])
+                # Create the file
+                blob_client.parent.mkdir(parents=True, exist_ok=True)
+                blob_client.touch()
             else:
                 # Drop the Headers in the first line so we don't have repeat header rows
                 data_to_append = "".join(local_lines[1:])

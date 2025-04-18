@@ -11,10 +11,9 @@ from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import CloudConnector
 from sensor_core.edge_orchestrator import EdgeOrchestrator
 from sensor_core.sensor_core import SensorCore
-from sensor_core.utils import file_naming
+from sensor_core.utils import file_naming, sc_test_emulator
 
 logger = root_cfg.setup_logger("sensor_core")
-root_cfg.TEST_MODE = root_cfg.MODE.TEST
 
 
 class Test_Orchestrator:
@@ -28,6 +27,8 @@ class Test_Orchestrator:
 
     @pytest.mark.quick
     def test_Orchestrator(self) -> None:
+        th = sc_test_emulator.ScEmulator.get_instance()
+        
         # Standard flow
         # We reset cfg.my_device_id to override the computers mac_address
         # This is a test device defined in BeeOps.cfg to have a DummySensor.
@@ -46,18 +47,10 @@ class Test_Orchestrator:
         # SCORE & SCORP & DUMML & DUMMF should contain data.
         # DUMMD should be empty
         # The files will have been pushed to the cloud, so we need to get the modified data on each journal.
-        stores = {
-            "SCORE": orchestrator._score_ds.ds_config.cloud_container,
-            "SCORP": orchestrator._scorp_ds.ds_config.cloud_container,
-            "DUMML": root_cfg.my_device.cc_for_journals,
-            "DUMMF": root_cfg.my_device.cc_for_journals,
-            "DUMMD": root_cfg.my_device.cc_for_journals,
-        }
-        for ds_type_id, container_name in stores.items():
-            fname = file_naming.get_cloud_journal_filename(ds_type_id, api.utc_now())
-            modified_time = CloudConnector.get_instance().get_blob_modified_time(str(container_name), 
-                                                                                 fname.name)
-            assert (api.utc_now() - modified_time).total_seconds() < 60, f"Journal not updated {fname}"
+        th.assert_records("sensor-core-journals",
+                          {"V3_DUMML*": 1, "V3_DUMMF*": 1, "V3_DUMMD*": 1})
+        th.assert_records("sensor-core-system-records",
+                          {"V3_SCORE*": 1, "V3_SCORP*": 1})
 
         # Check that a FAIR yaml file has been created in the last 10s
         files = CloudConnector.get_instance().list_cloud_files(root_cfg.my_device.cc_for_fair, 
