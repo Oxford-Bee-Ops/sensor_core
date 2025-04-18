@@ -34,7 +34,6 @@ class ExampleProcessor(DataProcessor):
         - so has an excess number of asserts!
         - demonstrates a file DP converting a file list to a DataFrame
         - demonstrates a DF DP returning a DataFrame"""
-        assert datastream.sensor_index == 1
         assert datastream.device_id == root_cfg.my_device_id
         assert datastream.ds_config.ds_type_id == EXAMPLE_FILE_DS_TYPE_ID
         assert input_data is not None

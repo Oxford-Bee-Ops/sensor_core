@@ -1,6 +1,10 @@
 
 from sensor_core.config_objects import DeviceCfg, SensorDsCfg, WifiClient
 
+from example.my_device_types import (
+    experiment1_standard_camera_device,
+    experiment1_double_camera_device,
+)
 from example import my_config_object_defs as my_config_object_defs
 from example.my_config_object_defs import ExampleDfDsCfg, ExampleSensorCfg
 
@@ -46,36 +50,6 @@ from example.my_config_object_defs import ExampleDfDsCfg, ExampleSensorCfg
 #
 ###############################################################################
 
-###############################################################################
-# Define global configuration & device types for the fleet
-###############################################################################
-
-# Define the datastreams produced by a device type
-experiment1_standard_camera_device = [
-    SensorDsCfg(
-        sensor_cfg=ExampleSensorCfg(sensor_index=1),
-        datastream_cfgs=[
-            my_config_object_defs.EXAMPLE_LOG_DS_TYPE,
-            my_config_object_defs.EXAMPLE_FILE_DS_TYPE,
-        ],
-    )
-]
-
-experiment1_double_camera_device = [
-    SensorDsCfg(
-        sensor_cfg=ExampleSensorCfg(sensor_index=1),
-        datastream_cfgs=[
-            my_config_object_defs.EXAMPLE_FILE_DS_TYPE,
-        ],
-    ),
-    SensorDsCfg(
-        sensor_cfg=ExampleSensorCfg(sensor_index=2),
-        datastream_cfgs=[
-            my_config_object_defs.EXAMPLE_FILE_DS_TYPE,
-        ],
-    ),
-]
-
 # Pre-configure the devices with awareness of wifi APs
 WIFI_CLIENTS: list[WifiClient] = [
         WifiClient("bee-ops", 100, "abcdabcd"),
@@ -101,22 +75,6 @@ INVENTORY: list[DeviceCfg] = [
         device_id="d01111111112",
         notes="Using Bob as a close up camera in Experiment A",
         sensor_ds_list=experiment1_double_camera_device,
-        wifi_clients=WIFI_CLIENTS,
-    ),
-    DeviceCfg(
-        name="Charlie",
-        device_id="d12222222222",
-        notes="Using Charlie as a special sort of camera in Experiment A",
-        sensor_ds_list=[
-            SensorDsCfg(
-                sensor_cfg=ExampleSensorCfg(a_custom_field="value_set_per_device"),
-                datastream_cfgs=[
-                    ExampleDfDsCfg(),
-                    my_config_object_defs.EXAMPLE_LOG_DS_TYPE,
-                    my_config_object_defs.EXAMPLE_FILE_DS_TYPE,
-                ],
-            )
-        ],
         wifi_clients=WIFI_CLIENTS,
     ),
 ]

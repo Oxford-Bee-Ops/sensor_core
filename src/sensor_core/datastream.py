@@ -21,6 +21,7 @@ from sensor_core.data_processor import DataProcessor
 from sensor_core.system_datastreams import FAIRY_DS_TYPE, SCORE_DS_TYPE, SCORP_DS_TYPE, SYSTEM_DS_TYPES
 from sensor_core.utils import file_naming, utils
 from sensor_core.utils.journal_pool import JournalPool
+from sensor_core.utils.sc_test_emulator import ScEmulator
 
 logger = root_cfg.setup_logger("sensor_core")
 
@@ -779,9 +780,8 @@ class Datastream(Thread):
             # This is most likely a race condition on start up.
             logger.warning(f"Datastream has not been started: {self}; race condition on start up?")
 
-        ds_id = self.ds_id
-
         # If override_ds_type_id is provided, check this is the FAIRY DS.
+        ds_id = self.ds_id
         if override_ds_id is not None:
             if self.ds_config.ds_type_id != FAIRY_DS_TYPE.ds_type_id:
                 raise ValueError(f"override_ds_type_id can only be used with FAIRY_DS_TYPE: "
@@ -792,6 +792,13 @@ class Datastream(Thread):
         new_fname: Path = file_naming.get_record_filename(
             dst_dir, ds_id, suffix, start_time, end_time, offset_index, secondary_offset_index
         )
+
+        # If we're in test mode, we may cap the number of recordings we save.
+        if root_cfg.TEST_MODE == root_cfg.MODE.TEST:
+            if not ScEmulator.get_instance().ok_to_save_recording():
+                logger.info(f"Test mode recording cap hit; deleting {src_file.name}")
+                src_file.unlink()
+                return new_fname
 
         # Move the file to the dst_dir (EDGE_UPLOAD_DIR or EDGE_PROCESSING_DIR)
         # This will be the first step in the processing of the file
@@ -814,7 +821,7 @@ class Datastream(Thread):
                 
             sample_fname = file_naming.increment_filename(root_cfg.EDGE_UPLOAD_DIR / new_fname.name)
             shutil.copy(new_fname, sample_fname)
-            CloudConnector().upload_to_container(self.ds_config.sample_container,
+            CloudConnector.get_instance().upload_to_container(self.ds_config.sample_container,
                                                 [sample_fname], 
                                                 delete_src=True)
             logger.info(f"Raw sample saved to {self.ds_config.sample_container}; "
@@ -823,7 +830,8 @@ class Datastream(Thread):
         # If the dst_dir is EDGE_UPLOAD_DIR, we can use direct upload to the cloud
         if dst_dir == root_cfg.EDGE_UPLOAD_DIR:
             assert self.ds_config.cloud_container is not None
-            CloudConnector().upload_to_container(self.ds_config.cloud_container, [new_fname], delete_src=True)
+            CloudConnector.get_instance().upload_to_container(self.ds_config.cloud_container, 
+                                                              [new_fname], delete_src=True)
 
         # Track the number of measurements recorded
         if end_time is None:

@@ -14,7 +14,7 @@ from sensor_core.sensor_core import SensorCore
 from sensor_core.utils import file_naming
 
 logger = root_cfg.setup_logger("sensor_core")
-root_cfg.TEST_MODE = True
+root_cfg.TEST_MODE = root_cfg.MODE.TEST
 
 
 class Test_Orchestrator:
@@ -55,17 +55,18 @@ class Test_Orchestrator:
         }
         for ds_type_id, container_name in stores.items():
             fname = file_naming.get_cloud_journal_filename(ds_type_id, api.utc_now())
-            modified_time = CloudConnector().get_blob_modified_time(str(container_name), fname.name)
+            modified_time = CloudConnector.get_instance().get_blob_modified_time(str(container_name), 
+                                                                                 fname.name)
             assert (api.utc_now() - modified_time).total_seconds() < 60, f"Journal not updated {fname}"
 
         # Check that a FAIR yaml file has been created in the last 10s
-        files = CloudConnector().list_cloud_files(root_cfg.my_device.cc_for_fair, 
+        files = CloudConnector.get_instance().list_cloud_files(root_cfg.my_device.cc_for_fair, 
                                                   more_recent_than=api.utc_now() - dt.timedelta(seconds=60))
         assert files, f"No FAIR files found in {root_cfg.my_device.cc_for_fair}"
 
         # Check we can download the FAIR yaml and recreate the object
         tmp_fname = file_naming.get_temporary_filename("yaml")
-        CloudConnector().download_from_container(root_cfg.my_device.cc_for_fair, 
+        CloudConnector.get_instance().download_from_container(root_cfg.my_device.cc_for_fair, 
                                                 files[0],
                                                 tmp_fname)
         with open(tmp_fname, "r") as f:
@@ -86,7 +87,6 @@ class Test_Orchestrator:
         orchestrator.observability_run()
         sleep(2)
         orchestrator.observability_run()
-        #orchestrator.upload_to_cloud()
         orchestrator.stop_all()
 
         # There may be files left waiting to be processed, so we can't assert there aren't.

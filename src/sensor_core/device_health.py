@@ -161,17 +161,15 @@ class DeviceHealth():
                 # for each process in the list, strip any text before "sensor_core" or "dua"
                 # Drop any starting / or . characters
                 # And convert the process list to a simple comma-seperated string with no {} or ' or " 
-                # characters
-                process_set = utils.check_running_processes(search_string="sensor_core")
-                process_list = [x.split("sensor_core")[-1] for x in process_set]
-                process_list = [x.split("dua")[-1] for x in process_list]
-                process_list = [x.lstrip("/").lstrip(".") for x in process_list]
+                # characters                
+                process_set = (
+                    utils.check_running_processes(search_string="root_cfg.system_cfg.my_start_script").union( 
+                    utils.check_running_processes(search_string="python"))
+                )
                 process_list_str = (
-                    str(process_list).replace("{", 
+                    str(process_set).replace("{", 
                                               "").replace("}", "").replace("'", "").replace('"', "").strip()
                 )
-                process_list_str = process_list_str.replace("mode", "")
-
 
             # Check update status by getting the last modified time of the rpi_installer_ran file
             # This file is created when the rpi_installer.sh script is run

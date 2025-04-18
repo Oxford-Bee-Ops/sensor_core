@@ -53,7 +53,7 @@ class EdgeOrchestrator:
         logger.info(f"Initialising EdgeOrchestrator {self!r}")
 
         self.reset_orchestrator_state()
-        if root_cfg.TEST_MODE:
+        if root_cfg.TEST_MODE == root_cfg.MODE.TEST:
             # Override the RUN_FREQUENCY_SECS so that tests exit faster; default is 60s
             datastream.RUN_FREQUENCY_SECS = 1
         logger.info(f"Initialised EdgeOrchestrator {self!r}")
@@ -494,9 +494,8 @@ class EdgeOrchestrator:
         # from previous failed uploads.
         if dst_container is None:
             dst_container = root_cfg.my_device.cc_for_upload
-        connector = CloudConnector()
         zip_files = list(root_cfg.EDGE_UPLOAD_DIR.glob("*.zip"))
-        connector.upload_to_cloud(dst_container, zip_files)
+        CloudConnector.get_instance().upload_to_container(dst_container, zip_files)
 
 #############################################################################################################
 # Orchestrator main loop

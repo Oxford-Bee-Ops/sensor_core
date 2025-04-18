@@ -12,10 +12,19 @@ from sensor_core import api
 from sensor_core.config_objects import FAILED_TO_LOAD, DeviceCfg, Keys, SystemCfg
 from sensor_core.utils import dc
 
+
 ############################################################################################
-# Test mode flag
+# Test mode flags
+#
+# RECORDING_CAP is used to limit the number of recordings saved from a sensor in test mode.
+# It's useful to be able to accept 1 recording, process it and validate the results.
+# A cap of -1 means no cap.
 ############################################################################################
-TEST_MODE: bool = False
+class MODE(Enum):
+    """Test modes for the SensorCore"""
+    PRODUCTION: str = "production"
+    TEST: str = "test"
+TEST_MODE: MODE = MODE.PRODUCTION
 
 ############################################################################################
 #

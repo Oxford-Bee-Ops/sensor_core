@@ -30,7 +30,7 @@ class SensorCore:
 
     def __init__(self, test_mode: bool = False) -> None:
         if test_mode:
-            root_cfg.TEST_MODE = True
+            root_cfg.TEST_MODE = root_cfg.MODE.TEST
 
     def test_configuration(self, fleet_config: list[DeviceCfg]) -> tuple[bool, list[str]]:
         """ Validates that the configuration in fleet_config_py is valid.

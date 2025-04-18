@@ -24,7 +24,7 @@ class _CloudJournalManager:
     def __init__(self, cloud_container: str) -> None:
         super().__init__()
         self._journals: dict[CloudJournal, Queue] = {}
-        self.cloud_connector = CloudConnector()
+        self.cloud_connector = CloudConnector.get_instance()
         self.cloud_container = cloud_container
         self._stop_requested = Event()
         self.sleep_time = 3 * 60
@@ -138,7 +138,7 @@ class CloudJournal:
         assert len(reqd_columns) > 0
 
         self.manager = _CloudJournalManager.get(cloud_container)
-        self.cloud_connector = CloudConnector()
+        self.cloud_connector = CloudConnector.get_instance()
         self.local_fname = local_fname
         self.cloud_filename = local_fname.name
         self.cloud_container = cloud_container

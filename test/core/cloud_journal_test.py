@@ -6,7 +6,7 @@ from sensor_core.utils.cloud_journal import CloudJournal
 from sensor_core.utils.journal import Journal
 
 logger = root_cfg.setup_logger("sensor_core")
-root_cfg.TEST_MODE = True
+root_cfg.TEST_MODE = root_cfg.MODE.TEST
 
 
 ####################################################################################################
@@ -33,9 +33,8 @@ class Test_CloudJournal:
             root_cfg.my_device.cc_for_upload,
             reqd_columns=reqd_columns,
         )
-        cloud_connector = CloudConnector()
-        if cloud_connector.exists(root_cfg.my_device.cc_for_upload, test_journal_path.name):
-            cloud_connector.delete(root_cfg.my_device.cc_for_upload, test_journal_path.name)
+        if CloudConnector.get_instance().exists(root_cfg.my_device.cc_for_upload, test_journal_path.name):
+            CloudConnector.get_instance().delete(root_cfg.my_device.cc_for_upload, test_journal_path.name)
 
         cj.add_rows_from_df(test_journal.as_df())
         cj.flush_all()

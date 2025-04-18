@@ -105,7 +105,7 @@ class Rule4_cloud_container_specified(ValidationRule):
 # Rule5: check that all cloud_containers exist in the blobstore using cloud_connector.container_exists()
 class Rule5_cloud_container_exists(ValidationRule):
     def validate(self, inventory: list[DeviceCfg]) -> tuple[bool, str]:
-        cc = CloudConnector()
+        cc = CloudConnector.get_instance()
         for device in inventory:
 
             if not cc.container_exists(device.cc_for_upload):

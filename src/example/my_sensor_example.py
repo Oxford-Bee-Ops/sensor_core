@@ -40,7 +40,7 @@ class ExampleSensor(Sensor):
 
             # Sensors should not sleep for more than ~180s so that the stop_requested flag can be checked
             # and the sensor shut down cleanly in a reasonable time frame.
-            if root_cfg.TEST_MODE:
+            if root_cfg.TEST_MODE == root_cfg.MODE.TEST:
                 # In test mode, sleep for 0.1s to allow the test to run quickly
                 sleep(0.1)
             else:

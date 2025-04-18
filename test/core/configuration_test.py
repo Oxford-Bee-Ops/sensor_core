@@ -3,7 +3,7 @@ import pytest
 from sensor_core import configuration as root_cfg
 
 logger = root_cfg.setup_logger("sensor_core")
-root_cfg.TEST_MODE = True
+root_cfg.TEST_MODE = root_cfg.MODE.TEST
 
 class Test_configuration:
     @pytest.mark.parametrize(

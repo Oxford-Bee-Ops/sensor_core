@@ -6,7 +6,7 @@ from sensor_core import configuration as root_cfg
 from sensor_core.sensor_core import SensorCore
 
 logger = root_cfg.setup_logger("sensor_core")
-root_cfg.TEST_MODE = True
+root_cfg.TEST_MODE = root_cfg.MODE.TEST
 
 class Test_SensorFactory:
     @pytest.mark.quick

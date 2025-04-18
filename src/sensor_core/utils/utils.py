@@ -7,7 +7,6 @@ import importlib
 import logging
 import os
 import random
-import shlex
 import shutil
 import subprocess
 import time
@@ -19,13 +18,12 @@ from threading import Timer
 from typing import Any, Generator, Optional
 from zoneinfo import ZoneInfo
 
-import cv2
-import numpy as np
 import pandas as pd
 import psutil
 
 from sensor_core import api
 from sensor_core import configuration as root_cfg
+from sensor_core.utils.sc_test_emulator import ScEmulator
 
 # Configure pandas to use copy-on-write
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/copy_on_write.html#copy-on-write-enabling
@@ -158,26 +156,6 @@ def is_sampling_period(
 
 
 ############################################################
-# Access the DUA persistent key value store
-############################################################
-def read_persistent_key_value(key: str) -> str:
-    value = str(
-        run_cmd(
-            f"{root_cfg.SC_CODE_DIR / 'device' / 'kv_store.sh'} read_persistent_key_value {key}",
-            ignore_errors=True,
-        )
-    )
-    return value
-
-
-def record_persistent_key_value(key: str, value: str) -> None:
-    run_cmd(
-        f"{root_cfg.SC_CODE_DIR / 'device' / 'kv_store.sh'} record_persistent_key_value {key} {value}",
-        ignore_errors=True,
-    )
-
-
-############################################################
 # Run a system command and return the output, or throw an exception on bad return code
 ############################################################
 def run_cmd(cmd: str, ignore_errors: bool=False, grep_strs: Optional[list[str]]=None) -> str:
@@ -205,23 +183,13 @@ def run_cmd(cmd: str, ignore_errors: bool=False, grep_strs: Optional[list[str]]=
         If the command fails and ignore_errors is False, raise an exception with the error message.
         
     """
+    # In test mode, we stub out commands so that we can run more realistic test scenarios.
+    if root_cfg.TEST_MODE == root_cfg.MODE.TEST:
+        harness = ScEmulator.get_instance()
+        return harness.run_cmd_test_stub(cmd, ignore_errors, grep_strs)
+    
     if root_cfg.running_on_windows:
-        if root_cfg.TEST_MODE:
-            # In test mode, we may stub out a command so that we can run a more realistic test scenario.
-            return run_cmd_test_stub(cmd, ignore_errors, grep_strs)
-        else:
-            assert ignore_errors, "run_cmd is not fully supported on Windows"
-
-
-    # We don't support pipes for security reasons; call the command multiple times if needed
-    # if "|" in cmd:
-    #    raise Exception(RAISE_WARN() + "Pipes not supported in run_cmd: " + cmd)
-
-    # Decompose the command into its args
-    # We want to keep arguments in '' or "" together
-    # eg we split "grep -E "test.*tset"" into ['grep', '-E', 'test.*tset']
-    # args = shlex.split(cmd)
-    # logger.debug("Running command: " + str(args))
+        assert ignore_errors, "run_cmd is not fully supported on Windows"
 
     try:
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -248,96 +216,6 @@ def run_cmd(cmd: str, ignore_errors: bool=False, grep_strs: Optional[list[str]]=
             return ""
         else:
             raise e
-
-def run_cmd_test_stub(cmd: str, ignore_errors: bool=False, grep_strs: Optional[list[str]]=None) -> str:
-    """For testing purposes, we emulate certain basic Linux sensor commands so that we can run more 
-     realistic test scenarios on Windows.
-
-    We currently emulate:
-    - rpicam-vid
-    - arecord
-
-    Parameters:
-    ----------
-    cmd: str
-        The command to run.  This should be a string that can be passed to the shell.
-    ignore_errors: bool
-        If True, ignore errors and return an empty string.  If False, raise an exception on error.
-    grep_strs: list[str]
-        A list of strings to grep for in the output.  If None, return the full output.
-        If not None, return only the lines that contain all of the strings in the list.
-
-    Returns:
-    -------
-    str
-        The output of the command.  If ignore_errors is True, return an empty string on error.
-        If grep_strs is not None, return only the lines that contain all of the strings in the list.
-
-    """
-    # Parse the command to get the command name and arguments
-    # We want to keep arguments in '' or "" together
-    # eg we split "grep -E "test.*tset"" into ['grep', '-E', 'test.*tset']
-    args = shlex.split(cmd, posix=False)
-
-    if cmd.startswith("rpicam-vid"):
-        # Emulate the rpicam-vid command
-        # We expect commands like:
-        #  "rpicam-vid --framerate 4 --width 640 --height 480 -o FILENAME -t 180000 -v 0"
-        # We create a video file with:
-        # - filename taken from the -o parameter
-        # - duration taken from the -t parameter (in milliseconds)
-        # - framerate taken from the --framerate parameter
-        # - width taken from the --width parameter
-        # - height taken from the --height parameter
-        if args.index("-o") == -1 or args.index("-t") == -1:
-            raise ValueError("Missing required arguments in command: " + cmd)
-        filename = args[args.index("-o") + 1]
-        suffix = filename.split(".")[-1]
-        duration = int(args[args.index("-t") + 1]) / 1000  # Convert to seconds
-        # We divide duration by 10 to get a 10x speedup for testing purposes
-        duration = int(duration / 10)
-
-        if "--framerate" not in args:
-            framerate = 30  # Default framerate
-        else:
-            framerate = int(args[args.index("--framerate") + 1])
-        if "--width" not in args:
-            width = 640
-        else:
-            width = int(args[args.index("--width") + 1])
-        if "--height" not in args:
-            height = 480
-        else:
-            height = int(args[args.index("--height") + 1])
-
-        # Use OpenCV to create a dummy video file
-        if suffix == "h264":
-            fourcc = cv2.VideoWriter.fourcc(*"h264")
-        elif suffix == "mp4":
-            fourcc = cv2.VideoWriter.fourcc(*"mp4v")
-        else:
-            raise ValueError("Unsupported video format: " + suffix)
-
-        out = cv2.VideoWriter(filename, fourcc, framerate, (width, height))
-        num_frames = int(framerate * duration)
-        for i in range(num_frames):
-            # Create a dummy frame (e.g., a solid color or gradient)
-            frame = np.zeros((height, width, 3), dtype=np.uint8)
-            frame[:] = (i % 256, (i * 2) % 256, (i * 3) % 256)  # Example gradient
-            out.write(frame)
-
-        # Release the VideoWriter
-        out.release()
-        time.sleep(duration)
-        return f"rpicam-vid command emulated successfully, created {filename}"
-        
-    elif cmd.startswith("arecord"):
-        # Emulate the arecord command
-        # This is a simple emulation that just returns a success code and a message.
-        # In a real scenario, we would run the command and return the output.
-        return "arecord command emulated successfully"
-    return "Command not run on windows: " + cmd
-
 
 # Get entries from the journalctl log
 def save_journald_log_entries(output_file_name: Path, grep_str: str="", since_minutes: int=31) -> None:

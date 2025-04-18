@@ -256,6 +256,25 @@ class InteractiveMenu():
         logs = device_health.get_logs(since=since_time, min_priority=6, grep_str=api.TELEM_TAG)
         self.display_logs(logs)
 
+    def display_running_processes(self) -> None:
+        # Running processes
+        # for each process in the list, strip any text before "sensor_core" or "dua"
+        # Drop any starting / or . characters
+        # And convert the process list to a simple comma-seperated string with no {} or ' or " 
+        # characters                
+        process_set = (
+            utils.check_running_processes(search_string="root_cfg.system_cfg.my_start_script").union( 
+            utils.check_running_processes(search_string="python"))
+        )
+        process_list_str = (
+            str(process_set).replace("{", 
+                                        "").replace("}", "").replace("'", "").replace('"', "").strip()
+        )
+        click.echo(f"{dash_line}")
+        click.echo("# Display running SensorCore processes")
+        click.echo(f"{dash_line}\n")
+        click.echo(process_list_str)
+
 
     ####################################################################################################
     # Maintenance menu functions
@@ -525,7 +544,6 @@ class InteractiveMenu():
         # Display status
         click.echo(f"{dash_line}")
         click.echo(f"# SensorCore CLI on {root_cfg.my_device_id} {root_cfg.my_device.name}")
-        click.echo(f"{dash_line}")
         while True:
             click.echo(f"{header}Main Menu:")
             click.echo("1. View Config")
@@ -569,7 +587,9 @@ class InteractiveMenu():
             click.echo("2. Display errors")
             click.echo("3. Display SensorCore Logs")
             click.echo("4. Display logs from sensors")
-            click.echo("5. Back to Main Menu")
+            click.echo("5. Display running processes")
+            click.echo("6. Show Crontab Entries")
+            click.echo("7. Back to Main Menu")
             try:
                 choice = click.prompt("\nEnter your choice", type=int)
                 click.echo("\n")
@@ -586,6 +606,10 @@ class InteractiveMenu():
             elif choice == 4:
                 self.display_sensor_logs()
             elif choice == 5:
+                self.display_running_processes()
+            elif choice == 6:
+                self.show_crontab_entries()
+            elif choice == 7:
                 break
             else:
                 click.echo("Invalid choice. Please try again.")
@@ -600,9 +624,8 @@ class InteractiveMenu():
             click.echo("3. Stop SensorCore (graceful stop)")
             click.echo("4. Hard stop SensorCore (pkill)")
             click.echo("4. Set Hostname")
-            click.echo("5. Show Crontab Entries")
-            click.echo("6. Restart the Device")  # Added reboot option
-            click.echo("7. Back to Main Menu")  # Updated option number
+            click.echo("5. Restart the Device")  # Added reboot option
+            click.echo("6. Back to Main Menu")  # Updated option number
             try:
                 choice = click.prompt("\nEnter your choice", type=int)
                 click.echo("\n")
@@ -620,11 +643,9 @@ class InteractiveMenu():
                 self.stop_sensor_core(pkill=True)  # Hard stop using pkill
             elif choice == 5:
                 self.set_hostname()
-            elif choice == 6:
-                self.show_crontab_entries()
-            elif choice == 7:  # Handle reboot option
+            elif choice == 6:  # Handle reboot option
                 self.reboot_device()
-            elif choice == 8:  # Updated option number
+            elif choice == 7:  # Updated option number
                 break
             else:
                 click.echo("Invalid choice. Please try again.")

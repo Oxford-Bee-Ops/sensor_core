@@ -176,7 +176,7 @@ class LocalJournalPool(JournalPool):
             j.add_rows_from_df(data)
 
     def flush_journals(self) -> None:
-        """Called by the EdgeOrchestrator.upload_to_cloud function to flush all journals to disk and 
+        """Called by the EdgeOrchestrator.upload_to_container function to flush all journals to disk and 
         onwards to archive"""
 
         logger.debug("Flushing all journals to disk")
