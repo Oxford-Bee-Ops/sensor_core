@@ -1,6 +1,7 @@
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+from random import random
 
 from sensor_core import api
 from sensor_core import configuration as root_cfg
@@ -196,8 +197,8 @@ def get_temporary_filename(suffix: str) -> Path:
     """Generate a temporary filename in the TMP_DIR with the specified suffix."""
     if suffix.startswith("."):
         suffix = suffix[1:]
-    tmp_fname = root_cfg.TMP_DIR.joinpath(f"tmp_{api.utc_to_fname_str()}.{suffix}")
-    return increment_filename(tmp_fname)
+    tmp_fname = root_cfg.TMP_DIR.joinpath(f"tmp_{api.utc_to_fname_str()}_{random():.4g}.{suffix}")
+    return tmp_fname
 
 
 def get_zip_filename() -> Path:
