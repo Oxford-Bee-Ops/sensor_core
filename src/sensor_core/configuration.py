@@ -92,7 +92,9 @@ if running_on_windows:
     CODE_DIR: Path = Path(__file__).parent.parent.parent.parent
     SC_CODE_DIR: Path = CODE_DIR / "sensor_core"
     CFG_DIR: Path = HOME_DIR / ".sensor_core"
-    ROOT_WORKING_DIR: Path = HOME_DIR / "sensor_core"
+    # We use a time string in the root_working_dir to avoid clashes when running multiple instances
+    # of SensorCore on the same machine
+    ROOT_WORKING_DIR: Path = HOME_DIR / "sensor_core" / api.utc_to_fname_str()
     assert HOME_DIR is not None, f"No 'code' directory found in path {Path.cwd()}"
 
 elif running_on_rpi:
