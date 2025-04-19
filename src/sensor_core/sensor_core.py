@@ -110,8 +110,8 @@ class SensorCore:
         And remove any crontab entries added by make_my_script_persistent.
         """
         # Ask the EdgeOrchestrator to stop all sensors
-        EdgeOrchestrator.get_instance().stop_all()
         print(f"SensorCore stopping - this may take up to {root_cfg.my_device.max_recording_timer}s.")
+        EdgeOrchestrator.get_instance().stop_all()
 
         # Remove from crontab
         if root_cfg.running_on_rpi:

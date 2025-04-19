@@ -12,6 +12,18 @@ from sensor_core.config_objects import DatastreamCfg
 ############################################################################################################
 # Datastreams produced by the SensorCore system
 #############################################################################################################
+FAIRY_DS_TYPE_ID = "FAIRY"
+SCORE_DS_TYPE_ID = "SCORE"
+SCORP_DS_TYPE_ID = "SCORP"
+HEART_DS_TYPE_ID = "HEART"
+WARNING_DS_TYPE_ID = "WARNING"
+SYSTEM_DS_TYPES = [
+    FAIRY_DS_TYPE_ID,
+    SCORE_DS_TYPE_ID,
+    SCORP_DS_TYPE_ID,
+    HEART_DS_TYPE_ID,
+    WARNING_DS_TYPE_ID,
+]
 
 # SCORE - DatastreamType for recording sample count / duration from the data pipeline
 SCORE_FIELDS = [
@@ -22,7 +34,7 @@ SCORE_FIELDS = [
     "duration",
 ]
 SCORE_DS_TYPE = DatastreamCfg(
-    ds_type_id="SCORE",
+    ds_type_id=SCORE_DS_TYPE_ID,
     raw_format="log",
     raw_fields=[*api.REQD_RECORD_ID_FIELDS, *SCORE_FIELDS],
     archived_format="csv",
@@ -44,7 +56,7 @@ SCORP_FIELDS = [
     "duration"
 ]
 SCORP_DS_TYPE = DatastreamCfg(
-    ds_type_id="SCORP",
+    ds_type_id=SCORP_DS_TYPE_ID,
     raw_format="log",
     raw_fields=[*api.REQD_RECORD_ID_FIELDS, *SCORP_FIELDS],
     archived_format="csv",
@@ -59,7 +71,7 @@ SCORP_DS_TYPE = DatastreamCfg(
 
 # FAIRY - special DatastreamType for recording FAIR records of Datastream config
 FAIRY_DS_TYPE = DatastreamCfg(
-    ds_type_id="FAIRY",
+    ds_type_id=FAIRY_DS_TYPE_ID,
     raw_format="yaml",
     archived_format="yaml",
     archived_data_description=("Record of Datastream config created when a Datastream starts. "),
@@ -90,7 +102,7 @@ HEART_FIELDS = [
 ]
 
 HEART_DS_TYPE = DatastreamCfg(
-    ds_type_id="HEART",
+    ds_type_id=HEART_DS_TYPE_ID,
     raw_format="log",
     raw_fields=api.REQD_RECORD_ID_FIELDS + HEART_FIELDS,
     archived_format="csv",
@@ -110,7 +122,7 @@ WARNING_FIELDS = [
 ]
 
 WARNING_DS_TYPE = DatastreamCfg(
-    ds_type_id="WARNING",
+    ds_type_id=WARNING_DS_TYPE_ID,
     raw_format="log",
     raw_fields=api.REQD_RECORD_ID_FIELDS + WARNING_FIELDS,
     archived_format="csv",
@@ -118,11 +130,3 @@ WARNING_DS_TYPE = DatastreamCfg(
     archived_data_description=("Warning and error logs raised on the device. "),
     cloud_container=root_cfg.my_device.cc_for_system_records,
 )
-
-SYSTEM_DS_TYPES = [
-    SCORE_DS_TYPE.ds_type_id, 
-    SCORP_DS_TYPE.ds_type_id,
-    FAIRY_DS_TYPE.ds_type_id,
-    HEART_DS_TYPE.ds_type_id,
-    WARNING_DS_TYPE.ds_type_id
-]

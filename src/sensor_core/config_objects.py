@@ -88,7 +88,7 @@ class DataProcessorCfg:
 class DatastreamCfg:
     """Defines the configuration for a datastream produced by a sensor."""
 
-    # datastream_type_id is a unique 5-character string that identifies the type of data.
+    # datastream_type_id is a unique string that identifies the type of data.
     # This combines the intended use of the data and the format of the data that is to be archived.
     # One of allowed_datastream_types
     ds_type_id: str
@@ -172,7 +172,7 @@ class DeviceCfg(Configuration):
     # Cloud storage container for raw CSV journals uploaded by the device
     cc_for_journals: str = "sensor-core-journals"
 
-    # Cloud storage container for system records (Datasreams: SCORE, SCORP, FAIRY)
+    # Cloud storage container for system records (Datasreams: SCORE, SCORP, FAIRY, HEART)
     cc_for_system_records: str = "sensor-core-system-records"
 
     # Cloud container for FAIR records

@@ -359,8 +359,10 @@ class EdgeOrchestrator:
         """Check if a stop has been manually requested by the user.
         This function is polled by the main thread every second to check if the user has requested a stop."""
         stop_requested = root_cfg.STOP_SENSOR_CORE_FLAG.exists()
-        if stop_requested and not self.orchestrator_is_stopping:
-            self.stop_all()
+        if stop_requested:
+            logger.info("is_stop_requested = True")
+            if not self.orchestrator_is_stopping:
+                self.stop_all()
 
         return stop_requested
 
@@ -547,14 +549,14 @@ def main() -> None:
 
     except Exception as e:
         logger.error(
-            f"{root_cfg.RAISE_WARN()}({root_cfg.my_device_id}) Sensor exception: {e!s}",
+            f"{root_cfg.RAISE_WARN()}(Sensor exception: {e!s}",
             exc_info=True,
         )
     finally:
         # To get here, we hit an exception on one thread or have been explicitly asked to stop.
         # Tell all threads to terminate so we can cleanly restart all via cron
         if orchestrator is not None:
-            logger.info("Stopping all sensors and datastreams")
+            logger.info("Edge orchestrator exiting; stopping all sensors and datastreams")
             orchestrator.stop_all()
         logger.info("Sensor script finished")
 

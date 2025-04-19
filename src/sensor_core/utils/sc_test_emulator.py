@@ -210,7 +210,7 @@ class ScEmulator():
             parts = match_cmd.split("--camera")
             match_cmd = parts[0] + " SENSOR_INDEX" + parts[1][2:]
         recordings = self._match_recording(cmd)
-        logger.info(f"Found match command {recordings is not None} "
+        logger.debug(f"Found match command {recordings is not None} "
                     f"for match command: {match_cmd}")
 
         if recordings:
@@ -219,6 +219,7 @@ class ScEmulator():
             self.previous_recordings_index += 1
             self.previous_recordings_index %= len(recordings)
             shutil.copy(recording, filename)
+            logger.info(f"Recording {recording} saved to DS")
         else:
             # No recording.  Create a dummy video file.
             # Use OpenCV to create a dummy video file
@@ -239,6 +240,7 @@ class ScEmulator():
 
             # Release the VideoWriter
             out.release()
+            logger.info(f"Recording generated: {filename}")
 
         # Sleep for the duration of the video to simulate recording time.
         time.sleep(duration)

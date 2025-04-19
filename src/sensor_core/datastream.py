@@ -18,7 +18,7 @@ from sensor_core.cloud_connector import CloudConnector
 from sensor_core.config_objects import DataProcessorCfg, DatastreamCfg, DpContext, SensorCfg
 from sensor_core.configuration import Mode
 from sensor_core.data_processor import DataProcessor
-from sensor_core.system_datastreams import FAIRY_DS_TYPE, SCORE_DS_TYPE, SCORP_DS_TYPE, SYSTEM_DS_TYPES
+from sensor_core.system_datastreams import FAIRY_DS_TYPE_ID, SCORE_DS_TYPE_ID, SCORP_DS_TYPE_ID, SYSTEM_DS_TYPES
 from sensor_core.utils import file_naming, utils
 from sensor_core.utils.journal_pool import JournalPool
 from sensor_core.utils.sc_test_emulator import ScEmulator
@@ -98,12 +98,13 @@ class Datastream(Thread):
             if self.ds_config.edge_processors is not None:
                 for i, dp_config in enumerate(self.ds_config.edge_processors):
                     try:
-                        logger.info(f"Creating edge DP {dp_config.dp_class_ref} {i}")
+                        logger.info(f"Creating edge DP {dp_config.dp_class_ref} {i} on {self.ds_id}")
                         try:
                             dp = utils.get_class_instance(dp_config.dp_class_ref)
                         except TypeError as e:
                             logger.error(f"{root_cfg.RAISE_WARN()}Failed to instantiate "
-                                         f"{dp_config.dp_class_ref} {e}", exc_info=True)
+                                         f"{dp_config.dp_class_ref} on {self.ds_id}: {e}", 
+                                         exc_info=True)
                             raise e
                         if i + 1 == len(self.ds_config.edge_processors):
                             dp._set_dp_config(dp_config, i, is_last=True)
@@ -191,7 +192,10 @@ class Datastream(Thread):
         self._datastream_stats.append(DatastreamStats(api.utc_now(), 1))
 
         # We also spam the data to the logger for easy debugging and display in the bcli
-        logger.info(api.TELEM_TAG + str(log_data))
+        if self.ds_config.ds_type_id not in SYSTEM_DS_TYPES:
+            logger.info(f"Save log: {str(log_data)}")
+        else:
+            logger.debug(f"Save log: {str(log_data)}")
 
     def save_data(self, sensor_data: pd.DataFrame) -> None:
         """Called by Sensors to save 1 or more 'rows' of Sensor-generated data.
@@ -415,7 +419,7 @@ class Datastream(Thread):
             self.ds_start_time = api.utc_now()
             # Call our superclass Thread start() method which schedule our run() method
             super().start()
-        elif self.ds_config.ds_type_id != FAIRY_DS_TYPE.ds_type_id:
+        elif self.ds_config.ds_type_id != FAIRY_DS_TYPE_ID:
             logger.warning(f"{root_cfg.RAISE_WARN()}Datastream {self} already started.")
 
     def stop(self) -> None:
@@ -439,7 +443,7 @@ class Datastream(Thread):
         # All DataProcessors should be registered by now.
         # If none are registered we can exit the thread
         if ds_type.edge_processors is None or len(self._edge_dps) == 0:
-            logger.info(f"No DataProcessors registered; exiting DP loop; {self!r}")
+            logger.debug(f"No DataProcessors registered; exiting DP loop; {self!r}")
             return
 
         while not self._stop_requested:
@@ -535,7 +539,7 @@ class Datastream(Thread):
         # All DataProcessors should be registered by now.
         # If now are registered we can exit the thread
         if ds_type.cloud_processors is None or len(self._cloud_dps) == 0:
-            logger.info(f"No DataProcessors registered; exiting; {self!r}; {root_cfg.get_mode()}")
+            logger.debug(f"No DataProcessors registered; exiting; {self!r}; {root_cfg.get_mode()}")
             return
 
         while not self._stop_requested:
@@ -793,7 +797,7 @@ class Datastream(Thread):
         # If override_ds_type_id is provided, check this is the FAIRY DS.
         ds_id = self.ds_id
         if override_ds_id is not None:
-            if self.ds_config.ds_type_id != FAIRY_DS_TYPE.ds_type_id:
+            if self.ds_config.ds_type_id != FAIRY_DS_TYPE_ID:
                 raise ValueError(f"override_ds_type_id can only be used with FAIRY_DS_TYPE: "
                                  f"{self.ds_config.ds_type_id}")
             ds_id = override_ds_id
@@ -860,9 +864,9 @@ class Datastream(Thread):
     @staticmethod
     def _set_special_dss(scorp_ds: Datastream, score_ds: Datastream, fairy_ds: Datastream) -> None:
         """Called by EdgeOrchestrator to set the observability Datastream that monitors activity."""
-        assert scorp_ds.ds_config.ds_type_id == SCORP_DS_TYPE.ds_type_id
-        assert score_ds.ds_config.ds_type_id == SCORE_DS_TYPE.ds_type_id
-        assert fairy_ds.ds_config.ds_type_id == FAIRY_DS_TYPE.ds_type_id
+        assert scorp_ds.ds_config.ds_type_id == SCORP_DS_TYPE_ID
+        assert score_ds.ds_config.ds_type_id == SCORE_DS_TYPE_ID
+        assert fairy_ds.ds_config.ds_type_id == FAIRY_DS_TYPE_ID
         Datastream._scorp_ds = scorp_ds
         Datastream._score_ds = score_ds
         Datastream._fairy_ds = fairy_ds
