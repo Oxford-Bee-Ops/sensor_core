@@ -74,6 +74,11 @@ class Rule3_validate_class_refs(ValidationRule):
                 for ds in sensor_ds.datastream_cfgs:
                     if not ds.edge_processors:
                         continue
+                    if not isinstance(ds.edge_processors, list):
+                        return False, (
+                            f"edge_processors for {device.device_id} {ds.ds_type_id} "
+                            "is not a list"
+                            )
                     for dp in ds.edge_processors:
                         dp_class_ref = dp.dp_class_ref
                         if dp_class_ref:
@@ -180,15 +185,19 @@ def get_ds_list(datastream: DatastreamCfg) -> list[DatastreamCfg]:
     # Recurse down the Datastream-DataProcessor tree
     ds_list = []
     if datastream.edge_processors:
-        for dp in datastream.edge_processors:
-            if dp.derived_datastreams:
-                for ds in dp.derived_datastreams:
-                    ds_list.extend(get_ds_list(ds))
+        if isinstance(datastream.edge_processors, list): 
+            for dp in datastream.edge_processors:
+                if dp.derived_datastreams:
+                    for ds in dp.derived_datastreams:
+                        ds_list.append(ds)
+                        ds_list.extend(get_ds_list(ds))
     if datastream.cloud_processors:
-        for dp in datastream.cloud_processors:
-            if dp.derived_datastreams:
-                for ds in dp.derived_datastreams:
-                    ds_list.extend(get_ds_list(ds))
+        if isinstance(datastream.cloud_processors, list):
+            for dp in datastream.cloud_processors:
+                if dp.derived_datastreams:
+                    for ds in dp.derived_datastreams:
+                        ds_list.append(ds)
+                        ds_list.extend(get_ds_list(ds))
 
     return ds_list
 
