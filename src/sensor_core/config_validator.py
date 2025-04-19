@@ -4,8 +4,9 @@
 import importlib
 from abc import ABC, abstractmethod
 
+from sensor_core import api
 from sensor_core.cloud_connector import CloudConnector
-from sensor_core.config_objects import DeviceCfg
+from sensor_core.config_objects import DeviceCfg, DatastreamCfg, DataProcessorCfg
 
 
 class ValidationRule(ABC):
@@ -24,7 +25,9 @@ class ValidationRule(ABC):
         """
         raise NotImplementedError("Subclasses must implement the validate method.")
 
-# Example of a specific validation rule
+###########################################################################################################
+# Start with the device-level validation rules.
+###########################################################################################################
 class Rule1_device_id(ValidationRule):
     def validate(self, inventory: list[DeviceCfg]) -> tuple[bool, str]:
         for device in inventory:
@@ -141,14 +144,53 @@ class Rule5_cloud_container_exists(ValidationRule):
                             )
         return True, ""
 
+# Rule 6: any datastream of type CSV or DF must have archived_fields set
+class Rule6_csv_archived_fields(ValidationRule):
+    def validate(self, inventory: list[DeviceCfg]) -> tuple[bool, str]:
+        for device in inventory:
+            for sensor_ds in device.sensor_ds_list:
+                for ds in sensor_ds.datastream_cfgs:
+                    recursive_ds_list = get_ds_list(ds)
+                    for rds in recursive_ds_list:
+                        if rds.archived_format in ["csv", "df"]:
+                            if not rds.archived_fields:
+                                return False, (
+                                    f"archived_fields must be set in {rds.ds_type_id}"
+                                    )
+                            if not all(x in rds.archived_fields for x in api.REQD_RECORD_ID_FIELDS):
+                                return False, (
+                                    f"{rds.ds_type_id} missing required fields in archived_fields: {rds.archived_fields}"
+                                )
+        return True, ""
+
 
 RULE_SET: list[ValidationRule] = [
     Rule1_device_id(),
     Rule2_not_none(),
     Rule3_validate_class_refs(),
     Rule4_cloud_container_specified(),
-    Rule5_cloud_container_exists()
+    Rule5_cloud_container_exists(),
+    Rule6_csv_archived_fields(),
 ]
+
+def get_ds_list(datastream: DatastreamCfg) -> list[DatastreamCfg]:
+    """
+    Recursive function to get the list of Datastreams for a given device.
+    """
+    # Recurse down the Datastream-DataProcessor tree
+    ds_list = []
+    if datastream.edge_processors:
+        for dp in datastream.edge_processors:
+            if dp.derived_datastreams:
+                for ds in dp.derived_datastreams:
+                    ds_list.extend(get_ds_list(ds))
+    if datastream.cloud_processors:
+        for dp in datastream.cloud_processors:
+            if dp.derived_datastreams:
+                for ds in dp.derived_datastreams:
+                    ds_list.extend(get_ds_list(ds))
+
+    return ds_list
 
 def validate(inventory: list[DeviceCfg]) -> tuple[bool, list[str]]:
     """
