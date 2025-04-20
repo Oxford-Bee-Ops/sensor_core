@@ -224,7 +224,7 @@ class SensorCore:
                 logger.error(f"{root_cfg.RAISE_WARN()}No git branch found")
                 check_passed = False
 
-            activate_script = Path(venv_dir) / "bin" / "activate"
+            activate_script = root_cfg.HOME_DIR / root_cfg.system_cfg.venv_dir / "bin" / "activate"
             if not activate_script.exists():
                 logger.error(f"{root_cfg.RAISE_WARN()}Virtual environment activation script not found:"
                              f" {activate_script}")
