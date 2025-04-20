@@ -81,14 +81,14 @@ class DeviceHealth():
         ###############################
         self.last_ran = api.utc_now()
         self.device_id = root_cfg.my_device_id
-        self.disk_writes = 0
-        self.disk_writes_timestamp = api.utc_now()
+        self.cum_bytes_written = 0
+        self.cum_bytes_sent = 0
         self.log_counter = 0
         self.client_wlan = "wlan0"
     
     def log_health(self, heart_ds: Datastream) -> None:
         """Logs device health data to the HEART datastream."""
-        health = DeviceHealth.get_health()
+        health = self.get_health()
         heart_ds.log(health)
 
     def log_warnings(self, warning_ds: Datastream) -> None:
@@ -111,18 +111,20 @@ class DeviceHealth():
     ############################################################################################################
     # Diagnostics utility functions
     ############################################################################################################
-    @staticmethod
-    def get_health() -> dict[str, Any]:
+    def get_health(self) -> dict[str, Any]:
         """Get the health of the device."""
         health: dict[str, Any] = {}
         try:
-            disk_writes = 0
             cpu_temp = 0
+            latest_bytes_written = 0
+            latest_bytes_sent = 0
             sc_mount_size = ""
             get_throttled_output = ""
             process_list_str = ""
             ssid = ""
             if root_cfg.running_on_rpi:
+                cpu_temp = str(psutil.sensors_temperatures()["cpu_thermal"][0].current),  # type: ignore
+
                 # Get the connected SSID
                 ssid = DeviceHealth.get_wifi_ssid()
 
@@ -133,29 +135,24 @@ class DeviceHealth():
                 )
                 get_throttled_output = get_throttled_output.replace("throttled=", "")
 
-                # Get CPU data
-                cpu_temp = psutil.sensors_temperatures()["cpu_thermal"][0].current  # type: ignore
-
                 # Get the number of disk writes
-                if os.path.exists("/sys/block/mmcblk0/stat"):
-                    disk_str = "/sys/block/mmcblk0/stat"
-                else:
-                    disk_str = "/sys/block/sda/stat"
+                sdiskio = psutil.disk_io_counters()
+                if sdiskio is not None:
+                    latest_bytes_written = sdiskio.write_bytes
+                bytes_written = max(latest_bytes_written - self.cum_bytes_written, 0)
+                self.cum_bytes_written = latest_bytes_written
 
-                disk_stats = utils.run_cmd(
-                    "sudo cat " + disk_str,
-                    ignore_errors=True,
-                )
-                if disk_stats:
-                    disk_writes = int(disk_stats.split()[5])
-                else:
-                    logger.info("Failed to get disk writes: no mmcblk0 or sda")
+                # Get the latest number of bytes sent
+                netio = psutil.net_io_counters()
+                if netio is not None:
+                    latest_bytes_sent = netio.bytes_sent
+                bytes_sent = max(latest_bytes_sent - self.cum_bytes_sent, 0)
+                self.cum_bytes_sent = latest_bytes_sent
 
                 # Get the size of the /sensor_core mount
                 # Parse the output to get the size of the mount (equivalent to "awk 'NR==2{print $2}'")
-                sc_mount_size = utils.run_cmd("sudo df -h /sensor_core", ignore_errors=True)
-                if sc_mount_size != "":
-                    sc_mount_size = sc_mount_size.split("\n")[1].split()[1]
+                usage = psutil.disk_usage("/sensor_core")
+                sc_mount_size = f"{usage.total / (1024**3):.2f} GB"
 
                 # Running processes
                 # for each process in the list, strip any text before "sensor_core" or "dua"
@@ -164,7 +161,7 @@ class DeviceHealth():
                 # characters                
                 process_set = (
                     utils.check_running_processes(search_string="root_cfg.system_cfg.my_start_script").union( 
-                    utils.check_running_processes(search_string="python"))
+                    utils.check_running_processes(search_string="python "))
                 )
                 process_list_str = (
                     str(process_set).replace("{", 
@@ -174,27 +171,22 @@ class DeviceHealth():
             # Check update status by getting the last modified time of the rpi_installer_ran file
             # This file is created when the rpi_installer.sh script is run
             # and is used to track the last time the system was updated
-            last_update_timestamp: float = 0
+            last_update_timestamp: str = ""
             rpi_installer_file = root_cfg.CFG_DIR / "rpi_installer_ran"
             if os.path.exists(rpi_installer_file):
-                last_update_timestamp = os.path.getmtime(rpi_installer_file)
-            else:
-                last_update_timestamp = 0
+                last_update_timestamp = api.utc_to_iso_str(os.path.getmtime(rpi_installer_file))
 
-            # Get the IP address of the device
-            def get_ip_address(target_interface: str) -> str:
-                for interface, snics in psutil.net_if_addrs().items():
-                    if interface == target_interface:
-                        for snic in snics:
-                            if snic.family == socket.AF_INET:
-                                return snic.address
-                return "No IP address"
-
+            # Get the IP address of the wlan0 interface
             if root_cfg.running_on_rpi:
                 target_interface = "wlan0"
             else:
                 target_interface = "WiFi"
-            ip_addresses = get_ip_address(target_interface)
+            ip_address: str = ""
+            snicaddr = psutil.net_if_addrs().get(target_interface, [])
+            if snicaddr:
+                ip_addresses = [addr.address for addr in snicaddr if addr.family == socket.AF_INET]
+            if ip_addresses:
+                ip_address = str(ip_addresses[0])
 
             # Grab the code version of the current SensorCore code
             try:
@@ -210,7 +202,7 @@ class DeviceHealth():
 
             # Memory usage - if greater than 60% then generate some diagnostics
             memory_usage = psutil.virtual_memory().percent
-            if memory_usage > 50:
+            if memory_usage > 75:
                 if root_cfg.running_on_rpi:
                     DeviceHealth.log_top_memory_processes()
                     if memory_usage > 95:
@@ -221,22 +213,22 @@ class DeviceHealth():
                 "timestamp": api.utc_to_iso_str(),
                 "boot_time": api.utc_to_iso_str(psutil.boot_time()),
                 "last_update_timestamp": str(last_update_timestamp),
-                "cpu_percent": str(psutil.cpu_percent(2)),
-                "cpu_idle": str(int(psutil.cpu_times().idle)),
-                "cpu_user": str(int(psutil.cpu_times().user)),
+                # Returns the percentage of CPU usage since the last call to this function
+                "cpu_percent": str(psutil.cpu_percent(0)),
                 "total_memory_gb": str(total_memory_gb),
                 "memory_percent": str(memory_usage),
                 "memory_free": str(int(psutil.virtual_memory().free / 1000000)) + "M",
                 "disk_percent": str(psutil.disk_usage("/").percent),
-                "disk_writes_in_period": str(disk_writes),
+                "disk_writes_in_period": str(bytes_written),
+                "bytes_sent": str(bytes_sent),
                 "sc_mount_size": str(sc_mount_size),
                 "sc_ram_percent": str(
                     psutil.disk_usage(str(root_cfg.ROOT_WORKING_DIR)).percent
                 ),  # Need to parse the output of sensors_temperatures() to get the current CPU temperature
                 # Output is {'cpu_thermal': [shwtemp(label='', current=46.251, high=110.0, critical=110.0)]}
-                "cpu_temperature": str(cpu_temp),
+                "cpu_temperature": str(cpu_temp),  # type: ignore
                 "ssid": ssid,
-                "ip_address": str(ip_addresses),
+                "ip_address": str(ip_address),
                 "power_status": str(get_throttled_output),
                 "process_list": process_list_str,
                 "sensor_core_version": str(sensor_core_version),
@@ -276,9 +268,20 @@ class DeviceHealth():
 
     @staticmethod
     def get_wifi_ssid() -> str:
+        """
+        Get the SSID of the wlan0 interface using the `iw` command.
+
+        Returns:
+            The SSID as a string, or "Not connected" if no SSID is found.
+        """
         if root_cfg.running_on_rpi:
             try:
-                return subprocess.check_output(["iwgetid", "-r"], universal_newlines=True).strip()
+                output = subprocess.check_output(["iw", "dev", "wlan0", "link"], 
+                                                 universal_newlines=True).strip()
+                for line in output.split("\n"):
+                    if "SSID:" in line:
+                        return line.split("SSID:")[1].strip()
+                return "Not connected"
             except subprocess.CalledProcessError:
                 return "Not connected"
         elif root_cfg.running_on_windows:
