@@ -21,7 +21,11 @@ def create_root_working_dir(path: Path) -> None:
      """
     if not path.exists():
         try:
+            # Get the current user and group
+            current_user = subprocess.check_output(["id", "-u"]).strip().decode()
+            current_group = subprocess.check_output(["id", "-g"]).strip().decode()
             subprocess.run(["sudo", "mkdir", "-p", str(path)], check=True)
+            subprocess.run(["sudo", "chown", "-R", f"{current_user}:{current_group}", str(path)], check=True)
             print(f"Directory {path} created successfully.")
         except subprocess.CalledProcessError as e:
             print(f"Failed to create directory {path}: {e}")
