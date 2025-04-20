@@ -54,9 +54,10 @@ class Test_Orchestrator:
             orchestrator = EdgeOrchestrator.get_instance()
             orchestrator.load_sensors()
             orchestrator.start_all()
-            sleep(2)
+            sleep(12)
             orchestrator.observability_run()
             orchestrator.stop_all()
+            sleep(2)
             # Check that we have data in the journals
             # SCORE & SCORP & DUMML & DUMMF should contain data.
             # DUMMD should be empty

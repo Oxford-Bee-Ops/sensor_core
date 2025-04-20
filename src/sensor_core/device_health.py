@@ -116,8 +116,8 @@ class DeviceHealth():
         health: dict[str, Any] = {}
         try:
             cpu_temp = 0
-            latest_bytes_written = 0
-            latest_bytes_sent = 0
+            bytes_written = 0
+            bytes_sent = 0
             sc_mount_size = ""
             get_throttled_output = ""
             process_list_str = ""
@@ -210,7 +210,6 @@ class DeviceHealth():
                         utils.run_cmd("sudo reboot", ignore_errors=True)
 
             health = {
-                "timestamp": api.utc_to_iso_str(),
                 "boot_time": api.utc_to_iso_str(psutil.boot_time()),
                 "last_update_timestamp": str(last_update_timestamp),
                 # Returns the percentage of CPU usage since the last call to this function
@@ -219,8 +218,8 @@ class DeviceHealth():
                 "memory_percent": str(memory_usage),
                 "memory_free": str(int(psutil.virtual_memory().free / 1000000)) + "M",
                 "disk_percent": str(psutil.disk_usage("/").percent),
-                "disk_writes_in_period": str(bytes_written),
-                "bytes_sent": str(bytes_sent),
+                "disk_bytes_written_in_period": str(bytes_written),
+                "io_bytes_sent": str(bytes_sent),
                 "sc_mount_size": str(sc_mount_size),
                 "sc_ram_percent": str(
                     psutil.disk_usage(str(root_cfg.ROOT_WORKING_DIR)).percent
@@ -282,7 +281,8 @@ class DeviceHealth():
                     if "SSID:" in line:
                         return line.split("SSID:")[1].strip()
                 return "Not connected"
-            except subprocess.CalledProcessError:
+            except Exception as e:
+                logger.info(f"Failed to get SSID: {e}")
                 return "Not connected"
         elif root_cfg.running_on_windows:
             try:
