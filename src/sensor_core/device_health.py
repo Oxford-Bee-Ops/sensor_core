@@ -172,7 +172,7 @@ class DeviceHealth():
             # This file is created when the rpi_installer.sh script is run
             # and is used to track the last time the system was updated
             last_update_timestamp: str = ""
-            rpi_installer_file = root_cfg.CFG_DIR / "rpi_installer_ran"
+            rpi_installer_file = root_cfg.FLAGS_DIR / "rpi_installer_ran"
             if os.path.exists(rpi_installer_file):
                 last_update_timestamp = api.utc_to_iso_str(os.path.getmtime(rpi_installer_file))
 

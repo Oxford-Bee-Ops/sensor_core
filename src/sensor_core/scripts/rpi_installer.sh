@@ -394,6 +394,7 @@ set_predictable_network_interface_names
 enable_i2c
 
 # Add a flag file in the .sensor_core directory to indicate that the installer has run
-touch "$HOME/.sensor_core/rpi_installer_ran"
+mkdir -p "$HOME/.sensor_core/flags"
+touch "$HOME/.sensor_core/flags/rpi_installer_ran"
 echo "RPi installer completed successfully."
 
