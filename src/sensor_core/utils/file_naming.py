@@ -1,7 +1,7 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 from random import random
+from typing import Optional
 
 from sensor_core import api
 from sensor_core import configuration as root_cfg

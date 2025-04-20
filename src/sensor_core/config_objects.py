@@ -271,7 +271,6 @@ class SystemCfg(BaseSettings):
     install_type: str ="rpi_sensor"
     # Logging and storage settings
     enable_volatile_logs: str ="Yes"
-    journald_SystemMaxUse: str ="50M"
     # Do you want SensorCore to start automatically after running the rpi_installer.sh script?
     auto_start: str ="Yes"
     # Enable the UFW firewall
@@ -283,11 +282,7 @@ class SystemCfg(BaseSettings):
     # The location of the virtual environment relative to the $HOME directory.
     # (ie will expand to "$HOME/$venv_dir").
     # This will be created if it does not exist.
-    venv_dir: str =".venv"
-    # The location where your custom code is installed, relative to the $HOME directory 
-    # (ie will expand to "$HOME/<my_code_dir>/<Git project name>").
-    # The Git project name is the final component of the URL above (with the ".git" suffix removed)
-    my_code_dir: str ="code"
+    venv_dir: str ="venv"
     # The URL for the Git repo with the SensorCore code.
     # We only need this while SensorCore is in development.
     sensor_core_git_url: str ="github.com:Oxford-Bee-Ops/sensor_core.git"

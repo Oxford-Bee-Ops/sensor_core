@@ -96,11 +96,6 @@ export_system_cfg() {
             fi
         fi
     done < "$HOME/.sensor_core/system.cfg"
-
-    # Append the git project name to the my_code_dir variable
-    if [ -n "$my_git_repo_url" ]; then
-        my_code_dir="$my_code_dir/$(git_project_name "$my_git_repo_url")"
-    fi
 }
 
 # Install SSH keys from the ./sensor_core directory to the ~/.ssh directory
@@ -268,6 +263,112 @@ install_ufw() {
     sudo ufw --force enable
 }
 
+###############################################
+# Make log storage volatile to reduce SD card writes
+# This is configurable via system.cfg
+# Logs then get written to /run/log/journal which is a tmpfs and managed to a maximum size of 50M
+###############################################
+function set_log_storage_volatile() {
+    if [ "$enable_volatile_logs" != "Yes" ]; then
+        echo "Skip making storage volatile as enable_volatile_logs is not set to 'Yes'."
+        return
+    fi
+    journal_mode="volatile"
+    if ! grep -q "Storage=$journal_mode" /etc/systemd/journald.conf; then
+        echo "Storage=$journal_mode not set in /etc/systemd/journald.conf; setting it."
+        sudo sed -i 's/#Storage=.*/Storage='$journal_mode'/' /etc/systemd/journald.conf
+        sudo sed -i 's/Storage=.*/Storage='$journal_mode'/' /etc/systemd/journald.conf
+        sudo systemctl restart systemd-journald
+    fi
+    # Set #SystemMaxUse= to 50M
+    journal_size="50M"
+    if ! grep -q "SystemMaxUse=$journal_size" "/etc/systemd/journald.conf"; then
+        echo "SystemMaxUse=$journal_size not set in /etc/systemd/journald.conf; setting it."
+        sudo sed -i 's/#SystemMaxUse=.*/SystemMaxUse='$journal_size'/' /etc/systemd/journald.conf
+        sudo sed -i 's/SystemMaxUse=.*/SystemMaxUse='$journal_size'/' /etc/systemd/journald.conf
+        sudo systemctl restart systemd-journald
+    fi
+    # Set #MaxLevelConsole= to debug
+    if ! grep -q "MaxLevelConsole=debug" "/etc/systemd/journald.conf"; then
+        echo "MaxLevelConsole=debug not set in /etc/systemd/journald.conf; setting it."
+        sudo sed -i 's/#MaxLevelConsole=.*/MaxLevelConsole=debug/' /etc/systemd/journald.conf
+        sudo sed -i 's/MaxLevelConsole=.*/MaxLevelConsole=debug/' /etc/systemd/journald.conf
+        sudo systemctl restart systemd-journald
+    fi
+}
+
+###############################################
+# Create RAM disk
+#
+# If we're running off an SD card, we use a ramdisk instead of the SD card for the /bee-ops directory.
+# If we're running off an SSD, we mount /bee-ops on the SSD.
+###############################################
+function create_mount() {
+    mountpoint="/sensor_core"
+
+    # Create the mount point directory if it doesn't exist
+    # We have to do this before we put it in fstab and call sudo mount -a, otherwise it will fail
+    if [ ! -d "$mountpoint" ]; then
+        echo "Creating $mountpoint"
+        sudo mkdir -p $mountpoint
+        sudo chown -R $USER:$USER $mountpoint
+    fi
+    # Are we mounting on SSD or RAM disk?
+    if grep -qs "/dev/sda" /etc/mtab; then
+        echo "Mounted on SSD; no further action reqd."
+    else
+        echo "Running on SD card. Mount the RAM disk."
+        # All rpi_sensors have a minimum RAM of 4GB, so /dev/shm/ defaults to 2GB
+        # We reduce this to 500M for rpi_sensor installations and assign 1.5GB to /bee-ops
+        mount_size="1200M"
+        if grep -Eqs "$mountpoint.*$mount_size" /etc/fstab; then
+            echo "The mount point already exists in fstab with the correct size."
+        else
+            # If it doesn't exist, we delete any lines that start with "tmpfs /sensor_core" to clean out old config...
+            # Such as mounts with the wrong size
+            sudo sed -i '/^tmpfs \/sensor_core/d' /etc/fstab
+
+            # ...and then add the new lines
+            fstab_entry="tmpfs $mountpoint tmpfs defaults,size=$mount_size,uid=$USER,gid=$USER 0 0"
+            echo $fstab_entry
+
+            # Create the mount
+            sudo mount -t tmpfs -o size=$mount_size tmpfs $mountpoint
+
+            # Add the mount to fstab
+            echo "$fstab_entry" | sudo tee -a /etc/fstab > /dev/null
+            sudo systemctl daemon-reload
+            sudo mount -a
+            echo "The sensor_core mount point has been added to fstab."
+        fi
+    fi
+
+}
+
+####################################
+# Set predictable network interface names
+#
+# Runs: sudo raspi-config nonint do_net_names 0
+####################################
+function set_predictable_network_interface_names() {
+    if [ "$enable_predictable_network_interface_names" == "Yes" ]; then
+        sudo raspi-config nonint do_net_names 0
+        echo "Predictable network interface names set."
+    fi
+}
+
+####################################
+# Enable the I2C interface
+#
+# Runs:	sudo raspi-config nonint do_i2c 0
+####################################
+function enable_i2c() {
+    if [ "$enable_i2c" == "Yes" ]; then
+        sudo raspi-config nonint do_i2c 0
+        echo "I2C interface enabled."
+    fi
+}
+
 ###################################################################################################
 #
 # Main script execution to configure a RPi device suitable for long-running SensorCore operations
@@ -282,7 +383,11 @@ create_venv
 install_os_packages
 install_sensor_core
 install_user_code
-#install_ufw
+install_ufw
+set_log_storage_volatile
+create_mount
+set_predictable_network_interface_names
+enable_i2c
 
 # Add a flag file in the .sensor_core directory to indicate that the installer has run
 touch "$HOME/.sensor_core/rpi_installer_ran"

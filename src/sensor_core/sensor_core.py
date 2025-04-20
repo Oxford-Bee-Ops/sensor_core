@@ -207,114 +207,45 @@ class SensorCore:
         # Auto-update the user's code (and SensorCore code while under development)
         ####################################
         if root_cfg.my_device.auto_update_code and root_cfg.running_on_rpi:
-            update_script = Path(__file__) / "utils" / "update_my_code.py"
-            cron = CronTab(user=utils.get_current_user())
-            cron.remove_all(comment="auto_update_code")
-            job = cron.new(
-                command=(f"source {Path.home()}/{root_cfg.system_cfg.venv_dir}/bin/activate && "
-                         f"python3 {update_script}"),
-                comment="auto_update_code",
-                pre_comment=True,            
-            )
-            # Run every Sunday at 3am
-            job.setall(root_cfg.my_device.auto_update_code_cron)
-            cron.write()
-            logger.info("Auto_update_code set in crontab")
+            # Pre-checks
+            check_passed = True
+            venv_dir = root_cfg.system_cfg.venv_dir
+            if not venv_dir:
+                logger.error(f"{root_cfg.RAISE_WARN()}No virtual environment directory found")
+                check_passed = False
 
-        ####################################
-        # Make log storage volatile to reduce wear on the SD card
-        ####################################
-        if root_cfg.system_cfg.enable_volatile_logs == "Yes" and root_cfg.running_on_rpi:
-            # Set the systemd journal to use volatile storage
-            # Ensure that the /etc/systemd/journald.conf file exists
-            # That the journald_Storage key is not prefixed with a # and is set to "volatile"
-            # That the journald_SystemMaxUse key is not prefixed with a # and is set to 50M
-            if not Path("/etc/systemd/journald.conf").exists():
-                raise FileNotFoundError("The /etc/systemd/journald.conf file does not exist.")
-            
-            update_required: bool = False
-            with open("/etc/systemd/journald.conf", "r") as f:
-                lines = f.readlines()
-                for line in lines:
-                    if (((line.startswith("#Storage=")) or ((line.startswith("Storage=")) 
-                            and line.strip() != "Storage=volatile"))):
-                        update_required = True
-                        break
-                    elif (((line.startswith("#SystemMaxUse=")) or ((line.startswith("SystemMaxUse=")) 
-                            and line.strip() != "SystemMaxUse=50M"))):
-                        update_required = True
-                        break
-                
-            if update_required:
-                with open("/etc/systemd/journald.conf", "w") as f:
-                    for line in lines:
-                        if (line.startswith("#Storage=")) or (line.startswith("Storage=")):
-                            f.write("Storage=volatile\n")
-                        elif (line.startswith("#SystemMaxUse=")) or (line.startswith("SystemMaxUse=")):
-                            f.write("SystemMaxUse=50M\n")
-                        else:
-                            f.write(line)
-                # Restart the systemd-journald service to apply the changes
-                utils.run_cmd("sudo systemctl restart systemd-journald")
-                logger.info("Systemd journal set to use volatile storage.")
+            my_git_repo_url = root_cfg.system_cfg.my_git_repo_url
+            if not my_git_repo_url:
+                logger.error(f"{root_cfg.RAISE_WARN()}No git repository URL found")
+                check_passed = False
 
-        ####################################
-        # Set predictable network interface names
-        #
-        # Runs: sudo raspi-config nonint do_net_names 0
-        ####################################
-        if root_cfg.system_cfg.enable_predictable_interface_names == "Yes" and root_cfg.running_on_rpi:
-            # Set predictable network interface names
-            utils.run_cmd("sudo raspi-config nonint do_net_names 0")
-            logger.info("Predictable network interface names set.")
+            my_git_branch = root_cfg.system_cfg.my_git_branch
+            if not my_git_branch:
+                logger.error(f"{root_cfg.RAISE_WARN()}No git branch found")
+                check_passed = False
 
-        ####################################
-        # Enable the I2C interface
-        #
-        # Runs:	sudo raspi-config nonint do_i2c 0
-        ####################################
-        if root_cfg.system_cfg.enable_i2c == "Yes" and root_cfg.running_on_rpi:
-            # Enable the I2C interface
-            utils.run_cmd("sudo raspi-config nonint do_i2c 0")
-            logger.info("I2C interface enabled.")
+            activate_script = Path(venv_dir) / "bin" / "activate"
+            if not activate_script.exists():
+                logger.error(f"{root_cfg.RAISE_WARN()}Virtual environment activation script not found:"
+                             f" {activate_script}")
+                check_passed = False
 
-        ######################################
-        # Install the UFW firewall
-        #
-        # Reset the firewall to default settings
-        #  sudo ufw --force reset
-        # Allow IGMP broadcast traffic
-        #  sudo ufw allow proto igmp from any to 224.0.0.1
-        #  sudo ufw allow proto igmp from any to 224.0.0.251
-        # Allow SSH on 22
-        #  sudo ufw allow 22
-        # Allow HTTPS on 443
-        #  sudo ufw allow 443
-        # Re-enable the firewall
-        #  sudo ufw --force enable
-        ######################################
-        if root_cfg.system_cfg.enable_firewall == "Yes" and root_cfg.running_on_rpi:
-            # Install the UFW firewall
-            # Check if UFW is already installed
-            if not utils.run_cmd("sudo ufw status", ignore_errors=True).startswith("Status: active"):
-                # Install UFW
-                utils.run_cmd("sudo apt install ufw -y")
-                logger.info("UFW firewall installed.")
+            # Run the commands to update the code
+            if check_passed:
+                cmd=f"source {activate_script} && pip install 'git+ssh://git@{my_git_repo_url}@{my_git_branch}'"
+                cron = CronTab(user=utils.get_current_user())
+                cron.remove_all(comment="auto_update_code")
+                job = cron.new(
+                    command=cmd,
+                    comment="auto_update_code",
+                    pre_comment=True,            
+                )
+                # Run every Sunday at 3am
+                job.setall(root_cfg.my_device.auto_update_code_cron)
+                cron.write()
+                logger.info("Auto_update_code set in crontab")
             else:
-                logger.info("UFW firewall already installed.")
-
-            # Reset the firewall to default settings
-            utils.run_cmd("sudo ufw --force reset")
-            utils.run_cmd("sudo ufw allow proto igmp from any to 224.0.0.1")
-            utils.run_cmd("sudo ufw allow proto igmp from any to 224.0.0.251")
-            utils.run_cmd("sudo ufw allow 22")
-            utils.run_cmd("sudo ufw allow 443")
-            utils.run_cmd("sudo ufw --force enable")
-            # Check if UFW is enabled
-            if not utils.run_cmd("sudo ufw status", ignore_errors=True).startswith("Status: active"):
-                logger.error(f"{root_cfg.RAISE_WARN()}UFW firewall not enabled.")
-            else: 
-                logger.info("UFW firewall installed and enabled.")
+                logger.error(f"{root_cfg.RAISE_WARN()}Auto-update code failed pre-checks.")
 
     def display_configuration(self) -> str:
         """

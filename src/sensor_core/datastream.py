@@ -18,7 +18,12 @@ from sensor_core.cloud_connector import CloudConnector
 from sensor_core.config_objects import DataProcessorCfg, DatastreamCfg, DpContext, SensorCfg
 from sensor_core.configuration import Mode
 from sensor_core.data_processor import DataProcessor
-from sensor_core.system_datastreams import FAIRY_DS_TYPE_ID, SCORE_DS_TYPE_ID, SCORP_DS_TYPE_ID, SYSTEM_DS_TYPES
+from sensor_core.system_datastreams import (
+    FAIRY_DS_TYPE_ID,
+    SCORE_DS_TYPE_ID,
+    SCORP_DS_TYPE_ID,
+    SYSTEM_DS_TYPES,
+)
 from sensor_core.utils import file_naming, utils
 from sensor_core.utils.journal_pool import JournalPool
 from sensor_core.utils.sc_test_emulator import ScEmulator
@@ -193,9 +198,9 @@ class Datastream(Thread):
 
         # We also spam the data to the logger for easy debugging and display in the bcli
         if self.ds_config.ds_type_id not in SYSTEM_DS_TYPES:
-            logger.info(f"Save log: {str(log_data)}")
+            logger.info(f"Save log: {log_data!s}")
         else:
-            logger.debug(f"Save log: {str(log_data)}")
+            logger.debug(f"Save log: {log_data!s}")
 
     def save_data(self, sensor_data: pd.DataFrame) -> None:
         """Called by Sensors to save 1 or more 'rows' of Sensor-generated data.

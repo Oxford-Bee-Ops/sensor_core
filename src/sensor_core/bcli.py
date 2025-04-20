@@ -623,9 +623,9 @@ class InteractiveMenu():
             click.echo("2. Start SensorCore")
             click.echo("3. Stop SensorCore (graceful stop)")
             click.echo("4. Hard stop SensorCore (pkill)")
-            click.echo("4. Set Hostname")
-            click.echo("5. Restart the Device")  # Added reboot option
-            click.echo("6. Back to Main Menu")  # Updated option number
+            click.echo("5. Set Hostname")
+            click.echo("6. Restart the Device") 
+            click.echo("7. Back to Main Menu")  
             try:
                 choice = click.prompt("\nEnter your choice", type=int)
                 click.echo("\n")
@@ -640,12 +640,12 @@ class InteractiveMenu():
             elif choice == 3:
                 self.stop_sensor_core(pkill=False)
             elif choice == 4:
-                self.stop_sensor_core(pkill=True)  # Hard stop using pkill
+                self.stop_sensor_core(pkill=True) 
             elif choice == 5:
                 self.set_hostname()
-            elif choice == 6:  # Handle reboot option
+            elif choice == 6: 
                 self.reboot_device()
-            elif choice == 7:  # Updated option number
+            elif choice == 7: 
                 break
             else:
                 click.echo("Invalid choice. Please try again.")

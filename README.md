@@ -180,7 +180,6 @@ FC=Fleet config; SC=system.cfg; KE=keys.env
 | Cloud storage access key | KE:`cloud_storage_key` | The Shared Access Signature that provides access to your Azure cloud storage
 | Auto-start SensorCore | SC:`auto_start` | Starts SensorCore automatically after reboot; unless manual mode invoked via CLI.
 | Install a virtual environment | SC:`venv_dir` | Uses uv to install a venv unless one already exists at this location
-| Code install location | SC:`my_code_dir` | Specifies the location where code should be installed from Git
 | Git repo | SC:`my_git_repo_url` | URL of your Git repo containing your configuration and any custom code
 | Git branch | SC:`my_git_branch` | Name of the Git branch to use if not main
 

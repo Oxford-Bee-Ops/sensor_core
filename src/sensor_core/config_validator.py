@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 
 from sensor_core import api
 from sensor_core.cloud_connector import CloudConnector
-from sensor_core.config_objects import DeviceCfg, DatastreamCfg, DataProcessorCfg
+from sensor_core.config_objects import DatastreamCfg, DeviceCfg
 
 
 class ValidationRule(ABC):
@@ -164,7 +164,8 @@ class Rule6_csv_archived_fields(ValidationRule):
                                     )
                             if not all(x in rds.archived_fields for x in api.REQD_RECORD_ID_FIELDS):
                                 return False, (
-                                    f"{rds.ds_type_id} missing required fields in archived_fields: {rds.archived_fields}"
+                                    f"{rds.ds_type_id} missing required fields in archived_fields: "
+                                    f"{rds.archived_fields}"
                                 )
         return True, ""
 
