@@ -305,7 +305,7 @@ class SensorCore:
             my_script = Path(my_script)
 
         restart_on_reboot_cmd=(f"source {Path.home()}/{root_cfg.system_cfg.venv_dir}/bin/activate && "
-                               f"python3 {my_script}")
+                               f"nohup python3 {my_script} 2>&1 | /usr/bin/logger -t SENSOR_CORE &")
         try:
             from crontab import CronTab
             cron = CronTab(user=utils.get_current_user())
