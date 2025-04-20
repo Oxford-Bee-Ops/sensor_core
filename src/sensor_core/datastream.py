@@ -654,7 +654,7 @@ class Datastream(Thread):
     def _validate_output(
         self, output_data: Optional[pd.DataFrame], dp: DataProcessor
     ) -> Optional[pd.DataFrame]:
-        if not output_data:
+        if output_data is None or output_data.empty:
             logger.debug(f"No output from {dp}")
             return None
 
