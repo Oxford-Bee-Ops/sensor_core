@@ -275,6 +275,14 @@ class InteractiveMenu():
         click.echo(f"{dash_line}\n")
         click.echo(process_list_str)
 
+    def show_recordings(self) -> None:
+        # List all files under the root_working_dir
+        click.echo(f"{dash_line}")
+        click.echo("# SensorCore recordings")
+        click.echo(f"{dash_line}")
+        click.echo("Recording files:")
+        click.echo(run_cmd(f"ls -lhR {root_cfg.ROOT_WORKING_DIR}*"))
+        click.echo("\n")
 
     ####################################################################################################
     # Maintenance menu functions
@@ -388,7 +396,7 @@ class InteractiveMenu():
         """Display the crontab entries for the user."""
         click.echo(f"{dash_line}")
         click.echo("# CRONTAB ENTRIES")
-        click.echo(f"{dash_line}")
+        click.echo(f"{dash_line}\n")
         if not root_cfg.running_on_rpi:
             click.echo("This command only works on a Raspberry Pi")
             return
@@ -396,7 +404,7 @@ class InteractiveMenu():
         cron = CronTab(user=utils.get_current_user())
         for job in cron:
             click.echo(job)
-        click.echo(f"{dash_line}")
+        click.echo("\n")
 
 
     def reboot_device(self) -> None:
@@ -588,8 +596,9 @@ class InteractiveMenu():
             click.echo("3. Display SensorCore Logs")
             click.echo("4. Display logs from sensors")
             click.echo("5. Display running processes")
-            click.echo("6. Show Crontab Entries")
-            click.echo("7. Back to Main Menu")
+            click.echo("6. Show recordings and data files")
+            click.echo("7. Show Crontab Entries")
+            click.echo("8. Back to Main Menu")
             try:
                 choice = click.prompt("\nEnter your choice", type=int)
                 click.echo("\n")
@@ -608,8 +617,10 @@ class InteractiveMenu():
             elif choice == 5:
                 self.display_running_processes()
             elif choice == 6:
-                self.show_crontab_entries()
+                self.show_recordings()
             elif choice == 7:
+                self.show_crontab_entries()
+            elif choice == 8:
                 break
             else:
                 click.echo("Invalid choice. Please try again.")
