@@ -162,11 +162,29 @@ class Rule6_csv_archived_fields(ValidationRule):
                                 return False, (
                                     f"archived_fields must be set in {rds.ds_type_id}"
                                     )
-                            if not all(x in rds.archived_fields for x in api.REQD_RECORD_ID_FIELDS):
-                                return False, (
-                                    f"{rds.ds_type_id} missing required fields in archived_fields: "
-                                    f"{rds.archived_fields}"
-                                )
+        return True, ""
+
+# Rule 7: don't declare field names that are in use for record_id fields
+class Rule7_reserved_fieldnames(ValidationRule):
+    def validate(self, inventory: list[DeviceCfg]) -> tuple[bool, str]:
+        for device in inventory:
+            for sensor_ds in device.sensor_ds_list:
+                for ds in sensor_ds.datastream_cfgs:
+                    recursive_ds_list = get_ds_list(ds)
+                    for rds in recursive_ds_list:
+                        if rds.archived_fields:
+                            for field in rds.archived_fields:
+                                if field in api.REQD_RECORD_ID_FIELDS:
+                                    return False, (
+                                        f"Field name '{field}' is reserved; "
+                                        f"change field name in {rds.ds_type_id}"
+                                        )
+                            for field in rds.raw_fields:
+                                if field in api.REQD_RECORD_ID_FIELDS:
+                                    return False, (
+                                        f"Field name '{field}' is reserved; "
+                                        f"change field name in {rds.ds_type_id}"
+                                        )
         return True, ""
 
 
@@ -177,6 +195,7 @@ RULE_SET: list[ValidationRule] = [
     Rule4_cloud_container_specified(),
     Rule5_cloud_container_exists(),
     Rule6_csv_archived_fields(),
+    Rule7_reserved_fieldnames(),
 ]
 
 def get_ds_list(datastream: DatastreamCfg) -> list[DatastreamCfg]:

@@ -377,13 +377,16 @@ class EdgeOrchestrator:
 
         if not root_cfg.SENSOR_CORE_IS_RUNNING_FLAG.exists():
             return False
-        if root_cfg.STOP_SENSOR_CORE_FLAG.exists():
-            if (root_cfg.SENSOR_CORE_IS_RUNNING_FLAG.stat().st_mtime < 
-                root_cfg.STOP_SENSOR_CORE_FLAG.stat().st_mtime):
+        
+        if (root_cfg.STOP_SENSOR_CORE_FLAG.exists() and 
+            (root_cfg.STOP_SENSOR_CORE_FLAG.stat().st_mtime >
+             root_cfg.SENSOR_CORE_IS_RUNNING_FLAG.stat().st_mtime)):
                 return False
+        
         time_threshold = api.utc_now() - timedelta(seconds=2 * WATCHDOG_FREQUENCY)
         if root_cfg.SENSOR_CORE_IS_RUNNING_FLAG.stat().st_mtime < time_threshold.timestamp():
             return False
+        
         # If we get here, the file exists, was touched within the last 2x _FREQUENCY seconds,
         # and the timestamp is > than the timestamp on the STOP_SENSOR_CORE_FLAG file.
         return True
@@ -529,7 +532,8 @@ def main() -> None:
         orchestrator = EdgeOrchestrator.get_instance()
         if orchestrator.is_running() or orchestrator._orchestrator_is_running:
             logger.warning("SensorCore is already running; exiting")
-            raise RuntimeError("SensorCore is already running")
+            orchestrator = None
+            return
 
         orchestrator.load_sensors()
 

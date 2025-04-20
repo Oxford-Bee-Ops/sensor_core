@@ -44,22 +44,21 @@ class Test_configuration:
                             DatastreamCfg(
                                 ds_type_id = EXAMPLE_FILE_DS_TYPE_ID,
                                 raw_format = "jpg",
-                                raw_fields = [*api.REQD_RECORD_ID_FIELDS, "pixel_count"],
+                                raw_fields = ["pixel_count"],
                                 archived_format = "csv",
-                                archived_fields= [*api.REQD_RECORD_ID_FIELDS, "pixel_count"],
+                                archived_fields= ["pixel_count"],
                                 archived_data_description = "Example file datastream for testing. ",
                                 edge_processors = [DataProcessorCfg(
                                     dp_class_ref = "example.my_processor_example.ExampleProcessor",
                                     dp_description = "Dummy file processor for testing",
                                     input_format = "jpg",
                                     output_format = "df",
-                                    output_fields = [*api.REQD_RECORD_ID_FIELDS, "pixel_count"],
+                                    output_fields = ["pixel_count"],
                                     derived_datastreams = [
                                         DatastreamCfg(
                                             ds_type_id = EXAMPLE_DF_DS_TYPE_ID,
                                             raw_format = "csv",
-                                            raw_fields = [*api.REQD_RECORD_ID_FIELDS, 
-                                                          "pixel_count_transformed"],
+                                            raw_fields = ["pixel_count_transformed"],
                                             archived_format = "csv",
                                             #archived_fields = ["pixel_count_transformed"],
                                             archived_data_description = "Example df datastream for testing. ",

@@ -36,9 +36,9 @@ SCORE_FIELDS = [
 SCORE_DS_TYPE = DatastreamCfg(
     ds_type_id=SCORE_DS_TYPE_ID,
     raw_format="log",
-    raw_fields=[*api.REQD_RECORD_ID_FIELDS, *SCORE_FIELDS],
+    raw_fields=[*SCORE_FIELDS],
     archived_format="csv",
-    archived_fields=[*api.REQD_RECORD_ID_FIELDS, *SCORE_FIELDS],
+    archived_fields=[*SCORE_FIELDS],
     archived_data_description=(
         "Data on sample counts and recording period durations from all Datastreams. "
         "The data is automatically recorded by the SensorCore for all datastreams when "
@@ -58,9 +58,9 @@ SCORP_FIELDS = [
 SCORP_DS_TYPE = DatastreamCfg(
     ds_type_id=SCORP_DS_TYPE_ID,
     raw_format="log",
-    raw_fields=[*api.REQD_RECORD_ID_FIELDS, *SCORP_FIELDS],
+    raw_fields=[*SCORP_FIELDS],
     archived_format="csv",
-    archived_fields=[*api.REQD_RECORD_ID_FIELDS, *SCORP_FIELDS],
+    archived_fields=[*SCORP_FIELDS],
     archived_data_description=(
         "Performance data from the data pipeline. "
         "The data is recorded as a log file on the device and archived as a CSV file."

@@ -132,9 +132,6 @@ class CloudJournalPool(JournalPool):
         """
         # Check that the archived_fields contain at least all the bapi.REQD_RECORD_ID_FIELDS
         assert ds.archived_fields is not None, f"archived_fields must be set in {ds.ds_type_id}"
-        assert all(x in ds.archived_fields for x in api.REQD_RECORD_ID_FIELDS), (
-            f"Missing required fields in archived_fields: {ds.archived_fields}"
-        )
 
         fname = file_naming.get_cloud_journal_filename(ds.ds_type_id, day)
 
@@ -215,9 +212,6 @@ class LocalJournalPool(JournalPool):
     def _get_journal(self, ds: DatastreamCfg) -> Journal:
         """Generate the Journal filename for a Datastream."""
         assert ds.archived_fields is not None, f"archived_fields must be set in {ds.ds_type_id}"
-        assert all(x in ds.archived_fields for x in api.REQD_RECORD_ID_FIELDS), (
-            f"Missing required fields in archived_fields: {ds.archived_fields}"
-        )
 
         fname = file_naming.get_journal_filename(ds.ds_type_id)
         if fname.name not in self._jpool:

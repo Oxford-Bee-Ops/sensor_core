@@ -13,17 +13,17 @@ from zoneinfo import ZoneInfo
 # Data record ID fields
 ############################################################
 class RECORD_ID(Enum):
-    VERSION = "version"
+    VERSION = "version_id"
     DS_TYPE_ID = "ds_type_id"
     DEVICE_ID = "device_id"
     SENSOR_INDEX = "sensor_index"
-    TIMESTAMP = "timestamp"
+    TIMESTAMP = "logged_time"
     END_TIME = "end_time"
     OFFSET = "primary_offset_index"
     SECONDARY_OFFSET = "secondary_offset_index"
     SUFFIX = "file_suffix"
     INCREMENT = "increment"
-    NAME = "name"  # Not used programmatically, but helpful for users
+    NAME = "device_name"  # Not used programmatically, but helpful for users
 
 
 REQD_RECORD_ID_FIELDS = [

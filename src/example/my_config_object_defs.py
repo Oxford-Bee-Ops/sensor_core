@@ -41,10 +41,10 @@ class ExampleDfDsCfg(DatastreamCfg):
     ds_type_id: str = EXAMPLE_DF_DS_TYPE_ID
     raw_format: api.FILE_FORMATS = "csv"
     raw_fields: list[str] = field(
-        default_factory=lambda: [*api.REQD_RECORD_ID_FIELDS, "pixel_count_transformed"])
+        default_factory=lambda: ["pixel_count_transformed"])
     archived_format: api.FILE_FORMATS = "csv"
     archived_fields: list[str] = field(
-        default_factory=lambda: [*api.REQD_RECORD_ID_FIELDS, "pixel_count_transformed"])
+        default_factory=lambda: ["pixel_count_transformed"])
     archived_data_description: str = "Example df datastream for testing. "
 
 
@@ -60,7 +60,7 @@ class ExampleFileProcessorCfg(DataProcessorCfg):
     input_format: api.FILE_FORMATS = "jpg"
     output_format: api.FILE_FORMATS = "df"
     output_fields: Optional[list[str]] = field(
-        default_factory=lambda: [*api.REQD_RECORD_ID_FIELDS, "pixel_count"]
+        default_factory=lambda: ["pixel_count"]
     )
     derived_datastreams: Optional[list[DatastreamCfg]] = field(
         default_factory=lambda: [ExampleDfDsCfg()]) #type: ignore
@@ -76,9 +76,9 @@ EXAMPLE_FILE_PROCESSOR = ExampleFileProcessorCfg()
 class ExampleFileDsCfg(DatastreamCfg):
     ds_type_id: str = EXAMPLE_FILE_DS_TYPE_ID
     raw_format: api.FILE_FORMATS = "jpg"
-    raw_fields: list[str] = field(default_factory=lambda: [*api.REQD_RECORD_ID_FIELDS, "pixel_count"])
+    raw_fields: list[str] = field(default_factory=lambda: ["pixel_count"])
     archived_format: api.FILE_FORMATS = "csv"
-    archived_fields: list[str] = field(default_factory=lambda: [*api.REQD_RECORD_ID_FIELDS, "pixel_count"])
+    archived_fields: list[str] = field(default_factory=lambda: ["pixel_count"])
     archived_data_description: str = "Example file datastream for testing. "
     sample_probability: str = str(0.1)
     sample_container: str = "sensor-core-upload"
@@ -93,9 +93,9 @@ EXAMPLE_FILE_DS_TYPE = ExampleFileDsCfg()
 class ExampleLogDsCfg(DatastreamCfg):
     ds_type_id: str = EXAMPLE_LOG_DS_TYPE_ID
     raw_format: api.FILE_FORMATS = "log"
-    raw_fields: list[str] = field(default_factory=lambda: [*api.REQD_RECORD_ID_FIELDS, "temperature"])
+    raw_fields: list[str] = field(default_factory=lambda: ["temperature"])
     archived_format: api.FILE_FORMATS = "csv"
-    archived_fields: list[str] = field(default_factory=lambda: [*api.REQD_RECORD_ID_FIELDS, "temperature"])
+    archived_fields: list[str] = field(default_factory=lambda: ["temperature"])
     archived_data_description: str = "Example log datastream for testing. "
     # No edge processors for this datastream type
 
