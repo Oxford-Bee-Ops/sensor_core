@@ -243,7 +243,7 @@ class SensorCore:
                 # Run every Sunday at 3am
                 job.setall(root_cfg.my_device.auto_update_code_cron)
                 cron.write()
-                logger.info("Auto_update_code set in crontab")
+                logger.info(f"Auto_update_code set in crontab; added {cmd}")
             else:
                 logger.error(f"{root_cfg.RAISE_WARN()}Auto-update code failed pre-checks.")
 

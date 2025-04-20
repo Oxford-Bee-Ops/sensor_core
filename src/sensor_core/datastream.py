@@ -654,14 +654,14 @@ class Datastream(Thread):
     def _validate_output(
         self, output_data: Optional[pd.DataFrame], dp: DataProcessor
     ) -> Optional[pd.DataFrame]:
-        if output_data is None:
-            logger.info(f"Output from {dp} is None")
+        if not output_data:
+            logger.debug(f"No output from {dp}")
             return None
 
         # Output DFs must always contain the core RECORD_ID fields
         # If not already present, add the RECORD_ID fields to the output_df
         for field in api.REQD_RECORD_ID_FIELDS:
-            if field not in output_data.columns:
+            if not field in output_data.columns:
                 if field == api.RECORD_ID.VERSION.value:
                     output_data[field] = "V3"
                 elif field == api.RECORD_ID.TIMESTAMP.value:
@@ -681,7 +681,6 @@ class Datastream(Thread):
                 raise Exception(err_str)
 
         # Warn about superfluous fields that will get dropped
-        assert output_data.columns is not None and len(output_data.columns) > 0
         for field in output_data.columns:
             if (
                 (dp.dp_config.output_fields is not None)
