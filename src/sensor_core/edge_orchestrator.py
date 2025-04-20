@@ -529,7 +529,7 @@ def main() -> None:
         orchestrator = EdgeOrchestrator.get_instance()
         if orchestrator.is_running() or orchestrator._orchestrator_is_running:
             logger.warning("SensorCore is already running; exiting")
-            sys.exit(0)
+            raise RuntimeError("SensorCore is already running")
 
         orchestrator.load_sensors()
 

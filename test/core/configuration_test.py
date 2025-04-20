@@ -61,8 +61,7 @@ class Test_configuration:
                                             raw_fields = [*api.REQD_RECORD_ID_FIELDS, 
                                                           "pixel_count_transformed"],
                                             archived_format = "csv",
-                                            #archived_fields = [*api.REQD_RECORD_ID_FIELDS, 
-                                            #                   "pixel_count_transformed"],
+                                            #archived_fields = ["pixel_count_transformed"],
                                             archived_data_description = "Example df datastream for testing. ",
                                         )
                                     ],

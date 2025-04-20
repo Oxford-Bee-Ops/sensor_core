@@ -189,6 +189,7 @@ class Datastream(Thread):
         log_data[api.RECORD_ID.DEVICE_ID.value] = self.device_id
         log_data[api.RECORD_ID.SENSOR_INDEX.value] = self.sensor_index
         log_data[api.RECORD_ID.TIMESTAMP.value] = api.utc_to_iso_str()
+        log_data[api.RECORD_ID.NAME.value] = root_cfg.my_device.name
 
         self.journal_pool.add_rows(self.ds_config, [log_data], api.utc_now())
 
