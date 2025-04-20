@@ -661,7 +661,7 @@ class Datastream(Thread):
         # Output DFs must always contain the core RECORD_ID fields
         # If not already present, add the RECORD_ID fields to the output_df
         for field in api.REQD_RECORD_ID_FIELDS:
-            if not field in output_data.columns:
+            if field not in output_data.columns:
                 if field == api.RECORD_ID.VERSION.value:
                     output_data[field] = "V3"
                 elif field == api.RECORD_ID.TIMESTAMP.value:
