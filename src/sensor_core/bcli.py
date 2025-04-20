@@ -333,7 +333,7 @@ class InteractiveMenu():
                 click.echo("Exiting...")
                 return
             else:
-                click.echo(f"Found {my_start_script}. Starting SensorCore with that script...")
+                click.echo(f"Found {my_start_script}. Starting SensorCore...")
                 if root_cfg.running_on_windows:
                     click.echo("This command only works on Linux. Exiting...")
                     return
