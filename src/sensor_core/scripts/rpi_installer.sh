@@ -53,16 +53,20 @@ check_prerequisites() {
         echo "Error: sudo is not installed or not available"
         exit 1
     fi
-    if ! command -v git >/dev/null 2>&1; then
-        echo "Error: git is not installed or not available"
-        exit 1
-    fi
     # Check ssh is enabled
     if ! systemctl is-active --quiet ssh; then
         echo "Error: SSH is not enabled. Please enable SSH."
         exit 1
     fi
-    
+    # Check the OS is 64-bit
+    if [ "$(getconf LONG_BIT)" == "64" ] || [ "$(uname -m)" == "aarch64" ]; then
+        echo "64-bit OS detected"
+    else
+        echo "!!! 32-bit OS detected !!!"
+        echo "SensorCore is not supported on 32-bit OS because key packages like Ultralytics require 64-bit."
+        echo "Please install a 64-bit OS and re-run this script."
+        exit 1
+    fi
     echo "All pre-requisites are met."
 }
 
@@ -170,7 +174,7 @@ create_venv() {
 install_os_packages() {
     echo "Installing OS packages..."
     sudo apt update && sudo apt upgrade -y || { echo "Failed to update package list"; exit 1; }
-    sudo apt-get install -y pip python3-scipy python3-pandas python3-opencv || { echo "Failed to install base packages"; exit 1; }
+    sudo apt-get install -y pip git libsystemd-dev python3-scipy python3-pandas python3-opencv || { echo "Failed to install base packages"; exit 1; }
     sudo apt-get install -y libcamera-dev python3-picamera2 python3-smbus || { echo "Failed to install sensor packages"; exit 1; }
     sudo apt autoremove -y || { echo "Failed to remove unnecessary packages"; }
     echo "OS packages installed successfully."
