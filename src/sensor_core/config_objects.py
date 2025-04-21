@@ -5,6 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from sensor_core import api
 from sensor_core.utils import dc
+from sensor_core.dp_tree import DPtree, DPtreeNodeCfg
 
 ############################################################################################
 #
@@ -39,7 +40,7 @@ class Configuration:
 
 
 @dataclass
-class SensorCfg:
+class SensorCfg(DPtreeNodeCfg):
     """Defines the configuration for a concrete Sensor class implementation.
     Can be subclassed to add additional configuration parameters specific to the Sensor class.
 
@@ -68,80 +69,21 @@ class SensorCfg:
 
 
 @dataclass
-class DataProcessorCfg:
+class DataProcessorCfg(DPtreeNodeCfg):
     """Defines the configuration for a concrete DataProcessor class implementation.
     Can be subclassed to add additional configuration parameters specific to the DataProcessor class."""
 
-    # We use class references instead of instances to avoid circular imports
-    # On initialisation, we will create an instance of the DataProcessor
-    # Class ref like "example.my_example_processor.DataProcessor"
-    dp_class_ref: str
-    dp_description: str
-    input_format: api.FILE_FORMATS
-    output_format: api.FILE_FORMATS
-    input_fields: Optional[list[str]] = None
-    output_fields: Optional[list[str]] = None
-    derived_datastreams: Optional[list["DatastreamCfg"]] = None
 
 
 @dataclass
-class DatastreamCfg:
+class DatastreamCfg(DPtreeNodeCfg):
     """Defines the configuration for a datastream produced by a sensor."""
 
-    # datastream_type_id is a unique string that identifies the type of data.
-    # This combines the intended use of the data and the format of the data that is to be archived.
-    # One of allowed_datastream_types
-    ds_type_id: str
-
-    raw_format: api.FILE_FORMATS
-    archived_format: api.FILE_FORMATS
-    archived_data_description: str
-
-    # Primary or derived datastream?
-    # Primary datastreams are produced by sensors; derived datastreams are produced by DataProcessors.
-    primary_ds: bool = True
-
     # The cloud storage container to which the data is archived.
-    # This is required for all types uploading files, other than archived_format="CSV".
+    # This is required for all types uploading files, other than output_format="CSV".
     # "CSV" data is uploaded to the DeviceCfg.cc_for_journals container.
     cloud_container: Optional[str] = None
 
-    # data_fields is a list defining the names of the fields expected for each data entry.
-    # This is only used for log-type and csv-type data.
-    raw_fields: Optional[list[str]] = None
-
-    archived_fields: Optional[list[str]] = None
-
-    # Some datastreams support saving of sample raw recordings to the archive.
-    # This string is interpreted by the Sensor to determine the frequency of raw data sampling.
-    # The format of this string is sensor-specific.
-    sample_probability: Optional[str] = None
-
-    # If raw sampling is enabled, a sample_container must be specified.
-    sample_container: Optional[str] = None
-
-    # transformations is a list of transformations that are applied to the raw data to produce the data
-    # that is stored.
-    edge_processors: Optional[list[DataProcessorCfg]] = None
-    cloud_processors: Optional[list[DataProcessorCfg]] = None
-
-
-@dataclass
-class SensorDsCfg:
-    """Bundles the configuration for a sensor and the datastreams it produces."""
-
-    # The configuration for the sensor that produces the data.
-    sensor_cfg: SensorCfg
-
-    # The configuration for the datastream(s) produced.
-    datastream_cfgs: list[DatastreamCfg]
-
-    def get_datastream_cfg(self, ds_type_id: str) -> DatastreamCfg:
-        for ds_cfg in self.datastream_cfgs:
-            if ds_cfg.ds_type_id == ds_type_id:
-                return ds_cfg
-                
-        raise ValueError(f"Datastream {ds_type_id} not found in sensor config {self.datastream_cfgs}")
 
 ############################################################################################
 # Wifi configuration
@@ -164,7 +106,7 @@ class DeviceCfg(Configuration):
     notes: str = "blank"
 
     # Sensor and datastream configuration
-    sensor_ds_list: list[SensorDsCfg] = field(default_factory=list)
+    dp_trees: list[DPtree] = field(default_factory=list)
 
     # Default cloud container for file upload
     cc_for_upload: str = "sensor-core-upload"
@@ -215,8 +157,8 @@ class DeviceCfg(Configuration):
     def sensor_types_configured(self) -> dict[str, int]:
         """Counts the number of sensors of each type installed on the device"""
         sensor_types: dict[str, int] = {}
-        for sensor_ds in self.sensor_ds_list:
-            sensor_type = sensor_ds.sensor_cfg.sensor_type
+        for dptree in self.dp_trees:
+            sensor_type = dptree.sensor.get_config().sensor_type
             if sensor_type in sensor_types:
                 sensor_types[sensor_type] += 1
             else:
@@ -226,9 +168,9 @@ class DeviceCfg(Configuration):
     def datastreams_configured(self) -> dict[str, int]:
         """Counts the number of datastreams of each type produced by the sensors on the device"""
         datastreams: dict[str, int] = {}
-        for sensor_ds in self.sensor_ds_list:
+        for sensor_ds in self.dp_trees:
             for datastream_cfg in sensor_ds.datastream_cfgs:
-                datastream_type = datastream_cfg.ds_type_id
+                datastream_type = datastream_cfg.type_id
                 if datastream_type in datastreams:
                     datastreams[datastream_type] += 1
                 else:
@@ -240,7 +182,7 @@ class DeviceCfg(Configuration):
 class DpContext:
     """Class for supplying context information on calls out from SensorCore"""
     sensor: Optional[SensorCfg]
-    ds: DatastreamCfg
+    ds: Datastream
     dp: DataProcessorCfg
 
 

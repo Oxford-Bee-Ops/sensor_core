@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 
 from sensor_core import api
 from sensor_core.cloud_connector import CloudConnector
-from sensor_core.config_objects import DatastreamCfg, DeviceCfg
+from sensor_core.config_objects import Datastream, DeviceCfg
 
 
 class ValidationRule(ABC):
@@ -40,7 +40,7 @@ class Rule1_device_id(ValidationRule):
 class Rule2_not_none(ValidationRule):
     def validate(self, inventory: list[DeviceCfg]) -> tuple[bool, str]:
         for device in inventory:
-            if not device.sensor_ds_list:
+            if not device.dp_trees:
                 return False, (
                     f"sensor_ds_list missing for ({device.device_id})"
                     f" in DeviceCfg ({device.name})."
@@ -50,7 +50,7 @@ class Rule2_not_none(ValidationRule):
 class Rule3_validate_class_refs(ValidationRule):
     def validate(self, inventory: list[DeviceCfg]) -> tuple[bool, str]:
         for device in inventory:
-            for sensor_ds in device.sensor_ds_list:
+            for sensor_ds in device.dp_trees:
 
                 # Check the SensorCfg.sensor_class_ref
                 sensor_class_ref = sensor_ds.sensor_cfg.sensor_class_ref
@@ -76,7 +76,7 @@ class Rule3_validate_class_refs(ValidationRule):
                         continue
                     if not isinstance(ds.edge_processors, list):
                         return False, (
-                            f"edge_processors for {device.device_id} {ds.ds_type_id} "
+                            f"edge_processors for {device.device_id} {ds.type_id} "
                             "is not a list"
                             )
                     for dp in ds.edge_processors:
@@ -94,7 +94,7 @@ class Rule3_validate_class_refs(ValidationRule):
                                 if not succeeded:
                                     return False, (
                                         f"dp_class_ref {dp_class_ref} for {device.device_id} "
-                                        f"{ds.ds_type_id} could not be resolved"
+                                        f"{ds.type_id} could not be resolved"
                                         )
         return True, ""
 
@@ -102,11 +102,11 @@ class Rule3_validate_class_refs(ValidationRule):
 class Rule4_cloud_container_specified(ValidationRule):
     def validate(self, inventory: list[DeviceCfg]) -> tuple[bool, str]:
         for device in inventory:
-            for sensor_ds in device.sensor_ds_list:
+            for sensor_ds in device.dp_trees:
                 for ds in sensor_ds.datastream_cfgs:
-                    if ds.archived_format != "csv" and not ds.cloud_container:
+                    if ds.output_format != "csv" and not ds.cloud_container:
                         return False, (
-                            f"cloud_container not set for {device.device_id} {ds.ds_type_id}"
+                            f"cloud_container not set for {device.device_id} {ds.type_id}"
                             ) 
         return True, ""
 
@@ -135,32 +135,32 @@ class Rule5_cloud_container_exists(ValidationRule):
                     )
             
             # Check the Datastream's cloud_container
-            for sensor_ds in device.sensor_ds_list:
+            for sensor_ds in device.dp_trees:
                 for ds in sensor_ds.datastream_cfgs:
                     if ds.cloud_container and not cc.container_exists(ds.cloud_container):
                         return False, (
                                 f"cloud_container {ds.cloud_container} specified in "
-                                f"{ds.ds_type_id} does not exist"
+                                f"{ds.type_id} does not exist"
                             )
                     if ds.sample_container and not cc.container_exists(ds.sample_container):
                         return False, (
                                 f"sample_container {ds.sample_container} specified in "
-                                f"{ds.ds_type_id} does not exist"
+                                f"{ds.type_id} does not exist"
                             )
         return True, ""
 
-# Rule 6: any datastream of type CSV or DF must have archived_fields set
-class Rule6_csv_archived_fields(ValidationRule):
+# Rule 6: any datastream of type CSV or DF must have output_fields set
+class Rule6_csv_output_fields(ValidationRule):
     def validate(self, inventory: list[DeviceCfg]) -> tuple[bool, str]:
         for device in inventory:
-            for sensor_ds in device.sensor_ds_list:
+            for sensor_ds in device.dp_trees:
                 for ds in sensor_ds.datastream_cfgs:
                     recursive_ds_list = get_ds_list(ds)
                     for rds in recursive_ds_list:
-                        if rds.archived_format in ["csv", "df"]:
-                            if not rds.archived_fields:
+                        if rds.output_format in ["csv", "df"]:
+                            if not rds.output_fields:
                                 return False, (
-                                    f"archived_fields must be set in {rds.ds_type_id}"
+                                    f"output_fields must be set in {rds.type_id}"
                                     )
         return True, ""
 
@@ -168,22 +168,22 @@ class Rule6_csv_archived_fields(ValidationRule):
 class Rule7_reserved_fieldnames(ValidationRule):
     def validate(self, inventory: list[DeviceCfg]) -> tuple[bool, str]:
         for device in inventory:
-            for sensor_ds in device.sensor_ds_list:
+            for sensor_ds in device.dp_trees:
                 for ds in sensor_ds.datastream_cfgs:
                     recursive_ds_list = get_ds_list(ds)
                     for rds in recursive_ds_list:
-                        if rds.archived_fields:
-                            for field in rds.archived_fields:
+                        if rds.output_fields:
+                            for field in rds.output_fields:
                                 if field in api.REQD_RECORD_ID_FIELDS:
                                     return False, (
                                         f"Field name '{field}' is reserved; "
-                                        f"change field name in {rds.ds_type_id}"
+                                        f"change field name in {rds.type_id}"
                                         )
-                            for field in rds.raw_fields:
+                            for field in rds.input_fields:
                                 if field in api.REQD_RECORD_ID_FIELDS:
                                     return False, (
                                         f"Field name '{field}' is reserved; "
-                                        f"change field name in {rds.ds_type_id}"
+                                        f"change field name in {rds.type_id}"
                                         )
         return True, ""
 
@@ -194,11 +194,11 @@ RULE_SET: list[ValidationRule] = [
     Rule3_validate_class_refs(),
     Rule4_cloud_container_specified(),
     Rule5_cloud_container_exists(),
-    Rule6_csv_archived_fields(),
+    Rule6_csv_output_fields(),
     Rule7_reserved_fieldnames(),
 ]
 
-def get_ds_list(datastream: DatastreamCfg) -> list[DatastreamCfg]:
+def get_ds_list(datastream: Datastream) -> list[Datastream]:
     """
     Recursive function to get the list of Datastreams for a given device.
     """

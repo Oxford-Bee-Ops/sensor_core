@@ -1,15 +1,17 @@
 from __future__ import annotations
 
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Callable, Union
 
 import pandas as pd
 
 if TYPE_CHECKING:
-    from sensor_core.datastream import Datastream
+    from sensor_core.dp_engine import DPengine
 from sensor_core import configuration as root_cfg
 from sensor_core.config_objects import DataProcessorCfg, DpContext
+from sensor_core.dp_tree import DPtreeNode
+from sensor_core.utils import file_naming
 
 logger = root_cfg.setup_logger("sensor_core")
 
@@ -19,7 +21,7 @@ logger = root_cfg.setup_logger("sensor_core")
 # Class: DataProcessor
 #
 #####################################################################################################
-class DataProcessor:
+class DataProcessor(DPtreeNode, ABC):
     """DataProcessors are invoked by the Datastream to process data from a Sensor.
 
     The DataProcessor implements the process_data() function to process the Sensor data.
@@ -30,11 +32,21 @@ class DataProcessor:
     DataProcessors can define 'derived' Datastreams to enable forking of the data pipeline by
     implementing the define_derived_datastreams.
     """
+    def __init__(self, 
+                 config: DataProcessorCfg,         
+    ) -> None:
+        self.set_config(config)
+
+    def get_data_id(self):
+        return file_naming.create_data_id(root_cfg.my_device_id, 
+                                        self.config.type_id, 
+                                        self.config.sensor_id, 
+                                        self.config.node_index)
 
     @abstractmethod
     def process_data(
         self, 
-        datastream: Datastream, 
+        datastream: DPengine, 
         input_data: pd.DataFrame | list[Path],
         context: DpContext
     ) -> Optional[pd.DataFrame]:
@@ -60,44 +72,3 @@ class DataProcessor:
         """
 
         assert False, "DataProcessor subclass must implement process_data()"
-
-
-    def get_derived_datastreams(self, format: Optional[str] = None) -> list[Datastream]:
-        """Return a list of derived Datastreams.
-        This function is called by the DataProcessor subclass during process_data.
-        The DataProcessor should know how many datastreams it is expected to output and their format,
-        but it should not check the ds_type_id because that is a tag that reflects the particular
-        experimental setup and is often re-configured for different use cases.
-
-        Parameters
-        ----------
-        ds_id : str, optional
-            The Datastream ID to return. If None, all derived Datastreams are returned.
-        """
-        if format is None:
-            return self._derived_datastreams  
-        else:
-            return [ds for ds in self._derived_datastreams if ds.ds_config.raw_format == format]
-
-
-    def _set_derived_datastreams(self, derived_datastreams: list[Datastream]) -> None:
-        """Set the derived Datastreams.
-
-        This function is called by the Datastream during initialisation.
-        """
-        self._derived_datastreams = derived_datastreams
-
-
-    def _set_dp_config(self, dp_config: DataProcessorCfg, dp_index: int, is_last: bool) -> None:
-        """Set the DataProcessor configuration.
-
-        This function is called by the Datastream during initialisation.
-        """
-        self.dp_config = dp_config
-        self.dp_index = dp_index
-        self.is_last = is_last
-
-
-    def _get_dp_config(self) -> tuple[DataProcessorCfg, int, bool]:
-        """Return the DataProcessor configuration."""
-        return (self.dp_config, self.dp_index, self.is_last)

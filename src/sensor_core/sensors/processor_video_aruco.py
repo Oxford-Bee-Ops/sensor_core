@@ -12,7 +12,7 @@ import cv2
 import numpy as np
 import pandas as pd
 
-from sensor_core import DataProcessor, Datastream, DpContext, api
+from sensor_core import DataProcessor, DPengine, DpContext, api
 from sensor_core import configuration as root_cfg
 from sensor_core.sensors.config_object_defs import ArucoProcessorCfg
 from sensor_core.utils import file_naming
@@ -37,7 +37,7 @@ class FrameMarkersData:
 class VideoArucoProcessor(DataProcessor):
 
     def process_data(self, 
-                     datastream: Datastream,
+                     datastream: DPengine,
                      input_data: pd.DataFrame | list[Path],
                      context: DpContext) -> Optional[pd.DataFrame]:
         """Process a list of video files and identify ARUCO markers."""
@@ -162,7 +162,7 @@ class VideoArucoProcessor(DataProcessor):
         # Save the marked up video to the derived datastream
         derived_dss = self.get_derived_datastreams()
         assert len(derived_dss) == 1
-        marked_up_ds: Datastream = derived_dss[0]
+        marked_up_ds: DPengine = derived_dss[0]
         parts = file_naming.parse_record_filename(source_file)
         marked_up_ds.save_recording(
             temporary_file=out_path,

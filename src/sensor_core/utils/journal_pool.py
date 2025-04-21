@@ -9,7 +9,7 @@ import pandas as pd
 
 from sensor_core import api
 from sensor_core import configuration as root_cfg
-from sensor_core.config_objects import DatastreamCfg
+from sensor_core.config_objects import Datastream
 from sensor_core.configuration import Mode
 from sensor_core.utils import file_naming
 from sensor_core.utils.cloud_journal import CloudJournal
@@ -47,7 +47,7 @@ class JournalPool(ABC):
         return JournalPool._instance
 
     @abstractmethod
-    def add_rows(self, ds: DatastreamCfg, data: list[dict], timestamp: Optional[datetime] = None) -> None:
+    def add_rows(self, ds: Datastream, data: list[dict], timestamp: Optional[datetime] = None) -> None:
         """Add data rows as a list of dictionaries
 
         The fields in each dictionary must match the datastream reqd_fields."""
@@ -56,7 +56,7 @@ class JournalPool(ABC):
 
     @abstractmethod
     def add_rows_from_df(
-        self, ds: DatastreamCfg, data: pd.DataFrame, timestamp: Optional[datetime] = None
+        self, ds: Datastream, data: pd.DataFrame, timestamp: Optional[datetime] = None
     ) -> None:
         """Add data in the form of a Pandas DataFrame to the Journal, which will auto-sync to the cloud
 
@@ -86,7 +86,7 @@ class CloudJournalPool(JournalPool):
         self._cj_pool: dict[str, CloudJournal] = {}
         self.jlock = Lock()
 
-    def add_rows(self, ds: DatastreamCfg, data: list[dict], timestamp: Optional[datetime] = None) -> None:
+    def add_rows(self, ds: Datastream, data: list[dict], timestamp: Optional[datetime] = None) -> None:
         """Add data to the appropriate CloudJournal, which will auto-sync to the cloud
 
         All data MUST relate to the same DAY as timestamp."""
@@ -97,7 +97,7 @@ class CloudJournalPool(JournalPool):
             cj.add_rows(data)
 
     def add_rows_from_df(
-        self, ds: DatastreamCfg, data: pd.DataFrame, timestamp: Optional[datetime] = None
+        self, ds: Datastream, data: pd.DataFrame, timestamp: Optional[datetime] = None
     ) -> None:
         """Add data to the appropriate CloudJournal, which will auto-sync to the cloud
 
@@ -124,22 +124,22 @@ class CloudJournalPool(JournalPool):
                 cj.stop()
                 break
 
-    def _get_journal(self, ds: DatastreamCfg, day: datetime) -> CloudJournal:
+    def _get_journal(self, ds: Datastream, day: datetime) -> CloudJournal:
         """Generate the CloudJournal filename for a Datastream.
 
         The V3 filename format is:
             V3_{datastream_type_id}_{day}.csv
         """
-        # Check that the archived_fields contain at least all the bapi.REQD_RECORD_ID_FIELDS
-        assert ds.archived_fields is not None, f"archived_fields must be set in {ds.ds_type_id}"
+        # Check that the output_fields contain at least all the bapi.REQD_RECORD_ID_FIELDS
+        assert ds.output_fields is not None, f"output_fields must be set in {ds.type_id}"
 
-        fname = file_naming.get_cloud_journal_filename(ds.ds_type_id, day)
+        fname = file_naming.get_cloud_journal_filename(ds.type_id, day)
 
         if fname.name not in self._cj_pool:
             # Users can choose a cloud_container per DS or use the default one
             if ds.cloud_container is None:
                 ds.cloud_container = root_cfg.my_device.cc_for_journals
-            cj = CloudJournal(fname, ds.cloud_container, ds.archived_fields)
+            cj = CloudJournal(fname, ds.cloud_container, ds.output_fields)
             self._cj_pool[fname.name] = cj
         else:
             cj = self._cj_pool[fname.name]
@@ -156,7 +156,7 @@ class LocalJournalPool(JournalPool):
         self._jpool: dict[str, Journal] = {}
         self.jlock = Lock()
 
-    def add_rows(self, ds: DatastreamCfg, data: list[dict], timestamp: Optional[datetime] = None) -> None:
+    def add_rows(self, ds: Datastream, data: list[dict], timestamp: Optional[datetime] = None) -> None:
         """Add data to the appropriate Journal, which will auto-upload to the cloud"""
 
         with self.jlock:
@@ -164,7 +164,7 @@ class LocalJournalPool(JournalPool):
             j.add_rows(data)
 
     def add_rows_from_df(
-        self, ds: DatastreamCfg, data: pd.DataFrame, timestamp: Optional[datetime] = None
+        self, ds: Datastream, data: pd.DataFrame, timestamp: Optional[datetime] = None
     ) -> None:
         """Add data to the appropriate Journal, which will auto-sync to the cloud"""
 
@@ -209,13 +209,13 @@ class LocalJournalPool(JournalPool):
         self.flush_journals()
         # No threads to stop
 
-    def _get_journal(self, ds: DatastreamCfg) -> Journal:
+    def _get_journal(self, ds: Datastream) -> Journal:
         """Generate the Journal filename for a Datastream."""
-        assert ds.archived_fields is not None, f"archived_fields must be set in {ds.ds_type_id}"
+        assert ds.output_fields is not None, f"output_fields must be set in {ds.type_id}"
 
-        fname = file_naming.get_journal_filename(ds.ds_type_id)
+        fname = file_naming.get_journal_filename(ds.type_id)
         if fname.name not in self._jpool:
-            j = Journal(fname, cached=True, reqd_columns=ds.raw_fields)
+            j = Journal(fname, cached=True, reqd_columns=ds.input_fields)
             self._jpool[fname.name] = j
         else:
             j = self._jpool[fname.name]

@@ -27,19 +27,19 @@ SYSTEM_DS_TYPES = [
 
 # SCORE - DatastreamType for recording sample count / duration from the data pipeline
 SCORE_FIELDS = [
-    "observed_ds_type_id",
+    "observed_type_id",
     "observed_sensor_index",
     "sample_period",
     "count",
     "duration",
 ]
 SCORE_DS_TYPE = DatastreamCfg(
-    ds_type_id=SCORE_DS_TYPE_ID,
-    raw_format="log",
-    raw_fields=[*SCORE_FIELDS],
-    archived_format="csv",
-    archived_fields=[*SCORE_FIELDS],
-    archived_data_description=(
+    type_id=SCORE_DS_TYPE_ID,
+    input_format="log",
+    input_fields=[*SCORE_FIELDS],
+    output_format="csv",
+    output_fields=[*SCORE_FIELDS],
+    description=(
         "Data on sample counts and recording period durations from all Datastreams. "
         "The data is automatically recorded by the SensorCore for all datastreams when "
         "they log data or save a recording."
@@ -51,17 +51,17 @@ SCORE_DS_TYPE = DatastreamCfg(
 # SCORP - special DatastreamType for recording performance of the data pipeline
 SCORP_FIELDS = [
     "data_processor_id", 
-    "observed_ds_type_id", 
+    "observed_type_id", 
     "observed_sensor_index", 
     "duration"
 ]
 SCORP_DS_TYPE = DatastreamCfg(
-    ds_type_id=SCORP_DS_TYPE_ID,
-    raw_format="log",
-    raw_fields=[*SCORP_FIELDS],
-    archived_format="csv",
-    archived_fields=[*SCORP_FIELDS],
-    archived_data_description=(
+    type_id=SCORP_DS_TYPE_ID,
+    input_format="log",
+    input_fields=[*SCORP_FIELDS],
+    output_format="csv",
+    output_fields=[*SCORP_FIELDS],
+    description=(
         "Performance data from the data pipeline. "
         "The data is recorded as a log file on the device and archived as a CSV file."
     ),
@@ -71,10 +71,10 @@ SCORP_DS_TYPE = DatastreamCfg(
 
 # FAIRY - special DatastreamType for recording FAIR records of Datastream config
 FAIRY_DS_TYPE = DatastreamCfg(
-    ds_type_id=FAIRY_DS_TYPE_ID,
-    raw_format="yaml",
-    archived_format="yaml",
-    archived_data_description=("Record of Datastream config created when a Datastream starts. "),
+    type_id=FAIRY_DS_TYPE_ID,
+    input_format="yaml",
+    output_format="yaml",
+    description=("Record of Datastream config created when a Datastream starts. "),
     cloud_container=root_cfg.my_device.cc_for_fair,
 )
 
@@ -100,12 +100,12 @@ HEART_FIELDS = [
 ]
 
 HEART_DS_TYPE = DatastreamCfg(
-    ds_type_id=HEART_DS_TYPE_ID,
-    raw_format="log",
-    raw_fields=api.REQD_RECORD_ID_FIELDS + HEART_FIELDS,
-    archived_format="csv",
-    archived_fields=api.REQD_RECORD_ID_FIELDS + HEART_FIELDS,
-    archived_data_description=("Device and system health records. "),
+    type_id=HEART_DS_TYPE_ID,
+    input_format="log",
+    input_fields=HEART_FIELDS,
+    output_format="csv",
+    output_fields=HEART_FIELDS,
+    description=("Device and system health records. "),
     cloud_container=root_cfg.my_device.cc_for_system_records,
 )
 
@@ -120,11 +120,11 @@ WARNING_FIELDS = [
 ]
 
 WARNING_DS_TYPE = DatastreamCfg(
-    ds_type_id=WARNING_DS_TYPE_ID,
-    raw_format="log",
-    raw_fields=api.REQD_RECORD_ID_FIELDS + WARNING_FIELDS,
-    archived_format="csv",
-    archived_fields=api.REQD_RECORD_ID_FIELDS + WARNING_FIELDS,
-    archived_data_description=("Warning and error logs raised on the device. "),
+    type_id=WARNING_DS_TYPE_ID,
+    input_format="log",
+    input_fields=WARNING_FIELDS,
+    output_format="csv",
+    output_fields=WARNING_FIELDS,
+    description=("Warning and error logs raised on the device. "),
     cloud_container=root_cfg.my_device.cc_for_system_records,
 )

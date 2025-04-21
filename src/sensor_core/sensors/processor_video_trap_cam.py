@@ -5,7 +5,7 @@ from typing import Optional
 import cv2
 import pandas as pd
 
-from sensor_core import DataProcessor, Datastream, DpContext, api
+from sensor_core import DataProcessor, DPengine, DpContext, api
 from sensor_core import configuration as root_cfg
 from sensor_core.sensors.config_object_defs import TrapCamProcessorCfg
 from sensor_core.utils import file_naming
@@ -20,7 +20,7 @@ class ProcessorVideoTrapCam(DataProcessor):
 
     def process_data(
         self, 
-        datastream: Datastream,
+        datastream: DPengine,
         input_data: pd.DataFrame | list[Path],
         context: DpContext
     ) -> Optional[pd.DataFrame]:
@@ -51,15 +51,15 @@ class ProcessorVideoTrapCam(DataProcessor):
         return None
 
     def process_video(self, 
-                      derived_ds: Datastream, 
+                      derived_ds: DPengine, 
                       video_path: Path, 
                       min_blob_size: int, 
                       max_blob_size: int) -> None:
         """ Process a video file to detect movement and save segments with movement. 
         We record for a minimum of 2 seconds after movement is detected."""
-        assert video_path.suffix[1:] == derived_ds.ds_config.raw_format, (
+        assert video_path.suffix[1:] == derived_ds.ds_config.input_format, (
             f"Video file suffix {video_path.suffix} doesn't match "
-            f"expected format {derived_ds.ds_config.raw_format}"
+            f"expected format {derived_ds.ds_config.input_format}"
         )
 
         cap = cv2.VideoCapture(str(video_path))
@@ -129,7 +129,7 @@ class ProcessorVideoTrapCam(DataProcessor):
                     # Not currently recording; start recording
                     sample_first_frame = current_frame
                     sample_last_movement_frame = current_frame
-                    temp_filename=file_naming.get_temporary_filename(derived_ds.ds_config.raw_format)
+                    temp_filename=file_naming.get_temporary_filename(derived_ds.ds_config.input_format)
                     output_stream = cv2.VideoWriter(
                         filename=str(temp_filename),
                         fourcc=fourcc,

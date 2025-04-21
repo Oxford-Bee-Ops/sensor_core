@@ -423,11 +423,11 @@ class InteractiveMenu():
         """Display the list of configured sensors."""
         click.echo(f"{dash_line}")
         click.echo("\nSensors & their primary datastreams configured:\n")
-        for i, sensor_ds in enumerate(root_cfg.my_device.sensor_ds_list):
+        for i, sensor_ds in enumerate(root_cfg.my_device.dp_trees):
             click.echo(f"{i}> {sensor_ds.sensor_cfg.sensor_type}: {sensor_ds.sensor_cfg.sensor_index} "
                     f"- {sensor_ds.sensor_cfg.sensor_class_ref}")
             for ds in sensor_ds.datastream_cfgs:
-                click.echo(f"  {ds.ds_type_id}: - {ds.archived_data_description}")
+                click.echo(f"  {ds.type_id}: - {ds.description}")
         click.echo("\nUSB devices discovered:")
         click.echo(run_cmd("lsusb") + "\n")
         click.echo("Associated sounds cards:")

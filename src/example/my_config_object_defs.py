@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from sensor_core import api
-from sensor_core.config_objects import DataProcessorCfg, DatastreamCfg, SensorCfg
+from sensor_core.config_objects import DataProcessorCfg, Datastream, SensorCfg
 
 #############################################################################################################
 # Define the DatastreamType IDs
@@ -37,15 +37,15 @@ class ExampleSensorCfg(SensorCfg):
 # Define the DERIVED DatastreamCfg objects
 #############################################################################################################
 @dataclass
-class ExampleDfDsCfg(DatastreamCfg):
-    ds_type_id: str = EXAMPLE_DF_DS_TYPE_ID
-    raw_format: api.FILE_FORMATS = "csv"
-    raw_fields: list[str] = field(
+class ExampleDfDsCfg(Datastream):
+    type_id: str = EXAMPLE_DF_DS_TYPE_ID
+    input_format: api.FILE_FORMATS = "csv"
+    input_fields: list[str] = field(
         default_factory=lambda: ["pixel_count_transformed"])
-    archived_format: api.FILE_FORMATS = "csv"
-    archived_fields: list[str] = field(
+    output_format: api.FILE_FORMATS = "csv"
+    output_fields: list[str] = field(
         default_factory=lambda: ["pixel_count_transformed"])
-    archived_data_description: str = "Example df datastream for testing. "
+    description: str = "Example df datastream for testing. "
 
 
 EXAMPLE_DF_DATASTREAM_TYPE = ExampleDfDsCfg()
@@ -62,7 +62,7 @@ class ExampleFileProcessorCfg(DataProcessorCfg):
     output_fields: Optional[list[str]] = field(
         default_factory=lambda: ["pixel_count"]
     )
-    derived_datastreams: Optional[list[DatastreamCfg]] = field(
+    derived_datastreams: Optional[list[Datastream]] = field(
         default_factory=lambda: [ExampleDfDsCfg()]) #type: ignore
 
 
@@ -73,13 +73,13 @@ EXAMPLE_FILE_PROCESSOR = ExampleFileProcessorCfg()
 #############################################################################################################
 
 @dataclass
-class ExampleFileDsCfg(DatastreamCfg):
-    ds_type_id: str = EXAMPLE_FILE_DS_TYPE_ID
-    raw_format: api.FILE_FORMATS = "jpg"
-    raw_fields: list[str] = field(default_factory=lambda: ["pixel_count"])
-    archived_format: api.FILE_FORMATS = "csv"
-    archived_fields: list[str] = field(default_factory=lambda: ["pixel_count"])
-    archived_data_description: str = "Example file datastream for testing. "
+class ExampleFileDsCfg(Datastream):
+    type_id: str = EXAMPLE_FILE_DS_TYPE_ID
+    input_format: api.FILE_FORMATS = "jpg"
+    input_fields: list[str] = field(default_factory=lambda: ["pixel_count"])
+    output_format: api.FILE_FORMATS = "csv"
+    output_fields: list[str] = field(default_factory=lambda: ["pixel_count"])
+    description: str = "Example file datastream for testing. "
     sample_probability: str = str(0.1)
     sample_container: str = "sensor-core-upload"
     edge_processors: list[DataProcessorCfg] = field(
@@ -90,13 +90,13 @@ EXAMPLE_FILE_DS_TYPE = ExampleFileDsCfg()
 
 
 @dataclass
-class ExampleLogDsCfg(DatastreamCfg):
-    ds_type_id: str = EXAMPLE_LOG_DS_TYPE_ID
-    raw_format: api.FILE_FORMATS = "log"
-    raw_fields: list[str] = field(default_factory=lambda: ["temperature"])
-    archived_format: api.FILE_FORMATS = "csv"
-    archived_fields: list[str] = field(default_factory=lambda: ["temperature"])
-    archived_data_description: str = "Example log datastream for testing. "
+class ExampleLogDsCfg(Datastream):
+    type_id: str = EXAMPLE_LOG_DS_TYPE_ID
+    input_format: api.FILE_FORMATS = "log"
+    input_fields: list[str] = field(default_factory=lambda: ["temperature"])
+    output_format: api.FILE_FORMATS = "csv"
+    output_fields: list[str] = field(default_factory=lambda: ["temperature"])
+    description: str = "Example log datastream for testing. "
     # No edge processors for this datastream type
 
 

@@ -38,7 +38,7 @@ class Test_Orchestrator:
                     name="Alex",
                     device_id="d01111111111",
                     notes="Using Alex as an all-defaults camera in Experiment A",
-                    sensor_ds_list=[
+                    dp_trees=[
                         SensorDsCfg(
                             sensor_cfg=ExampleSensorCfg(sensor_index=1),
                             datastream_cfgs=[
@@ -52,7 +52,7 @@ class Test_Orchestrator:
                 
 
             orchestrator = EdgeOrchestrator.get_instance()
-            orchestrator.load_sensors()
+            orchestrator.load_config()
             orchestrator.start_all()
             sleep(12)
             orchestrator.observability_run()
@@ -71,13 +71,13 @@ class Test_Orchestrator:
                             {"V3_DUMM*": 3})
 
             # Stop without start
-            orchestrator.load_sensors()
+            orchestrator.load_config()
             sleep(1)
             orchestrator.stop_all()
 
             # Repeat runs of observability logging
             logger.info("sensor_test: # Repeat runs of observability logging")
-            orchestrator.load_sensors()
+            orchestrator.load_config()
             orchestrator.start_all()
             sleep(2)
             orchestrator.observability_run()

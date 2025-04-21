@@ -23,7 +23,7 @@ class RpicamSensor(Sensor):
 
         assert isinstance(sds_config.sensor_cfg, RpicamSensorCfg)
         self.sensor_cfg: RpicamSensorCfg = sds_config.sensor_cfg
-        self.raw_format = self.sds_config.datastream_cfgs[0].raw_format
+        self.input_format = self.sds_config.datastream_cfgs[0].input_format
         self.rpicam_cmd = self.sensor_cfg.rpicam_cmd
 
         assert self.rpicam_cmd, (
@@ -47,8 +47,8 @@ class RpicamSensor(Sensor):
             return
 
         # Get the Datastream objects for this sensor so we can log / save data to them
-        # We expect 1 video datastream with raw_format="h264" or "mp4"
-        self.video_ds = self.get_datastreams(format=self.raw_format, expected=1)[0]
+        # We expect 1 video datastream with input_format="h264" or "mp4"
+        self.video_ds = self.get_datastreams(format=self.input_format, expected=1)[0]
 
         # Main loop to record video and take still images
         while not self.stop_requested:
@@ -64,7 +64,7 @@ class RpicamSensor(Sensor):
 
                 # Get the filename for the video file
                 filename = file_naming.get_temporary_filename(
-                    self.video_ds.ds_config.raw_format
+                    self.video_ds.ds_config.input_format
                 )
 
                 # Replace the FILENAME placeholder in the command with the actual filename

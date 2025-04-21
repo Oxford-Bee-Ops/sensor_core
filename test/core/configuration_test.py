@@ -8,7 +8,7 @@ from example.my_config_object_defs import (
 )
 from sensor_core import api, config_validator
 from sensor_core import configuration as root_cfg
-from sensor_core.config_objects import DataProcessorCfg, DatastreamCfg, DeviceCfg, SensorDsCfg
+from sensor_core.config_objects import DataProcessorCfg, Datastream, DeviceCfg, SensorDsCfg
 
 logger = root_cfg.setup_logger("sensor_core")
 root_cfg.TEST_MODE = root_cfg.MODE.TEST
@@ -36,18 +36,18 @@ class Test_configuration:
                 name="Alex",
                 device_id="d01111111111",  # This is the DUMMY MAC address for windows
                 notes="Testing example camera device",
-                sensor_ds_list=[
+                dp_trees=[
                     SensorDsCfg(
                         sensor_cfg=ExampleSensorCfg(sensor_index=1),
                         datastream_cfgs=[
                             EXAMPLE_LOG_DS_TYPE,
-                            DatastreamCfg(
-                                ds_type_id = EXAMPLE_FILE_DS_TYPE_ID,
-                                raw_format = "jpg",
-                                raw_fields = ["pixel_count"],
-                                archived_format = "csv",
-                                archived_fields= ["pixel_count"],
-                                archived_data_description = "Example file datastream for testing. ",
+                            Datastream(
+                                type_id = EXAMPLE_FILE_DS_TYPE_ID,
+                                input_format = "jpg",
+                                input_fields = ["pixel_count"],
+                                output_format = "csv",
+                                output_fields= ["pixel_count"],
+                                description = "Example file datastream for testing. ",
                                 edge_processors = [DataProcessorCfg(
                                     dp_class_ref = "example.my_processor_example.ExampleProcessor",
                                     dp_description = "Dummy file processor for testing",
@@ -55,13 +55,13 @@ class Test_configuration:
                                     output_format = "df",
                                     output_fields = ["pixel_count"],
                                     derived_datastreams = [
-                                        DatastreamCfg(
-                                            ds_type_id = EXAMPLE_DF_DS_TYPE_ID,
-                                            raw_format = "csv",
-                                            raw_fields = ["pixel_count_transformed"],
-                                            archived_format = "csv",
-                                            #archived_fields = ["pixel_count_transformed"],
-                                            archived_data_description = "Example df datastream for testing. ",
+                                        Datastream(
+                                            type_id = EXAMPLE_DF_DS_TYPE_ID,
+                                            input_format = "csv",
+                                            input_fields = ["pixel_count_transformed"],
+                                            output_format = "csv",
+                                            #output_fields = ["pixel_count_transformed"],
+                                            description = "Example df datastream for testing. ",
                                         )
                                     ],
                                 )],
@@ -73,6 +73,6 @@ class Test_configuration:
         ]
         # Check the configuration is valid
         is_valid, error_message = config_validator.validate(INVENTORY)
-        # We expect to fail because the archived_fields are not set in the derived datastream
+        # We expect to fail because the output_fields are not set in the derived datastream
         # This tests recursve validation of the datastreams
         assert not is_valid, error_message

@@ -15,7 +15,7 @@ INVENTORY: list[DeviceCfg] = [
         name="Alex",
         device_id="d01111111111",  # This is the DUMMY MAC address for windows
         notes="Testing example camera device",
-        sensor_ds_list=experiment1_double_camera_device,
+        dp_trees=experiment1_double_camera_device,
     ),
 ]
 

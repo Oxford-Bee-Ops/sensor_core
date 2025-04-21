@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 ############################################################
 class RECORD_ID(Enum):
     VERSION = "version_id"
-    DS_TYPE_ID = "ds_type_id"
+    DATA_TYPE_ID = "data_type_id"
     DEVICE_ID = "device_id"
     SENSOR_INDEX = "sensor_index"
     TIMESTAMP = "logged_time"
@@ -28,7 +28,7 @@ class RECORD_ID(Enum):
 
 REQD_RECORD_ID_FIELDS = [
     RECORD_ID.VERSION.value,
-    RECORD_ID.DS_TYPE_ID.value,
+    RECORD_ID.DATA_TYPE_ID.value,
     RECORD_ID.DEVICE_ID.value,
     RECORD_ID.SENSOR_INDEX.value,
     RECORD_ID.TIMESTAMP.value,
@@ -59,7 +59,15 @@ SENSOR_TYPES = Literal['ENV', 'MIC', 'CAMERA', 'SYS']
 ############################################################
 # Datastream types
 ############################################################
-FILE_FORMATS = Literal["df", "log", "csv", "jpg", "png", "mp4", "h264", "wav", "yaml"]
+FILE_FORMATS = Literal[
+    "df", # Dataframe; can be saved as CSV
+    "log", # Jog (dict)
+    "jpg", 
+    "png", 
+    "mp4", 
+    "h264", 
+    "wav", 
+    "yaml"]
 
 ############################################################
 # Tags used in logs sent from sensors to the ETL

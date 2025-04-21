@@ -2,7 +2,7 @@ from time import sleep
 
 from sensor_core import api
 from sensor_core import configuration as root_cfg
-from sensor_core.config_objects import SensorDsCfg
+from sensor_core.config_objects import SensorCfg
 from sensor_core.sensor import Sensor
 from sensor_core.utils import file_naming
 
@@ -15,8 +15,8 @@ logger = root_cfg.setup_logger("sensor_core")
 # A concrete Sensor class must implement the run() method.
 #############################################################################################################
 class ExampleSensor(Sensor):
-    def __init__(self, sds_config: SensorDsCfg) -> None:
-        super().__init__(sds_config)
+    def __init__(self, config: SensorCfg) -> None:
+        super().__init__(config)
 
     def run(self) -> None:
         """The run method is called when the Sensor is started."""

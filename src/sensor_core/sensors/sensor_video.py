@@ -121,8 +121,8 @@ class VideoSensor(Sensor):
             return
 
         # Get the Datastream objects for this sensor so we can log / save data to them
-        # We expect 0 or 1 video datastreams with raw_format="h264" or "mp4"
-        # We expect 0 or 1 still image datastreams with raw_format="jpg"
+        # We expect 0 or 1 video datastreams with input_format="h264" or "mp4"
+        # We expect 0 or 1 still image datastreams with input_format="jpg"
         self.video_ds = self.get_datastreams(format=self.sensor_cfg.video_format, expected=1)[0]
         self.image_ds = self.get_datastreams(format="jpg", expected=1)[0]
 
@@ -217,7 +217,7 @@ class VideoSensor(Sensor):
 
         # Reformat to MP4 if required
         new_fname = vid_output_filename
-        if self.video_ds.ds_config.raw_format == "mp4":
+        if self.video_ds.ds_config.input_format == "mp4":
             # Convert the H264 file to MP4 format and delete the original H264 file
             new_fname = new_fname.with_suffix(".mp4")
             if logger.isEnabledFor(10):

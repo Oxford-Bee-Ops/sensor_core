@@ -13,7 +13,7 @@
 #             -> cloud_processors: list[DataProcessorCfg]
 #
 ###################################################################################################
-from sensor_core import DatastreamCfg, SensorDsCfg
+from sensor_core import DPengine, SensorDsCfg
 from sensor_core import configuration as root_cfg
 from sensor_core.sensors.config_object_defs import (
     ARUCO_DATA_DS,
@@ -56,11 +56,11 @@ trap_cam_device = [
                           "--framerate 4 --width 640 --height 480 -o FILENAME -t 180000 -v 0")
         ),
         datastream_cfgs=[
-            DatastreamCfg(
-                ds_type_id = CONTINUOUS_VIDEO_DS_TYPE_ID,
-                raw_format = "mp4",
-                archived_format = "mp4",
-                archived_data_description = "Basic continuous video recording.",
+            DPengine(
+                type_id = CONTINUOUS_VIDEO_DS_TYPE_ID,
+                input_format = "mp4",
+                output_format = "mp4",
+                description = "Basic continuous video recording.",
                 cloud_container = "sensor-core-upload",
                 edge_processors=[
                     TrapCamProcessorCfg(
@@ -82,11 +82,11 @@ double_trap_cam_device = [
                           "--framerate 8 --width 480 --height 640 -o FILENAME -t 180000 -v 0")
         ),
         datastream_cfgs=[
-            DatastreamCfg(
-                ds_type_id = CONTINUOUS_VIDEO_DS_TYPE_ID,
-                raw_format = "mp4",
-                archived_format = "mp4",
-                archived_data_description = "Basic continuous video recording.",
+            DPengine(
+                type_id = CONTINUOUS_VIDEO_DS_TYPE_ID,
+                input_format = "mp4",
+                output_format = "mp4",
+                description = "Basic continuous video recording.",
                 cloud_container = "sensor-core-upload",
                 edge_processors=[
                     TrapCamProcessorCfg(
@@ -107,11 +107,11 @@ double_trap_cam_device = [
                           "--framerate 8 --width 480 --height 640 -o FILENAME -t 180000 -v 0")
         ),
         datastream_cfgs=[
-            DatastreamCfg(
-                ds_type_id = CONTINUOUS_VIDEO_DS_TYPE_ID,
-                raw_format = "mp4",
-                archived_format = "mp4",
-                archived_data_description = "Basic continuous video recording.",
+            DPengine(
+                type_id = CONTINUOUS_VIDEO_DS_TYPE_ID,
+                input_format = "mp4",
+                output_format = "mp4",
+                description = "Basic continuous video recording.",
                 cloud_container = "sensor-core-upload",
                 edge_processors=[
                     TrapCamProcessorCfg(

@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Optional
 
 import pandas as pd
-from sensor_core import DataProcessor, Datastream, DpContext
+from sensor_core import DataProcessor, DPengine, DpContext
 from sensor_core import configuration as root_cfg
 from sensor_core.utils import file_naming
 
@@ -26,7 +26,7 @@ logger = root_cfg.setup_logger("sensor_core")
 class ExampleProcessor(DataProcessor):
     def process_data(
         self, 
-        datastream: Datastream, 
+        datastream: DPengine, 
         input_data: pd.DataFrame | list[Path],
         context: DpContext
     ) -> Optional[pd.DataFrame]:
@@ -35,7 +35,7 @@ class ExampleProcessor(DataProcessor):
         - demonstrates a file DP converting a file list to a DataFrame
         - demonstrates a DF DP returning a DataFrame"""
         assert datastream.device_id == root_cfg.my_device_id
-        assert datastream.ds_config.ds_type_id == EXAMPLE_FILE_DS_TYPE_ID
+        assert datastream.ds_config.type_id == EXAMPLE_FILE_DS_TYPE_ID
         assert input_data is not None
         assert isinstance(input_data, list)
 

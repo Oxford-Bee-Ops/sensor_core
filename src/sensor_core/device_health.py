@@ -1,15 +1,17 @@
 import os
 import socket
 import subprocess
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Optional
+from time import sleep
 
 import psutil
 
 from sensor_core import api
 from sensor_core import configuration as root_cfg
-from sensor_core.datastream import Datastream
+from sensor_core.dp_engine import DPengine
 from sensor_core.utils import utils
+from sensor_core.sensor import Sensor
 
 if root_cfg.running_on_rpi:
     from systemd import journal  # type: ignore
@@ -66,7 +68,7 @@ if root_cfg.running_on_rpi:
 
 logger = root_cfg.setup_logger("sensor_core")
 
-class DeviceHealth():
+class DeviceHealth(Sensor):
     """Monitors device health and provides telemetry data as a SensorCore datastream.
     Produces the following data:
     - HEART (DS type ID) provides periodic heartbeats with device health data up to cloud storage.
@@ -86,12 +88,37 @@ class DeviceHealth():
         self.log_counter = 0
         self.client_wlan = "wlan0"
     
-    def log_health(self, heart_ds: Datastream) -> None:
+    def run(self) -> None:
+        """Main loop for the DeviceHealth sensor.
+        This method is called when the thread is started.
+        It runs in a loop, logging health data and warnings at regular intervals.
+        """
+        logger.info(f"Starting DeviceHealth thread {self!r}")
+
+        while not self.stop_requested:
+            # Trigger each datastream to log sample counts
+            for dptree in root_cfg.my_device.dp_trees:
+                dptree.log_sample_data(self.last_ran)
+
+            # Log the health data
+            self.log_health()
+
+            # Log the warning data
+            self.log_warnings()
+
+            # Set timer for next run
+            self.last_ran = api.utc_now()
+            self.log_counter += 1
+            next_hour = (self.last_ran + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+            sleep_time = (next_hour - self.last_ran).total_seconds()
+            sleep(sleep_time)
+
+    def log_health(self, heart_ds: DPengine) -> None:
         """Logs device health data to the HEART datastream."""
         health = self.get_health()
         heart_ds.log(health)
 
-    def log_warnings(self, warning_ds: Datastream) -> None:
+    def log_warnings(self, warning_ds: DPengine) -> None:
         """Capture warning and error logs to the WARNING datastream.
         We get these from the system journal and log them to the WARNING datastream.
         We capture logs tagged with the RAISE_WARN_TAG and all logs with priority <=4 (Warning)."""

@@ -66,14 +66,14 @@ INVENTORY: list[DeviceCfg] = [
         name="Alex",
         device_id="d01111111111",
         notes="Using Alex as an all-defaults camera in Experiment A",
-        sensor_ds_list=experiment1_standard_camera_device,
+        dp_trees=experiment1_standard_camera_device,
         wifi_clients=WIFI_CLIENTS,
     ),
     DeviceCfg(
         name="Bob",
         device_id="d01111111112",
         notes="Using Bob as a close up camera in Experiment A",
-        sensor_ds_list=experiment1_double_camera_device,
+        dp_trees=experiment1_double_camera_device,
         wifi_clients=WIFI_CLIENTS,
     ),
 ]

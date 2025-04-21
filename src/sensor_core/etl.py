@@ -27,7 +27,7 @@ from time import sleep
 from sensor_core import api
 from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import CloudConnector
-from sensor_core.datastream import Datastream
+from sensor_core.dp_engine import DPengine
 from sensor_core.utils import file_naming
 
 logger = root_cfg.setup_logger(name="sensor_core")
@@ -95,7 +95,7 @@ class DatastreamFactory:
 
     def __init__(self) -> None:
         """Initialise the DatastreamFactory"""
-        self._datastreams: dict[str, Datastream] = {}
+        self._datastreams: dict[str, DPengine] = {}
         self._stop_requested_event = Event()
         # We start the first iteration with a short timer, so we start work quickly, but then back-off
         self._sleep_time = 5 * 60
@@ -109,18 +109,18 @@ class DatastreamFactory:
         Called on a timer."""
 
         PREFIX_LEN = 21  # len("ABCDE_XXXXXXXXXXXX_SS")
-        # Get the ds_type_id, device_id and sensor_index for all files...
+        # Get the type_id, device_id and sensor_index for all files...
         # ... and check that we have Datastreams to process them
         files = list(root_cfg.ETL_PROCESSING_DIR.glob("*"))
         for f in files:
-            # We index the datastreams by the file prefix which contains ds_type_id, device_id & sensor_index
+            # We index the datastreams by the file prefix which contains type_id, device_id & sensor_index
             prefix = f.name[:PREFIX_LEN]
             if prefix in self._datastreams:
                 continue
             else:
                 file_details = file_naming.parse_record_filename(f)
-                datastream = Datastream(
-                    file_details[api.RECORD_ID.DS_TYPE_ID.value],
+                datastream = DPengine(
+                    file_details[api.RECORD_ID.DATA_TYPE_ID.value],
                     file_details[api.RECORD_ID.DEVICE_ID.value],
                     file_details[api.RECORD_ID.SENSOR_INDEX.value],
                 )

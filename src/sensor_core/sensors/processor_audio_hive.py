@@ -32,7 +32,7 @@ import scipy.io.wavfile as wav
 from scipy import signal
 from sensors.sensor_audio import AudioSensorCfg
 
-from sensor_core import DataProcessor, DataProcessorCfg, Datastream, DpContext, api
+from sensor_core import DataProcessor, DataProcessorCfg, DPengine, DpContext, api
 from sensor_core import configuration as root_cfg
 from sensor_core.utils import audio_transforms as at
 from sensor_core.utils import utils
@@ -60,7 +60,7 @@ class HiveAudioProcessor(DataProcessor):
 
     # Process a list of audio files
     def process_data(self, 
-                     datastream: Datastream, 
+                     datastream: DPengine, 
                      input_data: pd.DataFrame | list[Path], 
                      context: DpContext) -> Optional[pd.DataFrame]:
         
@@ -109,7 +109,7 @@ class AudioFileProcessor:
     MAX_FREQ = 2400  # Max frequency to save in spectrograms
 
     # The initialisation loads the wav file
-    def __init__(self, wav_fname: Path, datastream: Datastream, in_hive_port=0):
+    def __init__(self, wav_fname: Path, datastream: DPengine, in_hive_port=0):
         self.wav_fname = wav_fname
         self.datastream = datastream
         self.in_hive_port = in_hive_port
@@ -214,7 +214,7 @@ class AudioFileProcessor:
     # We reject any audio files with a mean power higher than the MAX_MEAN_SPRECTROGRAM_POWER
     MAX_MEAN_SPRECTROGRAM_POWER = 10
 
-    def extract_audio_events_harmonics(self, datastream: Datastream):
+    def extract_audio_events_harmonics(self, datastream: DPengine):
         
         # Assume success
         self.sample_outcome = AudioFileProcessor.SAMPLE_OUTCOME_SUCCESS
