@@ -6,13 +6,10 @@
 ####################################################################################################
 import threading
 from abc import ABC, abstractmethod
-from random import random
-from typing import Optional
 
 from sensor_core import configuration as root_cfg
-from sensor_core.config_objects import SensorCfg
-from sensor_core.dp_engine import DPengine
-from sensor_core.dp_tree import DPtreeNode
+from sensor_core.dp_tree_node_types import SensorCfg
+from sensor_core.dp_tree_node import DPtreeNode
 from sensor_core.utils import file_naming
 
 logger = root_cfg.setup_logger("sensor_core")
@@ -32,16 +29,14 @@ class Sensor(threading.Thread, DPtreeNode, ABC):
         sensor_config: SensorConfig
             The configuration for the sensor.
         """
-        super().__init__()
+        threading.Thread.__init__(self)
+        DPtreeNode.__init__(self, config, config.sensor_index)
 
         logger.info(f"Initialise sensor {self!r}")
 
-        self.set_config(config)
         self.config = config
-        self._sensor_type = config.sensor_type
-        self._sensor_index = config.sensor_index
-        self.date_id = file_naming.create_data_id(
-            root_cfg.my_device_id, self.config.type_id, self._sensor_index
+        self.data_id = file_naming.create_data_id(
+            root_cfg.my_device_id, self.config.type_id, config.sensor_index
         )
 
         # We set the daemon status to true so that the thread continues to run in the background
@@ -50,7 +45,7 @@ class Sensor(threading.Thread, DPtreeNode, ABC):
 
     def get_data_id(self):
         """Return the unique data ID for this sensor."""
-        return self.date_id
+        return self.data_id
     
 
     def start(self) -> None:

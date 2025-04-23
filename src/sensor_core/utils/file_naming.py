@@ -12,7 +12,7 @@ logger = root_cfg.setup_logger("sensor_core")
 def create_data_id(device_id: str, 
                  type_id: str, 
                  sensor_index: int,
-                 node_index: Optional[int]) -> str:
+                 node_index: Optional[int] = None) -> str:
     """Returns a standard, universally unique, identifier for the Datastream"""
     if node_index:
         return f"{type_id}_{device_id}_{sensor_index:02d}N{node_index:02d}"
@@ -41,7 +41,7 @@ def parse_data_id(ds_id: str) -> tuple[str, str, int, Optional[int]]:
         return fields[0], fields[1], int(sensor_index), int(node_index)
     else:
         # Split the last field into sensor_index and node_index using the "N" separator
-        return fields[0], fields[1], int(fields[2])
+        return fields[0], fields[1], int(fields[2]), None
         
 
 def parse_record_filename(fname: Path | str) -> dict:

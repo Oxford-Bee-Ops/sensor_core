@@ -6,7 +6,7 @@ from example.my_config_object_defs import (
     EXAMPLE_LOG_DS_TYPE,
     ExampleSensorCfg,
 )
-from sensor_core import api, config_validator
+from sensor_core import config_validator
 from sensor_core import configuration as root_cfg
 from sensor_core.config_objects import DataProcessorCfg, Datastream, DeviceCfg, SensorDsCfg
 
@@ -52,7 +52,7 @@ class Test_configuration:
                                     dp_class_ref = "example.my_processor_example.ExampleProcessor",
                                     dp_description = "Dummy file processor for testing",
                                     input_format = "jpg",
-                                    output_format = "df",
+                                    output_streams = "df",
                                     output_fields = ["pixel_count"],
                                     derived_datastreams = [
                                         Datastream(

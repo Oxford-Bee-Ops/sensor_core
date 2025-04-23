@@ -1,11 +1,9 @@
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from sensor_core import api
 from sensor_core.utils import dc
-from sensor_core.dp_tree import DPtree, DPtreeNodeCfg
 
 ############################################################################################
 #
@@ -39,52 +37,6 @@ class Configuration:
         return getattr(self, field_name)
 
 
-@dataclass
-class SensorCfg(DPtreeNodeCfg):
-    """Defines the configuration for a concrete Sensor class implementation.
-    Can be subclassed to add additional configuration parameters specific to the Sensor class.
-
-    Parameters:
-    ----------
-    sensor_type: str
-        One of the sensor types defined in api.SENSOR_TYPES.
-
-    sensor_index: int
-        The index of the sensor in the list of sensors.
-        Must be unique in combination with the sensor_type.
-        Used, for example, where a device has 4 audio sensors.
-
-    sensor_class_ref: str
-        The fully qualified class name of the sensor.
-        This must be interpretable as a Class by the Python interpreter.
-
-    sensor_model_description: str
-        A human-readable description of the sensor model.
-    """
-
-    sensor_type: api.SENSOR_TYPES
-    sensor_index: int
-    sensor_class_ref: str
-    sensor_model_description: str
-
-
-@dataclass
-class DataProcessorCfg(DPtreeNodeCfg):
-    """Defines the configuration for a concrete DataProcessor class implementation.
-    Can be subclassed to add additional configuration parameters specific to the DataProcessor class."""
-
-
-
-@dataclass
-class DatastreamCfg(DPtreeNodeCfg):
-    """Defines the configuration for a datastream produced by a sensor."""
-
-    # The cloud storage container to which the data is archived.
-    # This is required for all types uploading files, other than output_format="CSV".
-    # "CSV" data is uploaded to the DeviceCfg.cc_for_journals container.
-    cloud_container: Optional[str] = None
-
-
 ############################################################################################
 # Wifi configuration
 ############################################################################################
@@ -106,7 +58,7 @@ class DeviceCfg(Configuration):
     notes: str = "blank"
 
     # Sensor and datastream configuration
-    dp_trees: list[DPtree] = field(default_factory=list)
+    dp_trees: list = field(default_factory=list)
 
     # Default cloud container for file upload
     cc_for_upload: str = "sensor-core-upload"
@@ -114,7 +66,7 @@ class DeviceCfg(Configuration):
     # Cloud storage container for raw CSV journals uploaded by the device
     cc_for_journals: str = "sensor-core-journals"
 
-    # Cloud storage container for system records (Datasreams: SCORE, SCORP, FAIRY, HEART)
+    # Cloud storage container for system records (Datasreams: SCORE, SCORP, HEART, WARNING)
     cc_for_system_records: str = "sensor-core-system-records"
 
     # Cloud container for FAIR records
@@ -153,37 +105,6 @@ class DeviceCfg(Configuration):
 
     # Test device
     is_testnet: int = 0
-
-    def sensor_types_configured(self) -> dict[str, int]:
-        """Counts the number of sensors of each type installed on the device"""
-        sensor_types: dict[str, int] = {}
-        for dptree in self.dp_trees:
-            sensor_type = dptree.sensor.get_config().sensor_type
-            if sensor_type in sensor_types:
-                sensor_types[sensor_type] += 1
-            else:
-                sensor_types[sensor_type] = 1
-        return sensor_types
-
-    def datastreams_configured(self) -> dict[str, int]:
-        """Counts the number of datastreams of each type produced by the sensors on the device"""
-        datastreams: dict[str, int] = {}
-        for sensor_ds in self.dp_trees:
-            for datastream_cfg in sensor_ds.datastream_cfgs:
-                datastream_type = datastream_cfg.type_id
-                if datastream_type in datastreams:
-                    datastreams[datastream_type] += 1
-                else:
-                    datastreams[datastream_type] = 1
-        return datastreams
-
-
-@dataclass
-class DpContext:
-    """Class for supplying context information on calls out from SensorCore"""
-    sensor: Optional[SensorCfg]
-    ds: Datastream
-    dp: DataProcessorCfg
 
 
 ############################################################################################

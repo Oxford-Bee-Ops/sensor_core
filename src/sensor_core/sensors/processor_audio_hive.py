@@ -32,7 +32,7 @@ import scipy.io.wavfile as wav
 from scipy import signal
 from sensors.sensor_audio import AudioSensorCfg
 
-from sensor_core import DataProcessor, DataProcessorCfg, DPengine, DpContext, api
+from sensor_core import DataProcessor, DataProcessorCfg, DpContext, DPengine, api
 from sensor_core import configuration as root_cfg
 from sensor_core.utils import audio_transforms as at
 from sensor_core.utils import utils

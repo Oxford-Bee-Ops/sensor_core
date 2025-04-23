@@ -1,10 +1,8 @@
 ####################################################################################################
 # EdgeOrchestrator: Manages the state of the sensor threads
 ####################################################################################################
-import sys
 import threading
 import zipfile
-from dataclasses import asdict
 from datetime import timedelta
 from time import sleep
 from typing import Optional
@@ -12,20 +10,11 @@ from typing import Optional
 from sensor_core import api, dp_engine
 from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import CloudConnector
+from sensor_core.device_health import DeviceHealth
 from sensor_core.dp_engine import DPengine, JournalPool
-from sensor_core.device_health import DeviceHealth
-from sensor_core.datastream import Datastream
+from sensor_core.self_tracker import SelfTracker
 from sensor_core.sensor import Sensor
-from sensor_core.system_datastreams import (
-    FAIRY_DS_TYPE,
-    HEART_DS_TYPE,
-    SCORE_DS_TYPE,
-    SCORP_DS_TYPE,
-    WARNING_DS_TYPE,
-)
-from sensor_core.utils import file_naming, utils
-from sensor_core.dp_tree import DPtree
-from sensor_core.device_health import DeviceHealth
+from sensor_core.utils import file_naming
 
 logger = root_cfg.setup_logger("sensor_core")
 
@@ -80,23 +69,21 @@ class EdgeOrchestrator:
             self._upload_timer: Optional[threading.Timer] = None
 
             # We create a series of special Datastreams for recording:
-            # SCORE - data save events
-            # SCORP - DP performance
-            # FAIRY - DS FAIR config records
             # HEART - device health
             # WARNING - captures error & warning logs
-            # Register it so that it's started / stopped with the rest.
-            # Set it in the superclass, so Datastreams can log to it.
+            # SCORE - data save events
+            # SCORP - DP performance
             self.device_health = DeviceHealth()
-            sys_dptree = DPtree()
-            sys_dptree.connect((self.device_health, 0), Datastream(SCORE_DS_TYPE))
-            sys_dptree.connect((self.device_health, 1), Datastream(SCORP_DS_TYPE))
-            sys_dptree.connect((self.device_health, 2), Datastream(FAIRY_DS_TYPE))
-            sys_dptree.connect((self.device_health, 3), Datastream(HEART_DS_TYPE))
-            sys_dptree.connect((self.device_health, 4), Datastream(WARNING_DS_TYPE))
-            system_dpe = DPengine(sys_dptree)
-            DPengine._set_system_dpe(system_dpe)
+            health_dpe = DPengine(self.device_health.build_dptree())
+            self._dpengines.append(health_dpe)
+
+            self.selftracker = SelfTracker()
+            system_dpe = DPengine(self.selftracker.build_dptree())
             self._dpengines.append(system_dpe)
+
+            # We set the system_dpe as a class variable so that all DPengine instances can 
+            # log their performance data
+            DPengine._set_system_dpe(system_dpe)
 
             self._orchestrator_is_running = False
 
@@ -106,7 +93,6 @@ class EdgeOrchestrator:
         status = {
             "SensorCore running": str(self.is_running()),
             "Sensor threads": str(self._sensorThreads),
-            "Observability timer": str(self._observability_timer),
             "Upload timer": str(self._upload_timer),
             "DPtrees": str(self._dpengines),
         }
@@ -175,11 +161,6 @@ class EdgeOrchestrator:
 
         # Start the DPengine threads
         for dpe in self._dpengines:
-            # Write a log message to record that the datastream has started.
-            # This creates the FAIR config record that is archived along with the data.
-            dp_dict = asdict(dpe.dp_tree)
-            dp_dict["dp_status"] = api.DS_STARTED
-            dpe.save_FAIR_record(dp_dict)
             dpe.start()
 
         # Only once we've started the datastreams, do we start the Sensor threads
@@ -255,7 +236,7 @@ class EdgeOrchestrator:
         # Block until all Datastreams have exited
         for dpe in self._dpengines:
             if dpe.is_alive():
-                logger.info(f"Waiting for datastream thread {ds}")
+                logger.info(f"Waiting for datastream thread {dpe}")
                 dpe.join()
             else:
                 logger.info(f"Datastream thread {dpe} already stopped")

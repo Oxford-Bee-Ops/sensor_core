@@ -12,7 +12,7 @@ import cv2
 import numpy as np
 import pandas as pd
 
-from sensor_core import DataProcessor, DPengine, DpContext, api
+from sensor_core import DataProcessor, DpContext, DPengine, api
 from sensor_core import configuration as root_cfg
 from sensor_core.sensors.config_object_defs import ArucoProcessorCfg
 from sensor_core.utils import file_naming

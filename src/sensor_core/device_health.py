@@ -2,16 +2,18 @@ import os
 import socket
 import subprocess
 from datetime import datetime, timedelta
-from typing import Any, Optional
 from time import sleep
+from typing import Any, Optional
 
 import psutil
 
 from sensor_core import api
 from sensor_core import configuration as root_cfg
-from sensor_core.dp_engine import DPengine
-from sensor_core.utils import utils
+from sensor_core.datastream import Datastream
+from sensor_core.dp_tree import DPtree
+from sensor_core.dp_tree_node_types import Stream, DatastreamCfg, SensorCfg
 from sensor_core.sensor import Sensor
+from sensor_core.utils import utils
 
 if root_cfg.running_on_rpi:
     from systemd import journal  # type: ignore
@@ -68,6 +70,52 @@ if root_cfg.running_on_rpi:
 
 logger = root_cfg.setup_logger("sensor_core")
 
+# HEART - special DatastreamType for recording device & system health
+HEART_FIELDS = [
+    "boot_time",
+    "last_update_timestamp",
+    "cpu_percent",
+    "total_memory_gb",
+    "memory_percent",
+    "memory_free",
+    "disk_percent",
+    "disk_bytes_written_in_period",
+    "io_bytes_sent",
+    "sc_mount_size",
+    "sc_ram_percent",
+    "cpu_temperature",
+    "ssid",
+    "ip_address",
+    "power_status",
+    "process_list",
+    "sensor_core_version",
+]
+
+# WARNING - special DatastreamType for capturing warning and error logs from any component
+WARNING_FIELDS = [
+    "time_logged",
+    "message",
+    "process_id",
+    "process_name",
+    "executable_path",
+    "priority",
+]
+
+HEART_STREAM_INDEX = 0
+WARNING_STREAM_INDEX = 1
+DEVICE_HEALTH_CFG = SensorCfg(
+    sensor_type="SYS",
+    sensor_index=0,
+    type_id="DeviceHealth",
+    node_index=0,
+    description="Internal device health",
+    outputs=[
+        Stream(HEART_STREAM_INDEX, format="log", fields=HEART_FIELDS),
+        Stream(WARNING_STREAM_INDEX, format="log", fields=WARNING_FIELDS),
+    ],
+    sensor_class_ref="sensor_core.device_health.DeviceHealth",
+)
+
 class DeviceHealth(Sensor):
     """Monitors device health and provides telemetry data as a SensorCore datastream.
     Produces the following data:
@@ -77,7 +125,7 @@ class DeviceHealth(Sensor):
     """
 
     def __init__(self) -> None:
-
+        super().__init__(DEVICE_HEALTH_CFG)
         ###############################
         # Telemetry tracking
         ###############################
@@ -88,6 +136,10 @@ class DeviceHealth(Sensor):
         self.log_counter = 0
         self.client_wlan = "wlan0"
     
+    def build_dptree(self) -> DPtree:
+        sys_dptree = DPtree(root=self)
+        return sys_dptree
+
     def run(self) -> None:
         """Main loop for the DeviceHealth sensor.
         This method is called when the thread is started.
@@ -96,10 +148,6 @@ class DeviceHealth(Sensor):
         logger.info(f"Starting DeviceHealth thread {self!r}")
 
         while not self.stop_requested:
-            # Trigger each datastream to log sample counts
-            for dptree in root_cfg.my_device.dp_trees:
-                dptree.log_sample_data(self.last_ran)
-
             # Log the health data
             self.log_health()
 
@@ -113,12 +161,12 @@ class DeviceHealth(Sensor):
             sleep_time = (next_hour - self.last_ran).total_seconds()
             sleep(sleep_time)
 
-    def log_health(self, heart_ds: DPengine) -> None:
+    def log_health(self) -> None:
         """Logs device health data to the HEART datastream."""
         health = self.get_health()
-        heart_ds.log(health)
+        self.log(HEART_STREAM_INDEX, health)
 
-    def log_warnings(self, warning_ds: DPengine) -> None:
+    def log_warnings(self) -> None:
         """Capture warning and error logs to the WARNING datastream.
         We get these from the system journal and log them to the WARNING datastream.
         We capture logs tagged with the RAISE_WARN_TAG and all logs with priority <=4 (Warning)."""
@@ -130,9 +178,9 @@ class DeviceHealth(Sensor):
 
             for log in logs:
                 if api.RAISE_WARN_TAG in log:
-                    warning_ds.log(log)
+                    self.log(WARNING_STREAM_INDEX, log)
                 elif log["priority"] <= 4:
-                    warning_ds.log(log)
+                    self.log(WARNING_STREAM_INDEX, log)
             
 
     ############################################################################################################

@@ -118,7 +118,7 @@ class ScEmulator():
         return None
 
     def ok_to_save_recording(self, ds_id) -> bool:
-        if (self.recording_cap == -1) or ("FAIRY" in ds_id):
+        if (self.recording_cap == -1):
             return True
         else:
             previous_recordings = self.recordings_saved.get(ds_id, 0)

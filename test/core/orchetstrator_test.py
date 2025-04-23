@@ -55,7 +55,6 @@ class Test_Orchestrator:
             orchestrator.load_config()
             orchestrator.start_all()
             sleep(12)
-            orchestrator.observability_run()
             orchestrator.stop_all()
             sleep(2)
             # Check that we have data in the journals
@@ -79,10 +78,6 @@ class Test_Orchestrator:
             logger.info("sensor_test: # Repeat runs of observability logging")
             orchestrator.load_config()
             orchestrator.start_all()
-            sleep(2)
-            orchestrator.observability_run()
-            sleep(2)
-            orchestrator.observability_run()
             orchestrator.stop_all()
 
             # There may be files left waiting to be processed, so we can't assert there aren't.

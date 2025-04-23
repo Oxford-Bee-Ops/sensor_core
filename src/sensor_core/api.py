@@ -54,7 +54,7 @@ INSTALL_TYPES = [INSTALL_TYPE_SENSOR, INSTALL_TYPE_ETL]
 ############################################################
 # Sensor types
 ############################################################
-SENSOR_TYPES = Literal['ENV', 'MIC', 'CAMERA', 'SYS']
+SENSOR_TYPES = Literal['ENV', 'MIC', 'CAMERA', 'SYS', 'NOT_SET']
 
 ############################################################
 # Datastream types
@@ -88,6 +88,20 @@ OPTIMISED: Final[str] = "OPTIMISED"
 DS_STARTED = "STARTED"
 DS_STOPPED = "STOPPED"
 
+#############################################################
+# System Datastream types
+#############################################################
+HEART_DS_TYPE_ID = "HEART"
+WARNING_DS_TYPE_ID = "WARNING"
+SCORE_DS_TYPE_ID = "SCORE"
+SCORP_DS_TYPE_ID = "SCORP"
+
+SYSTEM_DS_TYPES = [
+    HEART_DS_TYPE_ID,
+    WARNING_DS_TYPE_ID,
+    SCORE_DS_TYPE_ID,
+    SCORP_DS_TYPE_ID,
+]
 ############################################################
 # Datetime formats used in the system
 #

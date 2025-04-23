@@ -1,16 +1,14 @@
 from __future__ import annotations
 
-from abc import abstractmethod, ABC
+from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Callable, Union
+from typing import TYPE_CHECKING, Optional
 
 import pandas as pd
 
-if TYPE_CHECKING:
-    from sensor_core.dp_engine import DPengine
 from sensor_core import configuration as root_cfg
-from sensor_core.config_objects import DataProcessorCfg, DpContext
-from sensor_core.dp_tree import DPtreeNode
+from sensor_core.dp_tree_node_types import DataProcessorCfg
+from sensor_core.dp_tree_node import DPtreeNode
 from sensor_core.utils import file_naming
 
 logger = root_cfg.setup_logger("sensor_core")
@@ -33,22 +31,22 @@ class DataProcessor(DPtreeNode, ABC):
     implementing the define_derived_datastreams.
     """
     def __init__(self, 
-                 config: DataProcessorCfg,         
+                 config: DataProcessorCfg,
+                 sensor_index: int, 
     ) -> None:
-        self.set_config(config)
+        super.__init__(self, config, sensor_index)
+        self.config = config
 
     def get_data_id(self):
         return file_naming.create_data_id(root_cfg.my_device_id, 
                                         self.config.type_id, 
-                                        self.config.sensor_id, 
+                                        self.sensor_index, 
                                         self.config.node_index)
 
     @abstractmethod
     def process_data(
         self, 
-        datastream: DPengine, 
         input_data: pd.DataFrame | list[Path],
-        context: DpContext
     ) -> Optional[pd.DataFrame]:
         """This function processes data as described in the Datastream.
 
