@@ -6,21 +6,24 @@
 from array import array
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 import cv2
 import numpy as np
 import pandas as pd
 
-from sensor_core import DataProcessor, DpContext, DPengine, api
+from sensor_core import DataProcessor, api
 from sensor_core import configuration as root_cfg
-from sensor_core.sensors.config_object_defs import ArucoProcessorCfg
+from sensor_core.dp_config_object_defs import DataProcessorCfg, Stream
 from sensor_core.utils import file_naming
 
 cv2.setRNGSeed(42)
 
 logger = root_cfg.setup_logger("sensor_core")
 
+ARUCO_DATA_DS_TYPE_ID = "ARUCO"
+ARUCO_MARKED_UP_VIDEOS_DS_TYPE_ID = "ARUCOMARKED"
+ARUCO_DATA_STREAM_INDEX: int = 0
+ARUCO_MARKED_UP_VIDEOS_STREAM_INDEX: int = 1
 
 @dataclass
 class MarkersData:
@@ -33,22 +36,71 @@ class FrameMarkersData:
     known_markers: MarkersData = field(default_factory=MarkersData)
     unknown_markers: MarkersData = field(default_factory=MarkersData)
 
+MARKER_INFO_REQD_COLUMNS: list[str] = [
+    "filename",
+    "frame_number",
+    "marker_id",
+    "centreX",
+    "centreY",
+    "topEdgeMidX",
+    "topEdgeMidY",
+    "topLeftX",
+    "topLeftY",
+    "topRightX",
+    "topRightY",
+    "bottomLeftX",
+    "bottomLeftY",
+    "bottomRightX",
+    "bottomRightY",
+]
+
+@dataclass
+class ArucoProcessorCfg(DataProcessorCfg):
+    ########################################################################
+    # Add custom fields
+    ########################################################################
+    aruco_dict_name: str = "DICT_4X4_50"
+    save_marked_up_video: bool = True  # Save the marked up video
+
+DEFAULT_AUROCO_PROCESSOR_CFG = ArucoProcessorCfg(
+    description = "WHOCAM video processor",
+    outputs = [
+        Stream(
+            type_id=ARUCO_DATA_DS_TYPE_ID,
+            index=ARUCO_DATA_STREAM_INDEX,
+            format="df",
+            fields=MARKER_INFO_REQD_COLUMNS,
+            description="Identified ARUCO markers in videos.",
+        ),
+        Stream(
+            type_id=ARUCO_MARKED_UP_VIDEOS_DS_TYPE_ID,
+            index=ARUCO_MARKED_UP_VIDEOS_STREAM_INDEX,
+            format="mp4",
+            cloud_container="sensor-core-upload",
+            description="Marked up video data from a WHO camera",
+        )
+    ],
+    aruco_dict_name = "DICT_4X4_50",
+    save_marked_up_video = True  # Save the marked up video
+)
+
 
 class VideoArucoProcessor(DataProcessor):
 
+    def __init__(self, config: ArucoProcessorCfg, sensor_index: int) -> None:
+        super().__init__(config, sensor_index=sensor_index)
+        self.config: ArucoProcessorCfg = config
+
     def process_data(self, 
-                     datastream: DPengine,
-                     input_data: pd.DataFrame | list[Path],
-                     context: DpContext) -> Optional[pd.DataFrame]:
+                     input_data: pd.DataFrame | list[Path]) -> None:
         """Process a list of video files and identify ARUCO markers."""
 
         assert isinstance(input_data, list), f"Expected list of files, got {type(input_data)}"
         files: list[Path] = input_data
         results: list[pd.DataFrame] = []
-        assert isinstance(context.dp, ArucoProcessorCfg)
-        dp_cfg: ArucoProcessorCfg = context.dp
-        aruco_dict_name = dp_cfg.aruco_dict_name
-        save_marked_up_video = dp_cfg.save_marked_up_video
+        config = self.config
+        aruco_dict_name = config.aruco_dict_name
+        save_marked_up_video = config.save_marked_up_video
 
         for f in files:
             try:
@@ -68,11 +120,10 @@ class VideoArucoProcessor(DataProcessor):
                     exc_info=True,
                 )
 
-        # Return the results as a single dataframe
-        if len(results) > 0:
-            return pd.concat(results)
-        else:
-            return None
+        self.save_data(
+            stream_index=ARUCO_DATA_STREAM_INDEX,
+            sensor_data=pd.concat(results) if len(results) > 0 else pd.DataFrame(),
+        )
 
     def process_video_file(self, 
                            source_file: Path, 
@@ -160,11 +211,9 @@ class VideoArucoProcessor(DataProcessor):
                 out_video.release()
 
         # Save the marked up video to the derived datastream
-        derived_dss = self.get_derived_datastreams()
-        assert len(derived_dss) == 1
-        marked_up_ds: DPengine = derived_dss[0]
         parts = file_naming.parse_record_filename(source_file)
-        marked_up_ds.save_recording(
+        self.save_recording(
+            stream_index=ARUCO_MARKED_UP_VIDEOS_STREAM_INDEX,
             temporary_file=out_path,
             start_time=parts[api.RECORD_ID.TIMESTAMP.value],
             end_time=parts[api.RECORD_ID.END_TIME.value],

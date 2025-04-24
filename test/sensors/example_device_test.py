@@ -1,7 +1,7 @@
 from time import sleep
 
 import pytest
-from example.my_device_types import experiment1_double_camera_device
+from example.my_fleet_config import create_example_device
 from sensor_core import DeviceCfg, SensorCore
 from sensor_core import configuration as root_cfg
 from sensor_core.utils.sc_test_emulator import ScEmulator
@@ -15,7 +15,7 @@ INVENTORY: list[DeviceCfg] = [
         name="Alex",
         device_id="d01111111111",  # This is the DUMMY MAC address for windows
         notes="Testing example camera device",
-        dp_trees=experiment1_double_camera_device,
+        dp_trees_create_method=create_example_device,
     ),
 ]
 
@@ -26,17 +26,26 @@ class Test_example_device:
 
         with ScEmulator.get_instance() as th:
             # Limit the SensorCore to 1 recording so we can easily validate the results
-            #th.set_recording_cap(1)
+            th.set_recording_cap(1)
 
             # Configure SensorCore with the trap camera device
             sc = SensorCore()
             sc.configure(INVENTORY)
             sc.start()
-            sleep(10)
+            sleep(4)
             sc.stop()
+            sleep(2)
 
-            # We should have identified bees in the video and save the info to the EXITCAM datastream
+            # The example sensor produces:
+            # - a stream of jpg files (EXAMPLE_FILE_DS_TYPE_ID) 
+            # - a stream of logs (EXAMPLE_LOG_DS_TYPE_ID).
+            # We save 100% of jpg file samples from the example sensor to sensor-core-upload
+            # but the originals all get deleted after processing by the example processor.
+            # The example processor takes the jpg files and saves:
+            # - a df stream with "pixel_count" (EXAMPLE_DF_DS_TYPE_ID).
             th.assert_records("sensor-core-fair", 
-                            {"V3_DUMM*": 6})
+                            {"V3_*": 1})
             th.assert_records("sensor-core-journals", 
-                            {"*": 3})
+                            {"V3_DUMML*": 1, "V3_DUMMD*": 1})
+            th.assert_records("sensor-core-upload", 
+                            {"V3_DUMMF*": th.ONE_OR_MORE,})

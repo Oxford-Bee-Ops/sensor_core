@@ -5,16 +5,19 @@ import threading
 import zipfile
 from datetime import timedelta
 from time import sleep
-from typing import Optional
+from typing import Callable, Optional
 
 from sensor_core import api, dp_engine
 from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import CloudConnector
 from sensor_core.device_health import DeviceHealth
-from sensor_core.dp_engine import DPengine, JournalPool
+from sensor_core.dp_engine import DPengine
+from sensor_core.dp_tree import DPtree
+from sensor_core.dp_tree_node import DPtreeNode
 from sensor_core.self_tracker import SelfTracker
 from sensor_core.sensor import Sensor
 from sensor_core.utils import file_naming
+from sensor_core.utils.journal_pool import JournalPool
 
 logger = root_cfg.setup_logger("sensor_core")
 
@@ -64,6 +67,7 @@ class EdgeOrchestrator:
         with EdgeOrchestrator.orchestrator_lock:
             self._sensorThreads: list[Sensor] = []
             self._dpengines: list[DPengine] = []
+            self.dp_trees: list[DPtree] = []
 
             self._stop_upload_requested = threading.Event()
             self._upload_timer: Optional[threading.Timer] = None
@@ -74,16 +78,17 @@ class EdgeOrchestrator:
             # SCORE - data save events
             # SCORP - DP performance
             self.device_health = DeviceHealth()
-            health_dpe = DPengine(self.device_health.build_dptree())
+            health_dpe = DPengine(DPtree(self.device_health))
             self._dpengines.append(health_dpe)
 
             self.selftracker = SelfTracker()
-            system_dpe = DPengine(self.selftracker.build_dptree())
-            self._dpengines.append(system_dpe)
+            tracker_dpe = DPengine(DPtree(self.selftracker))
+            self._dpengines.append(tracker_dpe)
 
             # We set the system_dpe as a class variable so that all DPengine instances can 
             # log their performance data
-            DPengine._set_system_dpe(system_dpe)
+            DPtreeNode._score_dp = self.selftracker
+            DPengine._scorp_dp = self.selftracker
 
             self._orchestrator_is_running = False
 
@@ -99,23 +104,40 @@ class EdgeOrchestrator:
         return status
 
     def load_config(self) -> None:
-        """Load the sensor and data processor config into the EdgeOrchestrator"""
+        """Load the sensor and data processor config into the EdgeOrchestrator by calling
+        the DeviceCfg.dp_trees_create_method()."""
+        self.dp_trees = self._safe_call_create_method(root_cfg.my_device.dp_trees_create_method)
+        for dptree in self.dp_trees:
+            sensor = dptree.sensor
+            if sensor in self._sensorThreads:
+                logger.error(f"{root_cfg.RAISE_WARN()}Sensor already added: {sensor!r}")
+                logger.info(self.status())
+                raise ValueError(f"Sensor already added: {sensor!r}")
+            self._sensorThreads.append(sensor)
+            self._dpengines.append(DPengine(dptree))
 
-        if root_cfg.my_device.dp_trees:
-            if not isinstance(root_cfg.my_device.dp_trees, list):
-                root_cfg.my_device.dp_trees = [root_cfg.my_device.dp_trees]
+    @staticmethod
+    def _safe_call_create_method(create_method: Optional[Callable]) -> list[DPtree]:
+        """Call the create method and return the DPtree object.
+        Raises ValueError if the create method does not successfully create any DPtree objects."""
+        if create_method is None:
+            logger.error(f"{root_cfg.RAISE_WARN()}create_method not defined for {root_cfg.my_device_id}")
+            raise ValueError(f"create_method not defined for {root_cfg.my_device_id}")
 
-            for dptree in root_cfg.my_device.dp_trees:
-                sensor = dptree.sensor
-                if sensor in self._sensorThreads:
-                    logger.info(self.status())
-                    raise ValueError(f"Sensor already added: {sensor!r}")
-                self._sensorThreads.append(sensor)
-                self._dpengines.append(DPengine(dptree))
+        logger.info(f"Creating DP trees for {root_cfg.my_device_id} using {create_method}")
+        dp_trees: list[DPtree] = create_method()
 
-        else:
-            logger.error(f"{root_cfg.RAISE_WARN()}No sensors defined for {root_cfg.my_device_id}")
+        if not dp_trees:
+            logger.error(f"{root_cfg.RAISE_WARN()}No sensors created by {root_cfg.my_device_id} "
+                            f"{create_method}")
+            raise ValueError(f"No sensors created by {create_method}")
 
+        if not isinstance(dp_trees, list):
+            logger.error(f"{root_cfg.RAISE_WARN()}create_method must return a list; "
+                         f"created {dp_trees.__type__}")
+            raise ValueError("create_method must return a list of DPtree objects")
+        
+        return dp_trees
 
     #########################################################################################################
     #
@@ -130,11 +152,11 @@ class EdgeOrchestrator:
         # The orchestrator monitors it's own status and will re-register all Sensors and Datastreams.
 
 
-    def _get_sensor(self, sensor_type: str, sensor_index: int) -> Optional[Sensor| None]:
+    def _get_sensor(self, sensor_type: str, sensor_index: int) -> Optional[Sensor | None]:
         """Private method to get a sensor by type & index"""
         logger.debug(f"_get_sensor {sensor_type} {sensor_index} from {self._sensorThreads}")
         for sensor in self._sensorThreads:
-            if (sensor._sensor_type == sensor_type) and (sensor._sensor_index == sensor_index):
+            if (sensor.config.sensor_type == sensor_type) and (sensor.sensor_index == sensor_index):
                 return sensor
         return None
 
@@ -383,7 +405,6 @@ def main() -> None:
         orchestrator = EdgeOrchestrator.get_instance()
         if orchestrator.is_running() or orchestrator._orchestrator_is_running:
             logger.warning("SensorCore is already running; exiting")
-            orchestrator = None
             return
 
         orchestrator.load_config()

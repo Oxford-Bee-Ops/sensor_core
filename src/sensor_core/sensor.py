@@ -8,9 +8,8 @@ import threading
 from abc import ABC, abstractmethod
 
 from sensor_core import configuration as root_cfg
-from sensor_core.dp_tree_node_types import SensorCfg
+from sensor_core.dp_config_object_defs import SensorCfg
 from sensor_core.dp_tree_node import DPtreeNode
-from sensor_core.utils import file_naming
 
 logger = root_cfg.setup_logger("sensor_core")
 
@@ -19,6 +18,7 @@ logger = root_cfg.setup_logger("sensor_core")
 # Super class that implements a thread to read the sensor data
 #############################################################################################################
 class Sensor(threading.Thread, DPtreeNode, ABC):
+    
     def __init__(self, config: SensorCfg) -> None:
         """Initialise the Sensor superclass.
 
@@ -35,18 +35,10 @@ class Sensor(threading.Thread, DPtreeNode, ABC):
         logger.info(f"Initialise sensor {self!r}")
 
         self.config = config
-        self.data_id = file_naming.create_data_id(
-            root_cfg.my_device_id, self.config.type_id, config.sensor_index
-        )
 
         # We set the daemon status to true so that the thread continues to run in the background
         self.daemon = False
         self.stop_requested = False
-
-    def get_data_id(self):
-        """Return the unique data ID for this sensor."""
-        return self.data_id
-    
 
     def start(self) -> None:
         """Start the sensor thread - this method must not be subclassed"""

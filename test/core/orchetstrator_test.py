@@ -1,24 +1,24 @@
 from threading import Thread
 from time import sleep
+import logging
 
 import pytest
-from example import my_fleet_config
-from example.my_config_object_defs import EXAMPLE_FILE_DS_TYPE, EXAMPLE_LOG_DS_TYPE, ExampleSensorCfg
+from example.my_fleet_config import INVENTORY
+from example.my_sensor_example import EXAMPLE_FILE_DS_TYPE_ID
 from sensor_core import api, edge_orchestrator
 from sensor_core import configuration as root_cfg
-from sensor_core.config_objects import DeviceCfg, SensorDsCfg
 from sensor_core.edge_orchestrator import EdgeOrchestrator
 from sensor_core.sensor_core import SensorCore
 from sensor_core.utils import sc_test_emulator
 
-logger = root_cfg.setup_logger("sensor_core")
+logger = root_cfg.setup_logger("sensor_core", level=logging.DEBUG)
 
 
 class Test_Orchestrator:
     @pytest.mark.quick
     def test_SensorCore_status(self) -> None:
         sc = SensorCore()
-        sc.configure(my_fleet_config.INVENTORY)
+        sc.configure(INVENTORY)
         message = sc.status()
         logger.info(message)
         assert message is not None
@@ -33,23 +33,7 @@ class Test_Orchestrator:
             root_cfg.update_my_device_id("d01111111111")
 
             sc = SensorCore()
-            sc.configure(
-                [DeviceCfg(  # This is the DUMMY MAC address for windows
-                    name="Alex",
-                    device_id="d01111111111",
-                    notes="Using Alex as an all-defaults camera in Experiment A",
-                    dp_trees=[
-                        SensorDsCfg(
-                            sensor_cfg=ExampleSensorCfg(sensor_index=1),
-                            datastream_cfgs=[
-                                EXAMPLE_LOG_DS_TYPE,
-                                EXAMPLE_FILE_DS_TYPE,
-                            ],
-                        )
-                    ],
-                )]
-            )
-                
+            sc.configure(INVENTORY)
 
             orchestrator = EdgeOrchestrator.get_instance()
             orchestrator.load_config()
@@ -63,7 +47,9 @@ class Test_Orchestrator:
             # The files will have been pushed to the cloud, so we need to get 
             # the modified data on each journal.
             th.assert_records("sensor-core-journals",
-                            {"V3_DUMML*": 1, "V3_DUMMF*": 1, "V3_DUMMD*": 1})
+                            {"V3_DUMML*": 1, "V3_DUMMD*": 1})
+            th.assert_records("sensor-core-upload",
+                            {"V3_DUMMF*": 1})
             th.assert_records("sensor-core-system-records",
                             {"V3_SCORE*": 1, "V3_SCORP*": 1})
             th.assert_records("sensor-core-fair",
@@ -104,7 +90,7 @@ class Test_Orchestrator:
 
             # Sensor fails; factory_thread should restart everything after 1s
             logger.info("sensor_test: # Sensor fails; factory_thread should restart everything after 1s")
-            sensor = orchestrator._get_sensor(ExampleSensorCfg.sensor_type, 1)
+            sensor = orchestrator._get_sensor(EXAMPLE_FILE_DS_TYPE_ID, 1)
             assert sensor is not None
             orchestrator.sensor_failed(sensor)
             assert not orchestrator._orchestrator_is_running

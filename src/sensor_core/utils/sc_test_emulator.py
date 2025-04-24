@@ -33,6 +33,7 @@ class ScTestRecording():
 class ScEmulator():
     """The test harness enables thorough testing of the sensor code without RPi hardware."""
     _instance = None
+    ONE_OR_MORE = -1
 
     @staticmethod
     def get_instance() -> "ScEmulator":
@@ -91,10 +92,20 @@ class ScEmulator():
         )
         for file_prefix, count in expected.items():
             files = list((self.local_cloud /container).glob(file_prefix))
-            assert len(files) == count, (
-                f"Expected {count} files with prefix {file_prefix}, "
-                f"but found {len(files)} files."
-            )
+            if count == self.ONE_OR_MORE:
+                # Check that at least one file exists with the prefix
+                assert len(files) > 0, (
+                    f"Expected at least one file with prefix {file_prefix}, "
+                    f"but found no files."
+                )
+            else:
+                # Check that the exact number of files exists with the prefix
+                 # We use len(files) == count to check for exact match
+                 # This is because we may have multiple recordings of the same type
+                assert len(files) == count, (
+                    f"Expected {count} files with prefix {file_prefix}, "
+                    f"but found {len(files)} files."
+                )
 
     ##################################################################################################
     # Internal implementation functions

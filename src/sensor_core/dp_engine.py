@@ -12,10 +12,9 @@ import yaml
 from sensor_core import api
 from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import CloudConnector
-from sensor_core.dp_tree_node_types import DataProcessorCfg, SensorCfg
 from sensor_core.configuration import Mode
 from sensor_core.data_processor import DataProcessor
-from sensor_core.device_health import DEVICE_HEALTH_CFG
+from sensor_core.dp_config_object_defs import DataProcessorCfg, SensorCfg, Stream
 from sensor_core.dp_tree import DPtree
 from sensor_core.dp_tree_node import DPtreeNode
 from sensor_core.utils import file_naming
@@ -31,6 +30,7 @@ class DPengine(Thread):
     """A DPengine is the thread that processes data through a DPtree.
     Note: the Sensor has a separate thread.
     """
+    _scorp_dp: DPtreeNode
 
     def __init__(
         self,
@@ -66,15 +66,18 @@ class DPengine(Thread):
     def save_FAIR_record(self) -> None:
         """Save a FAIR record describing this Sensor and associated data processing to the FAIR archive.
         """
-        type_id = self.dp_tree.sensor.config.type_id
+        logger.debug("Save FAIR record for {self}")
+        
         # We don't save FAIR records for system datastreams
-        if type_id == DEVICE_HEALTH_CFG.type_id:
+        if self.dp_tree.sensor.config.sensor_type == "SYS":
             return
+
+        sensor_model = self.dp_tree.sensor.config.sensor_model
 
         # Wrap the "record" data in a FAIR record
         wrap: dict[str, dict | str | list] = {}
         wrap[api.RECORD_ID.VERSION.value] = "V3"
-        wrap[api.RECORD_ID.DATA_TYPE_ID.value] = type_id
+        wrap[api.RECORD_ID.DATA_TYPE_ID.value] = sensor_model
         wrap[api.RECORD_ID.DEVICE_ID.value] = self.device_id
         wrap[api.RECORD_ID.SENSOR_INDEX.value] = str(self.sensor_index)
         wrap[api.RECORD_ID.TIMESTAMP.value] = api.utc_to_iso_str()
@@ -85,14 +88,14 @@ class DPengine(Thread):
         wrap["fleet"] = list(root_cfg.INVENTORY.keys())
 
         # Save the FAIR record as a YAML file to the FAIR archive
-        tmp_file = file_naming.get_temporary_filename(suffix="yaml")
-        Path(tmp_file).parent.mkdir(parents=True, exist_ok=True)
-        with open(tmp_file, "w") as f:
+        fair_fname = file_naming.get_FAIR_filename(sensor_model, self.sensor_index, suffix="yaml")
+        Path(fair_fname).parent.mkdir(parents=True, exist_ok=True)
+        with open(fair_fname, "w") as f:
             yaml.dump(wrap, f)
         CloudConnector.get_instance().upload_to_container(root_cfg.my_device.cc_for_fair,
-                                                          [tmp_file], delete_src=True)
+                                                          [fair_fname], delete_src=True)
 
-    def log_sample_data(self, sample_period_start_time: datetime, dpnode: DPtreeNode) -> None:
+    def log_sample_data(self, sample_period_start_time: datetime) -> None:
         """Provide the count & duration of data samples recorded (environmental, media, etc)
         since the last time log_sample_data was called.
 
@@ -100,7 +103,7 @@ class DPengine(Thread):
         """
         # We need to traverse all nodes in the tree and call log_sample_data on each node
         for node in self.dp_tree._nodes.values():
-            node.log_sample_data(sample_period_start_time, dpnode)
+            node.log_sample_data(sample_period_start_time)
 
     def get_sensor_cfg(self) -> Optional[SensorCfg]:
         """Return the SensorCfg object for this Datastream"""
@@ -122,6 +125,7 @@ class DPengine(Thread):
         if self.dpe_start_time is None:
             self.dpe_start_time = api.utc_now()
             # Call our superclass Thread start() method which schedule our run() method
+            logger.info(f"Starting DPengine {self} in {root_cfg.get_mode()} mode")
             super().start()
         else:
             logger.warning(f"{root_cfg.RAISE_WARN()}Datastream {self} already started.")
@@ -139,7 +143,7 @@ class DPengine(Thread):
             if root_cfg.get_mode() == Mode.EDGE:
                 self.edge_run()
             else:
-                self.etl_run()
+                assert False, "ETL mode not implemented yet"
         except Exception as e:
             logger.error(f"{root_cfg.RAISE_WARN()}Error running {self!r}: {e!s}", 
                          exc_info=True)
@@ -153,21 +157,19 @@ class DPengine(Thread):
 
         # If there are no data processors, we can exit the thread because data will be saved 
         # directly to the cloud
-        if len(self.dp_tree.get_processors() == 0):
+        if len(self.dp_tree.get_processors()) == 0:
             logger.debug(f"No DataProcessors registered; exiting DPengine loop; {self!r}")
             return
 
         while not self._stop_requested:
             start_time = api.utc_now()
-            input_df: Optional[pd.DataFrame] = None
-            dp: DataProcessor
-            dp_config: DataProcessorCfg
 
-            for dp in enumerate(self.dp_tree.get_processors()):
+            for edge in self.dp_tree.get_edges():
                 try:
                     exec_start_time = api.utc_now()
-                    output_df: Optional[pd.DataFrame] = None
-                    dp_config = dp.get_config()
+                    assert isinstance(edge, DataProcessorCfg)
+                    dp: DataProcessor = edge.sink
+                    stream = edge.stream
 
                     #########################################################################################
                     # Invoke the DataProcessor
@@ -176,30 +178,23 @@ class DPengine(Thread):
                     # The first DP may be invoked with recording files (jpg, h264, wav, etc) or a CSV
                     # as defined in the dp_config
                     #########################################################################################
-                    if dp_config.input_stream.format == "df":
-                        assert input_df is not None, "input_df is null on df run"
-                        logger.debug(f"Invoking {dp} with {input_df}")
-                        output_df = dp.process_data(self, input_df, self._get_context(dp_config))
-                    elif dp_config.input_stream.format == "csv":
-                        assert input_df is None, "input_df not null on csv run"
+                    if stream.format in ["df", "csv"]:
                         # Find and load CSVs as DFs
-                        input_df = self._get_csv_as_df()
+                        input_df = self._get_csv_as_df(stream)
                         if input_df is not None:
                             logger.debug(f"Invoking {dp} with {input_df}")
-                            output_df = dp.process_data(self, input_df, self._get_context(dp_config))
+                            dp.process_data(input_df)
                     else:
-                        assert input_df is None, "input_df not null on file run"
                         # DPs may process recording files
-                        input_files = self._get_ds_files(dp)
+                        input_files = self._get_ds_files(stream)
                         if input_files is not None and len(input_files) > 0:
-                            logger.debug(f"Invoking {dp} with {input_files}")
-                            output_df = dp.process_data(self,
-                                                            input_data=input_files, 
-                                                            context=self._get_context(dp_config))
+                            logger.debug(f"Invoking {dp} with {len(input_files)} files")
+                            dp.process_data(input_files)
+
                             # Clear up the files now they've been processed.
                             # Any files that were meant to be uploaded will have been moved directly
                             # to the upload directory.
-                            # Sampling is done on initial save_recording.
+                            # Sampling is done on the initial save_recording.
                             for f in input_files:
                                 if f.exists():
                                     try:
@@ -208,30 +203,23 @@ class DPengine(Thread):
                                         logger.error(f"{root_cfg.RAISE_WARN()}Failed to unlink {f} {e!s}", 
                                                      exc_info=True)
 
-                    # Validate the output_df before passing it to the next DP in the chain
-                    if output_df is not None:
-                        input_df = self._validate_output(output_df, dp)
-
                     # Log the processing time
                     exec_time = api.utc_now() - exec_start_time
-                    self._scorp_dp.log(
-                        {
-                            "mode": Mode.EDGE.value,
-                            "observed_type_id": dp_config.type_id,
-                            "observed_sensor_index": self.sensor_index,
-                            "duration": exec_time.total_seconds(),
-                        }
-                    )
+                    if DPengine._scorp_dp is not None:
+                        DPengine._scorp_dp.log(
+                            stream_index=api.SCORP_STREAM_INDEX,
+                            sensor_data={
+                                "mode": Mode.EDGE.value,
+                                "observed_type_id": stream.type_id,
+                                "observed_sensor_index": self.sensor_index,
+                                "duration": exec_time.total_seconds(),
+                            }
+                        )
                 except Exception as e:
                     logger.error(
                         f"{root_cfg.RAISE_WARN()}Error processing files for {self}. e={e!s}",
                         exc_info=True,
                     )
-
-            # We've exited the DataProcessor chain.  Save any resulting data.
-            if input_df is not None and len(input_df) > 0:
-                logger.debug(f"Saving data from {dp_config.type_id} to journal")
-                self.journal_pool.add_rows_from_df(self.ds_config, input_df, api.utc_now())
 
             # We want to run this loop every minute, so see how long it took us since the start_time
             sleep_time = RUN_FREQUENCY_SECS - (api.utc_now() - start_time).total_seconds()
@@ -239,96 +227,44 @@ class DPengine(Thread):
             if sleep_time > 0:
                 sleep(sleep_time)
 
-    #########################################################################################################
-    #
-    # Private methods used in support of DataProcessors
-    #
-    #########################################################################################################
-    def _validate_output(
-        self, output_data: Optional[pd.DataFrame], dp: DataProcessor
-    ) -> Optional[pd.DataFrame]:
-        if output_data is None or output_data.empty:
-            logger.debug(f"No output from {dp}")
-            return None
-
-        # Output DFs must always contain the core RECORD_ID fields
-        # If not already present, add the RECORD_ID fields to the output_df
-        for field in api.REQD_RECORD_ID_FIELDS:
-            if field not in output_data.columns:
-                if field == api.RECORD_ID.VERSION.value:
-                    output_data[field] = "V3"
-                elif field == api.RECORD_ID.TIMESTAMP.value:
-                    output_data[field] = api.utc_to_iso_str()
-                elif field == api.RECORD_ID.DEVICE_ID.value:
-                    output_data[field] = self.device_id
-                elif field == api.RECORD_ID.SENSOR_INDEX.value:
-                    output_data[field] = self.sensor_index
-                elif field == api.RECORD_ID.DATA_TYPE_ID.value:
-                    output_data[field] = self.ds_config.type_id
-
-        # Check the values in the RECORD_ID are not nan or empty
-        for field in api.REQD_RECORD_ID_FIELDS:
-            if not output_data[field].notna().all():
-                err_str = f"{root_cfg.RAISE_WARN()}{field} contains NaN or empty values in output_df {dp}"
-                logger.error(err_str)
-                raise Exception(err_str)
-
-        # Warn about superfluous fields that will get dropped
-        for field in output_data.columns:
-            if (
-                (dp.config.output_fields is not None)
-                and (field not in dp.config.output_fields)
-                and (field not in api.ALL_RECORD_ID_FIELDS)
-            ):
-                logger.warning(
-                    f"{field} in output from {dp} but not in defined fields: {dp.config.output_fields}"
-                )
-
-        # Output DF should contain the fields defined by the DP's output_fields list.
-        assert dp.config.output_fields is not None and len(dp.config.output_fields) > 0
-        for field in dp.config.output_fields:
-            if field not in output_data.columns:
-                err_str = (f"{root_cfg.RAISE_WARN()}{field} missing from output_df on "
-                           f"{dp}: {output_data.columns}")
-                logger.error(err_str)
-                raise Exception(err_str)
-
-        return output_data
-
-    def _get_ds_files(self, dp: DataProcessor) -> Optional[list[Path]]:
+    def _get_ds_files(self, stream: Stream) -> Optional[list[Path]]:
         """Find any files that match the requested Datastream (type, device_id & sensor_index)"""
         if root_cfg.get_mode() == Mode.EDGE:
             src = root_cfg.EDGE_PROCESSING_DIR
         else:
             src = root_cfg.ETL_PROCESSING_DIR
-        files = list(src.glob(f"*{self.ds_id}*.{dp.config.input_format}"))
+        data_id = stream.get_data_id(self.sensor_index)
+        files = list(src.glob(f"*{data_id}*.{stream.format}"))
 
         # We must return only files that are not currently being written to
         # Do not return files modified in the last few seconds
         now = api.utc_now().timestamp()
         files = [f for f in files if (now - f.stat().st_mtime) > 5]
 
-        logger.debug(f"_get_ds_files returning {files}")
+        logger.debug(f"_get_ds_files returning {len(files)} files for {data_id}")
         return files
 
-    def _get_csv_as_df(self) -> Optional[pd.DataFrame]:
+    def _get_csv_as_df(self, stream: Stream) -> Optional[pd.DataFrame]:
         """Get the first CSV file that matches this Datastream's DatastreamType as a DataFrame"""
         if root_cfg.get_mode() == Mode.EDGE:
             src = root_cfg.EDGE_PROCESSING_DIR
         else:
             src = root_cfg.ETL_PROCESSING_DIR
 
-        csv_files = src.glob(f"*{self.ds_config.type_id}*.csv")
+        data_id = stream.get_data_id(self.sensor_index)
+        csv_files = src.glob(f"*{data_id}*.csv")
 
+        df_list = []
         for csv_file in csv_files:
             try:
-                df = pd.read_csv(csv_file)
-                return df
+                df_list.append(pd.read_csv(csv_file))
             except Exception as e:
                 logger.error(f"{root_cfg.RAISE_WARN()}Error reading CSV file {csv_file}: {e}", exc_info=True)
-        return None
-
-    @staticmethod
-    def _set_scorp_dp(scorp_dp: DPtreeNode) -> None:
-        """Called by EdgeOrchestrator to set the observability Datastream that monitors activity."""
-        DPengine._scorp_dp = scorp_dp
+        
+        # Concat all DataFrames into one
+        if df_list:
+            df = pd.concat(df_list, ignore_index=True)
+            logger.debug(f"Loaded {len(df)} rows from CSV files for {data_id}")
+        else:
+            logger.debug(f"No CSV files found for {data_id}")
+        return df

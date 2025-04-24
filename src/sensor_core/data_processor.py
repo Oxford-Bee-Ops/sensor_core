@@ -2,14 +2,12 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
 
 import pandas as pd
 
 from sensor_core import configuration as root_cfg
-from sensor_core.dp_tree_node_types import DataProcessorCfg
+from sensor_core.dp_config_object_defs import DataProcessorCfg
 from sensor_core.dp_tree_node import DPtreeNode
-from sensor_core.utils import file_naming
 
 logger = root_cfg.setup_logger("sensor_core")
 
@@ -34,37 +32,26 @@ class DataProcessor(DPtreeNode, ABC):
                  config: DataProcessorCfg,
                  sensor_index: int, 
     ) -> None:
-        super.__init__(self, config, sensor_index)
+        DPtreeNode.__init__(self, config, sensor_index)
         self.config = config
 
-    def get_data_id(self):
-        return file_naming.create_data_id(root_cfg.my_device_id, 
-                                        self.config.type_id, 
-                                        self.sensor_index, 
-                                        self.config.node_index)
 
     @abstractmethod
     def process_data(
         self, 
         input_data: pd.DataFrame | list[Path],
-    ) -> Optional[pd.DataFrame]:
-        """This function processes data as described in the Datastream.
+    ) -> None:
+        """Subclasses of this method provide custom processing of sensor data.
 
-        In simple chaining, the DataProcessor is provided with an input_data DataFrame and returns an output
-        DataFrame that will be passed to the next DataProcessor defined in the chain, or archived if this is
-        the last DP.
-
-        DPs on File-type Datastreams may be passed lists of files as input.
-        DPs on File-type Datastreams may also save processed recordings (using ds.save_sub_recordings()) 
-        rather than return a DataFrame.
-
-        A DP may also save data via a derived Datastream if previously registered 
-        (via define_derived_datastreams).
-
-        Every row in a DataFrame returned by this method must contain the bapi.RECORD_ID fields.
-        If input_data was a DataFrame, these fields will be present.
-        if input_data was a list of files, the DP can use Datastream.parse_filename(f) to get a dict
-        with the required fields (as keys) and values.
+        DPs may be invoked with either a DataFrame or a list of files.
+        DPs can save output by calling:
+        - self.log()
+        - self.save_data()
+            - Every row in the DataFrame must contain the api.REQD_RECORD_ID_FIELDS.
+        - self.save_recording()
+            - To save a recording as a file (eg an image).
+        - self.save_sub_recording()
+            - To save a sub-recording as a file (eg a sub sample of a video).
 
         All DataProcessors must subclass this method.
         """

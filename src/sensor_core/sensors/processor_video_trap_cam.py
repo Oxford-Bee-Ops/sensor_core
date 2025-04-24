@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
 from typing import Optional
@@ -5,62 +6,76 @@ from typing import Optional
 import cv2
 import pandas as pd
 
-from sensor_core import DataProcessor, DpContext, DPengine, api
+from sensor_core import api
 from sensor_core import configuration as root_cfg
-from sensor_core.sensors.config_object_defs import TrapCamProcessorCfg
+from sensor_core.data_processor import DataProcessor
+from sensor_core.dp_config_object_defs import DataProcessorCfg, Stream
 from sensor_core.utils import file_naming
 
 logger = root_cfg.setup_logger("sensor_core")
 
+TRAPCAM_DS_TYPE_ID = "TRAPCAM"
+TRAPCAM_STREAM_INDEX: int = 0
+
+@dataclass
+class TrapCamProcessorCfg(DataProcessorCfg):
+    ########################################################################
+    # Add custom fields
+    ########################################################################
+    min_blob_size: int = 1000  # Minimum blob size in pixels
+    max_blob_size: int = 1000000  # Maximum blob size in pixels
+
+DEFAULT_TRAPCAM_PROCESSOR_CFG = TrapCamProcessorCfg(
+    description="Video processor that detects movement in video files and saves segments with movement.",
+    outputs=[
+        Stream(
+            type_id=TRAPCAM_DS_TYPE_ID,
+            index=TRAPCAM_STREAM_INDEX,
+            format="mp4",
+            cloud_container="sensor-core-upload",
+            description="Video samples with movement detected.",
+        )
+    ],
+    sample_probability="0.1",
+    sample_container="sensor-core-upload",
+    min_blob_size=1000,
+    max_blob_size=1000000,
+)
+
 class ProcessorVideoTrapCam(DataProcessor):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, config: TrapCamProcessorCfg, sensor_index: int) -> None:
+        super().__init__(config, sensor_index=sensor_index)
+        self.config: TrapCamProcessorCfg = config
         self.kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
         self.background_subtractor = cv2.createBackgroundSubtractorMOG2()
 
     def process_data(
         self, 
-        datastream: DPengine,
         input_data: pd.DataFrame | list[Path],
-        context: DpContext
-    ) -> Optional[pd.DataFrame]:
+    ) -> None:
         """Process a list of video files and resave video segments with movement."""
 
         assert isinstance(input_data, list), f"Expected list of files, got {type(input_data)}"
         files: list[Path] = input_data
-        assert isinstance(context.dp, TrapCamProcessorCfg)
-        dp_cfg: TrapCamProcessorCfg = context.dp
-        min_blob_size = dp_cfg.min_blob_size
-        max_blob_size = dp_cfg.max_blob_size
-
-        # We save the processed video segments to a derived datastream
-        derived_ds = self.get_derived_datastreams()[0]
-        assert derived_ds is not None, (
-            f"Derived datastream not found for {datastream.ds_id}"
-        )
+        min_blob_size = self.config.min_blob_size
+        max_blob_size = self.config.max_blob_size
 
         for f in files:
             try:
                 logger.info(f"Processing video file: {f!s}")
-                self.process_video(derived_ds, f, min_blob_size, max_blob_size)
+                self.process_video(f, min_blob_size, max_blob_size)
             except Exception as e:
                 logger.error(
                     f"{root_cfg.RAISE_WARN()}Exception occurred processing video {f!s}; {e!s}",
                     exc_info=True,
                 )
-        return None
 
     def process_video(self, 
-                      derived_ds: DPengine, 
                       video_path: Path, 
                       min_blob_size: int, 
                       max_blob_size: int) -> None:
         """ Process a video file to detect movement and save segments with movement. 
         We record for a minimum of 2 seconds after movement is detected."""
-        assert video_path.suffix[1:] == derived_ds.ds_config.input_format, (
-            f"Video file suffix {video_path.suffix} doesn't match "
-            f"expected format {derived_ds.ds_config.input_format}"
-        )
 
         cap = cv2.VideoCapture(str(video_path))
         if not cap.isOpened():
@@ -104,8 +119,9 @@ class ProcessorVideoTrapCam(DataProcessor):
                     sample_end_time = start_time + timedelta(seconds=(current_frame / fps))
                     sample_duration = (sample_end_time - sample_start_time).total_seconds()
                     if (sample_last_movement_frame - sample_first_frame) > discard_threshold:
-                        derived_ds.save_recording(
-                            temp_filename,
+                        self.save_recording(
+                            stream_index=TRAPCAM_STREAM_INDEX,
+                            temporary_file=temp_filename,
                             start_time=sample_start_time,
                             end_time=sample_end_time,
                         )
@@ -129,7 +145,7 @@ class ProcessorVideoTrapCam(DataProcessor):
                     # Not currently recording; start recording
                     sample_first_frame = current_frame
                     sample_last_movement_frame = current_frame
-                    temp_filename=file_naming.get_temporary_filename(derived_ds.ds_config.input_format)
+                    temp_filename=file_naming.get_temporary_filename("mp4")
                     output_stream = cv2.VideoWriter(
                         filename=str(temp_filename),
                         fourcc=fourcc,
@@ -159,9 +175,10 @@ class ProcessorVideoTrapCam(DataProcessor):
                         sample_duration = (sample_end_time - sample_start_time).total_seconds()
                         if (sample_last_movement_frame - sample_first_frame) > discard_threshold:
                             # Save the video segment to the derived datastream
-                            logger.info(f"Saving video of {sample_duration}s to {derived_ds.name}")
-                            derived_ds.save_recording(
-                                temp_filename,
+                            logger.info(f"Saving video of {sample_duration}s to {self}")
+                            self.save_recording(
+                                stream_index=TRAPCAM_STREAM_INDEX,
+                                temporary_file=temp_filename,
                                 start_time=sample_start_time,
                                 end_time=sample_end_time,
                             )

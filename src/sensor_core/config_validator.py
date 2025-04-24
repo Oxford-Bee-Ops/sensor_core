@@ -1,26 +1,26 @@
 ####################################################################################################
 # The config_validator is used to validate SensorCore configuration files (eg fleet_config.py).
 ####################################################################################################
-import importlib
 from abc import ABC, abstractmethod
 
 from sensor_core import api
 from sensor_core.cloud_connector import CloudConnector
-from sensor_core.config_objects import DeviceCfg
 from sensor_core.dp_tree import DPtree
 from sensor_core.dp_tree_node import DPtreeNode
-from sensor_core.dp_tree_node_types import Stream
+from sensor_core.sensor import Sensor, SensorCfg
+from sensor_core import configuration as root_cfg
 
+logger = root_cfg.setup_logger("sensor_core")
 
 class ValidationRule(ABC):
     """ Base class for validation rules. Extend this class to implement specific rules. """
     @abstractmethod
-    def validate(self, inventory: list[DeviceCfg]) -> tuple[bool, str]:
+    def validate(self, dpnode: DPtreeNode) -> tuple[bool, str]:
         """
         Validate the configuration.
 
         Args:
-            config (dict): The configuration to validate.
+            dpnode (DPtreeNode): The configuration to validate.
 
         Returns:
             tuple: (bool, str) where the boolean indicates success (True) or failure (False),
@@ -31,84 +31,112 @@ class ValidationRule(ABC):
 ###########################################################################################################
 # Start with the device-level validation rules.
 ###########################################################################################################
-class Rule1_device_id(ValidationRule):
-    def validate(self, inventory: list[DeviceCfg]) -> tuple[bool, str]:
-        for device in inventory:
-            if not device.device_id:
-                return (False, f"Device ID missing for ({device}).")
-            if len(device.device_id) != 12:
-                return (False, f"Device ID ({device.device_id}) must be 12 characters long.")
+
+# Rule 1: check that the outputs list is not empty
+class Rule1_outputs_not_empty(ValidationRule):
+    def validate(self, dpnode: DPtreeNode) -> tuple[bool, str]:
+        outputs: list = dpnode.get_config().outputs
+        if outputs is None or len(outputs) == 0:
+            return False, (
+                f"Outputs list is empty in {dpnode}: "
+                "all DPtree nodes must have at least one output.")
         return True, ""
-    
-class Rule2_not_none(ValidationRule):
-    def validate(self, inventory: list[DeviceCfg]) -> tuple[bool, str]:
-        for device in inventory:
-            if not device.dp_trees:
+
+# Rule 2: check that the sensor model is set for all datastreams
+class Rule2_sensor_model_set(ValidationRule):
+    def validate(self, dpnode: DPtreeNode) -> tuple[bool, str]:
+        if isinstance(dpnode, Sensor):
+            sensor: SensorCfg = dpnode.get_config()
+            if sensor.sensor_model is None or sensor.sensor_model == root_cfg.FAILED_TO_LOAD:
                 return False, (
-                    f"sensor_ds_list missing for ({device.device_id})"
-                    f" in DeviceCfg ({device.name})."
+                    f"Sensor model not set in {sensor.sensor_type} {sensor}"
+                )
+        return True, ""
+
+# Rule 3: no _ in any stream type_id
+class Rule3_no_underscore_in_type_id(ValidationRule):
+    def validate(self, dpnode: DPtreeNode) -> tuple[bool, str]:
+        outputs = dpnode.get_config().outputs
+        if outputs:
+            for stream in outputs:
+                if "_" in stream.type_id:
+                    return False, (
+                        f"Underscore found in type_id {stream.type_id} in {dpnode}. "
+                        f"type_id must not contain underscores."
                     )
         return True, ""
 
-# Rule4: check that cloud_container is set on all datastreams other than type CSV
+# Rule4: check that cloud_container is set on all datastreams other than type log / df / csv
 class Rule4_cloud_container_specified(ValidationRule):
-    def validate(self, inventory: list[DeviceCfg]) -> tuple[bool, str]:
-        for device in inventory:
-            dptree: DPtree
-            for dptree in device.dp_trees:
-                pass
+    def validate(self, dpnode: DPtreeNode) -> tuple[bool, str]:
+        outputs = dpnode.get_config().outputs
+        if outputs:
+            for stream in outputs:
+                if stream.format not in ["log", "df", "csv"]:
+                    if (stream.cloud_container is None or 
+                        len(stream.cloud_container) < 2 or
+                        stream.cloud_container == "Not set"):
+                        return False, (
+                            f"cloud_container not set in {dpnode}"
+                        )
         return True, ""
 
 # Rule5: check that all cloud_containers exist in the blobstore using cloud_connector.container_exists()
 class Rule5_cloud_container_exists(ValidationRule):
-    def validate(self, inventory: list[DeviceCfg]) -> tuple[bool, str]:
+    def validate(self, dpnode: DPtreeNode) -> tuple[bool, str]:
         cc = CloudConnector.get_instance()
-        for device in inventory:
-
-            if not cc.container_exists(device.cc_for_upload):
-                return False, (
-                    f"cc_for_upload {device.cc_for_upload} for {device.device_id} does not exist"
-                    )
-            if not cc.container_exists(device.cc_for_journals):
-                return False, (
-                    f"cc_for_journals {device.cc_for_journals} for {device.device_id} does not exist"
-                    )
-            if not cc.container_exists(device.cc_for_system_records):
-                return False, (
-                    f"cc_for_system_records {device.cc_for_system_records} for "
-                    f"{device.device_id} does not exist"
-                    )
-            if not cc.container_exists(device.cc_for_fair):
-                return False, (
-                    f"cc_for_fair {device.cc_for_fair} for {device.device_id} does not exist"
-                    )
-            
-            # Check the Datastream's cloud_container
-            # @@@
+        outputs = dpnode.get_config().outputs
+        if outputs:
+            for stream in outputs:
+                if stream.format not in ["log", "df", "csv"]:
+                    # Check the Datastream's cloud_container exists
+                    if (stream.cloud_container is not None and 
+                        not cc.container_exists(stream.cloud_container)):
+                        return False, (
+                            f"cloud_container {stream.cloud_container} does not exist in "
+                            f"{dpnode}"
+                        )
         return True, ""
 
-# Rule 6: any datastream of type CSV or DF must have output_fields set
+# Rule 6: any datastream of type log, csv or df must have output fields set
 class Rule6_csv_output_fields(ValidationRule):
-    def validate(self, inventory: list[DeviceCfg]) -> tuple[bool, str]:
+    def validate(self, dpnode: DPtreeNode) -> tuple[bool, str]:
+        outputs = dpnode.get_config().outputs
+        if outputs:
+            for stream in outputs:
+                if stream.format in ["log", "df", "csv"]:
+                    if stream.fields is None or len(stream.fields) == 0:
+                        return False, (
+                            f"output fields not set in {dpnode} for {stream.type_id}"
+                        )
         return True, ""
 
 # Rule 7: don't declare field names that are in use for record_id fields
 class Rule7_reserved_fieldnames(ValidationRule):
-    def validate(self, inventory: list[DeviceCfg]) -> tuple[bool, str]:
-        
+    def validate(self, dpnode: DPtreeNode) -> tuple[bool, str]:
+        outputs = dpnode.get_config().outputs
+        if outputs:
+            for stream in outputs:
+                fields = stream.fields
+                if fields is not None:
+                    for field in fields:
+                        if field in api.ALL_RECORD_ID_FIELDS:
+                            return False, (
+                                f"output field {field} is reserved in {dpnode} for {stream.type_id}"
+                            )
         return True, ""
 
 
 RULE_SET: list[ValidationRule] = [
-    Rule1_device_id(),
-    Rule2_not_none(),
+    Rule1_outputs_not_empty(),
+    Rule2_sensor_model_set(),
     Rule4_cloud_container_specified(),
     Rule5_cloud_container_exists(),
     Rule6_csv_output_fields(),
     Rule7_reserved_fieldnames(),
 ]
 
-def validate(inventory: list[DeviceCfg]) -> tuple[bool, list[str]]:
+def validate(dptree: DPtree) -> tuple[bool, list[str]]:
     """
     Validate the configuration using all added rules.
 
@@ -122,21 +150,19 @@ def validate(inventory: list[DeviceCfg]) -> tuple[bool, list[str]]:
     is_valid = True
     errors = []
 
-    if not inventory:
-        return False, ["No items in the inventory provided; empty list."]
+    if not dptree:
+        return False, ["No tree provided for validation."]
     
-    if not isinstance(inventory, list):
-        return False, ["Inventory is not a list."]
+    if not isinstance(dptree, DPtree):
+        return False, ["dptree is not a DPtree."]
     
-    if not all(isinstance(device, DeviceCfg) for device in inventory):
-        return False, ["Inventory contains non-DeviceCfg objects."]
-
     for rule in RULE_SET:
         try:
-            success, error_message = rule.validate(inventory)
-            if not success:
-                is_valid = False
-                errors.append(error_message)
+            for dpnode in dptree._nodes.values():
+                success, error_message = rule.validate(dpnode)
+                if not success:
+                    is_valid = False
+                    errors.append(error_message)
         except Exception as e:
             is_valid = False
             errors.append(

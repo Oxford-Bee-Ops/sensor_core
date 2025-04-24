@@ -1,5 +1,5 @@
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -11,10 +11,10 @@ import pandas as pd
 from sensor_core import api
 from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import CloudConnector
+from sensor_core.dp_config_object_defs import DPtreeNodeCfg, Stream
 from sensor_core.utils import file_naming
 from sensor_core.utils.journal_pool import JournalPool
 from sensor_core.utils.sc_test_emulator import ScEmulator
-from sensor_core.dp_tree_node_types import DPtreeNodeCfg
 
 logger = root_cfg.setup_logger("sensor_core")
 
@@ -27,10 +27,10 @@ class DPnodeStats:
 
 class DPtreeNode(ABC):
     """Abstract base class for nodes in the DPtree.
-    Sensor, DataProcessor, and Datastream all inherit from this class.
+    Sensor and DataProcessor inherit from this class.
     """
-    _scorp_dp = None  # Special Datastream for recording performance of the data pipeline.
-    _score_dp = None  # Special Datastream for recording sample count / duration from the data pipeline.
+    # Special Datastream for recording sample count / duration from the data pipeline.
+    _score_dp: "DPtreeNode"
 
     def __init__(self, config: DPtreeNodeCfg, sensor_index: int) -> None:
         """
@@ -46,33 +46,52 @@ class DPtreeNode(ABC):
         self._dpnode_children: dict[int, DPtreeNode] = {}  # Dictionary mapping output streams to child nodes.
 
         # Record the number of datapoints recorded by this Datastream
-        self._dpnode_stats: list[DPnodeStats] = []
+        self._dpnode_stats: dict[str, list[DPnodeStats]] = {}
 
         # Create the Journals that we will use to store this DPtree's output.
         self.journal_pool: JournalPool = JournalPool.get(mode=root_cfg.get_mode())
 
 
-    @abstractmethod
-    def get_data_id(self) -> str:
-        """
-        Returns the unique identifier for this node.  Used in filenaming and other data management.
-
-        Returns:
-            The unique identifier for this node.
-        """
-        raise NotImplementedError("get_data_id() must be implemented in subclasses.")
-
-    def is_leaf(self) -> bool:
+    def is_leaf(self, stream_index: int) -> bool:
         """Check if this node is a leaf node (i.e., it has no children).
 
         Returns:
             True if this node is a leaf node, False otherwise.
         """
-        return len(self._dpnode_children) == 0
+        # Although the node may have children, we care about whether there is a child node for the
+        # given stream_index. If there is no child node for this stream, is_leaf == True.
+        return not (stream_index in self._dpnode_children)
 
     def get_config(self) -> DPtreeNodeCfg:
         """Return the configuration for this node."""
         return self._dpnode_config
+
+    def get_stream(self, stream_index: int) -> Stream:
+        """Return the Stream object for the given stream index.
+
+        Args:
+            stream_index: The index of the stream to retrieve.
+
+        Returns:
+            The Stream object for the specified stream index.
+
+        Raises:
+            ValueError: If the stream index is out of range for this node's configuration.
+        """
+        if self._dpnode_config.outputs is None or len(self._dpnode_config.outputs) <= stream_index:
+            raise ValueError(f"Stream index {stream_index} is out of range for {self._dpnode_config}.")
+        return self._dpnode_config.outputs[stream_index]
+
+    def get_data_id(self, stream_index: int) -> str:
+        """Return the data ID for the specified stream.
+
+        Args:
+            stream_index: The index of the requested stream.
+
+        Returns:
+            The data ID for this stream.
+        """
+        return self.get_stream(stream_index).get_data_id(self.sensor_index)
 
     def export(self) -> dict:
         """Export the configuration of this node and all its descendants as a dictionary.
@@ -83,7 +102,7 @@ class DPtreeNode(ABC):
         """
         # Export the configuration of this node as a dictionary.
         # The config is a dataclass, so we can use the __dict__ attribute to get the fields.
-        cfg_export = {}
+        cfg_export: dict[str|int, dict] = {}
         cfg_export["node_cfg"] = asdict(self.get_config())
         cfg_export["children"] = {}
         for child_index, child in self._dpnode_children.items():
@@ -98,44 +117,46 @@ class DPtreeNode(ABC):
     #########################################################################################################
     def log(self, stream_index: int, sensor_data: dict) -> None:
         """Called by Sensor/DataProcessor to log a single 'row' of Sensor-generated data."""
-        data_id = self.get_data_id()
         config = self._dpnode_config
+        stream = config.outputs[stream_index]
+        data_id = self.get_data_id(stream_index)
 
         logger.debug(f"Log sensor_data: {sensor_data} to DPnode:{data_id} stream {stream_index}")
 
         # Check that the fields defined for this DatastreamType are present in the sensor_data
         # If any fields are missing, raise an exception
         log_data = {}
-        if config.outputs[stream_index] is not None:
-            for field in config.outputs[stream_index].fields:
-                if field in api.REQD_RECORD_ID_FIELDS:
-                    continue
-                elif field in sensor_data:
-                    log_data[field] = sensor_data[field]
-                else:
-                    raise Exception(
-                        f"Field {field} missing from data logged to {data_id}; "
-                        f"Expected:{config.input_stream.fields}; "
-                        f"Received the following fields:{sensor_data.keys()}"
-                    )
+        assert stream.fields is not None, f"fields must be set in {stream} if logging data"
+        for field in stream.fields:
+            if field in api.REQD_RECORD_ID_FIELDS:
+                continue
+            elif field in sensor_data:
+                log_data[field] = sensor_data[field]
+            else:
+                raise Exception(
+                    f"Field {field} missing from data logged to {data_id}; "
+                    f"Expected:{stream.fields}; "
+                    f"Received the following fields:{sensor_data.keys()}"
+                )
 
         # Add the Datastream indices (datastream_type_id, device_id, sensor_id) and a
         # timestamp to the log_data
         log_data[api.RECORD_ID.VERSION.value] = "V3"
-        log_data[api.RECORD_ID.DATA_TYPE_ID.value] = config.type_id
+        log_data[api.RECORD_ID.DATA_TYPE_ID.value] = stream.type_id
         log_data[api.RECORD_ID.DEVICE_ID.value] = root_cfg.my_device_id
         log_data[api.RECORD_ID.SENSOR_INDEX.value] = self.sensor_index
         log_data[api.RECORD_ID.TIMESTAMP.value] = api.utc_to_iso_str()
         log_data[api.RECORD_ID.NAME.value] = root_cfg.my_device.name
 
-        self.journal_pool.add_rows(config, stream_index, [log_data], api.utc_now())
+        self.journal_pool.add_rows(stream, [log_data], api.utc_now())
 
         # Track the number of measurements recorded
         # These data points don't have a duration - that only applies to recordings.
-        self._dpnode_stats.append(DPnodeStats(api.utc_now(), 1))
+        stats_list: list[DPnodeStats] = self._dpnode_stats.get(stream.type_id, [])
+        stats_list.append(DPnodeStats(api.utc_now(), 1))
 
         # We also spam the data to the logger for easy debugging and display in the bcli
-        if config.type_id not in api.SYSTEM_DS_TYPES:
+        if stream.type_id not in api.SYSTEM_DS_TYPES:
             logger.info(f"Save log: {log_data!s}")
         else:
             logger.debug(f"Save log: {log_data!s}")
@@ -147,13 +168,19 @@ class DPtreeNode(ABC):
         save_data() is used to save Pandas dataframes to the datastore defined in the DatastreamType.
         The input_format field of the DatastreamType object must be set to df or csv for this to be used.
         """
+        if sensor_data.empty:
+            logger.debug(f"Dataframe empty for {self.get_data_id(stream_index)}")
+            return
+        
         config = self._dpnode_config
-
-        self.journal_pool.add_rows_from_df(config, stream_index, sensor_data)
+        stream = config.outputs[stream_index]
+        sensor_data = self._validate_output(sensor_data, stream)
+        self.journal_pool.add_rows_from_df(stream, sensor_data)
 
         # Track the number of measurements recorded
         # These data points don't have a duration - that only applies to recordings.
-        self._dpnode_stats.append(DPnodeStats(api.utc_now(), 1))
+        stats_list = self._dpnode_stats.get(stream.type_id, [])
+        stats_list.append(DPnodeStats(api.utc_now(), len(sensor_data)))
 
 
     def save_recording(
@@ -189,7 +216,7 @@ class DPtreeNode(ABC):
         # or to the root_cfg.EDGE_UPLOAD_DIR if not.
         # On the ETL, files are saved to the root_cfg.ETL_PROCESSING_DIR
         if root_cfg.get_mode() == root_cfg.Mode.EDGE:
-            if self.is_leaf():
+            if self.is_leaf(stream_index):
                 save_dir = root_cfg.EDGE_UPLOAD_DIR
             else:
                 save_dir = root_cfg.EDGE_PROCESSING_DIR
@@ -197,6 +224,7 @@ class DPtreeNode(ABC):
             assert False, "save_recording() should not be called in ETL mode"
 
         new_fname = self._save_recording(
+            stream_index=stream_index,
             src_file=temporary_file,
             dst_dir=save_dir,
             start_time=start_time,
@@ -255,17 +283,18 @@ class DPtreeNode(ABC):
         # We save the recording to the EDGE|ETL_PROCESSING_DIR if there are more DPs to run, 
         # otherwise we save it to the EDGE|ETL_UPLOAD_DIR
         if root_cfg.get_mode() == root_cfg.Mode.EDGE:
-            if self.is_leaf():
+            if self.is_leaf(stream_index):
                 save_dir = root_cfg.EDGE_UPLOAD_DIR
             else:
                 save_dir = root_cfg.EDGE_PROCESSING_DIR
         else:
-            if self.is_leaf():
+            if self.is_leaf(stream_index):
                 save_dir = root_cfg.ETL_PROCESSING_DIR
             else:
                 save_dir = root_cfg.ETL_ARCHIVE_DIR
 
         new_fname = self._save_recording(
+            stream_index=stream_index,
             src_file=temporary_file,
             dst_dir=save_dir,
             start_time=start_time,
@@ -278,27 +307,32 @@ class DPtreeNode(ABC):
         return new_fname
 
     
-    def log_sample_data(self, sample_period_start_time: datetime, score_dp: "DPtreeNode") -> None:
+    def log_sample_data(self, sample_period_start_time: datetime) -> None:
         """Provide the count & duration of data samples recorded (environmental, media, etc)
         since the last time log_sample_data was called.
 
         This is used by EdgeOrchestrator to periodically log observability data
         """
-        # We need to traverse all nodes in the tree and call log_sample_data on each node
-        count = sum(x.count for x in self._dpnode_stats)
-        duration = sum(x.duration for x in self._dpnode_stats)
+        stats_list: list[DPnodeStats]
+        for type_id, stats_list in self._dpnode_stats.items():
+            count = sum(x.count for x in stats_list)
+            duration = sum(x.duration for x in stats_list)
 
-        # Reset the datastream stats for the next period
-        self._dpnode_stats = []
+            # Reset the datastream stats for the next period
+            self._dpnode_stats[type_id] = []
 
-        # Log sample data
-        score_dp.log({
-            "observed_type_id": self.get_config().type_id,
-            "observed_sensor_index": self.sensor_index,
-            "sample_period": api.utc_to_iso_str(sample_period_start_time),
-            "count": str(count),
-            "duration": str(duration),
-        })
+            # Log sample data
+            if DPtreeNode._score_dp is not None:
+                DPtreeNode._score_dp.log(
+                    stream_index=api.SCORP_STREAM_INDEX,
+                    sensor_data={
+                        "observed_type_id": type_id,
+                        "observed_sensor_index": self.sensor_index,
+                        "sample_period": api.utc_to_iso_str(sample_period_start_time),
+                        "count": str(count),
+                        "duration": str(duration),
+                    }
+                )
 
     #########################################################################################################
     #
@@ -333,6 +367,9 @@ class DPtreeNode(ABC):
         secondary_offset_index: optional int
             An index that can be used to differentiate between multiple subsamples from a given frame.
         """
+        stream = self.get_stream(stream_index)
+        data_id = stream.get_data_id(self.sensor_index)
+
         # Check that the file is present and not empty
         if not src_file.exists():
             raise FileNotFoundError(f"File {src_file} not found.")
@@ -365,12 +402,18 @@ class DPtreeNode(ABC):
 
         # Generate the filename for the recording
         new_fname: Path = file_naming.get_record_filename(
-            dst_dir, self.get_data_id(), suffix, start_time, end_time, offset_index, secondary_offset_index
+            dst_dir, 
+            data_id,
+            suffix, 
+            start_time, 
+            end_time, 
+            offset_index, 
+            secondary_offset_index
         )
 
         # If we're in test mode, we may cap the number of recordings we save.
         if root_cfg.TEST_MODE == root_cfg.MODE.TEST:
-            if not ScEmulator.get_instance().ok_to_save_recording(self.get_data_id):
+            if not ScEmulator.get_instance().ok_to_save_recording(self.get_data_id(stream_index)):
                 logger.info(f"Test mode recording cap hit; deleting {src_file.name}")
                 if src_file.exists():
                     src_file.unlink()
@@ -394,13 +437,70 @@ class DPtreeNode(ABC):
 
         # Track the number of measurements recorded
         if end_time is None:
-            self._dpnode_stats.append(DPnodeStats(api.utc_now(), 1))
+            self._dpnode_stats.get(stream.type_id, []).append(DPnodeStats(api.utc_now(), 1))
         else:
             # Track duration if this file represents a period
-            self._dpnode_stats.append(
+            self._dpnode_stats[stream.type_id].append(
                 DPnodeStats(api.utc_now(), 1, (end_time - start_time).total_seconds())
             )
 
         logger.debug(f"Saved recording {src_file.name} as {new_fname.name}")
 
         return new_fname
+
+    #########################################################################################################
+    #
+    # Private methods used in support of DataProcessors
+    #
+    #########################################################################################################
+    def _validate_output(self, output_data: pd.DataFrame, stream: Stream) -> pd.DataFrame:
+        if output_data is None or output_data.empty:
+            return output_data
+
+        data_id = stream.get_data_id(self.sensor_index)
+
+        # Output DFs must always contain the core RECORD_ID fields
+        # If not already present, add the RECORD_ID fields to the output_df
+        for field in api.REQD_RECORD_ID_FIELDS:
+            if field not in output_data.columns:
+                if field == api.RECORD_ID.VERSION.value:
+                    output_data[field] = "V3"
+                elif field == api.RECORD_ID.TIMESTAMP.value:
+                    output_data[field] = api.utc_to_iso_str()
+                elif field == api.RECORD_ID.DEVICE_ID.value:
+                    output_data[field] = root_cfg.my_device_id
+                elif field == api.RECORD_ID.SENSOR_INDEX.value:
+                    output_data[field] = self.sensor_index
+                elif field == api.RECORD_ID.DATA_TYPE_ID.value:
+                    output_data[field] = stream.type_id
+
+        # Check the values in the RECORD_ID are not nan or empty
+        for field in api.REQD_RECORD_ID_FIELDS:
+            if not output_data[field].notna().all():
+                err_str = (f"{root_cfg.RAISE_WARN()}{field} contains NaN or empty values in output df"
+                           f" {data_id}")
+                logger.error(err_str)
+                raise Exception(err_str)
+
+        # Warn about superfluous fields that will get dropped
+        if stream.fields is not None and len(stream.fields) > 0:
+            for field in output_data.columns:
+                if (
+                    (stream.fields is not None)
+                    and (field not in stream.fields)
+                    and (field not in api.ALL_RECORD_ID_FIELDS)
+                ):
+                    logger.warning(
+                        f"{field} in output from {data_id} "
+                        f"but not in defined fields: {stream.fields}"
+                    )
+
+            # Output DF should contain the fields defined by the DP's output_fields list.
+            for field in stream.fields:
+                if field not in output_data.columns:
+                    err_str = (f"{root_cfg.RAISE_WARN()}{field} missing from output_df on "
+                            f"{data_id}: {output_data.columns}")
+                    logger.error(err_str)
+                    raise Exception(err_str)
+
+        return output_data

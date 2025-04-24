@@ -12,17 +12,35 @@
 # post-processing (AudioProcessor) to handle them differently (by adding an INHIVE tag to the filename).
 ############################################################################################################
 import os
+from dataclasses import dataclass
 from datetime import datetime
 from time import sleep
 from typing import ClassVar
 
-from sensor_core import Sensor, SensorDsCfg, api
+from sensor_core import Sensor, SensorCfg, api
 from sensor_core import configuration as root_cfg
-from sensor_core.sensors.config_object_defs import AudioSensorCfg
 from sensor_core.utils import file_naming, utils
 
 logger = root_cfg.setup_logger("sensor_core")
 
+AUDIO_SENSOR_STREAM_INDEX = 0
+
+@dataclass
+class AudioSensorCfg(SensorCfg):
+    ############################################################
+    # SensorCfg fields
+    ############################################################
+    # The type of sensor.
+    sensor_type: api.SENSOR_TYPES = "MIC"
+    # A human-readable description of the sensor model.
+    description: str = "Default audio sensor"
+
+    ############################################################
+    # Custom fields
+    ############################################################
+    av_rec_seconds: int = 180
+    microphones_installed: int = 0
+    in_hive_mic_port: int = 0
 
 ############################################################################################################
 # The AudioSensor class is used to manage the audio recording
@@ -36,15 +54,13 @@ class AudioSensor(Sensor):
     # We do this in the constructor so that it blocks creation of other AudioSensor instances until it's done
     # This avoids us being multi-threaded in the initialisation of PyAudio, which can cause problems.
     # Once we have a PyAudio instance, we should be good from then on.
-    def __init__(self, sds_config: SensorDsCfg):
-        super().__init__(sds_config)
-        assert isinstance(sds_config.sensor_cfg, AudioSensorCfg)
-        self.sensor_cfg: AudioSensorCfg = sds_config.sensor_cfg
-
-        self.port = self.sensor_cfg.sensor_index
-        self.av_rec_seconds = self.sensor_cfg.av_rec_seconds
-        self.num_devices = self.sensor_cfg.microphones_installed
-        self.in_hive_mic_port = self.sensor_cfg.in_hive_mic_port
+    def __init__(self, config: AudioSensorCfg):
+        super().__init__(config)
+        self.config = config
+        self.port = self.config.sensor_index
+        self.av_rec_seconds = self.config.av_rec_seconds
+        self.num_devices = self.config.microphones_installed
+        self.in_hive_mic_port = self.config.in_hive_mic_port
 
     ############################################################################################################
     # RPi can only handle 3 audio devices recording simultaneously.
@@ -253,9 +269,6 @@ class AudioSensor(Sensor):
         """Subclass of Sensor.run() to record audio from the microphone."""
         logger.info(f"Starting AudioSensor.run on {self.port}")
 
-        # Get the audio Datastream for this port (sensor_index)
-        self.audio_ds = self.get_datastreams(format="wav", expected=1)[0]
-
         try:
             chans = 1  # 1 channel
             dev_index = self.get_card_index_from_port(self.num_devices, self.port)
@@ -312,13 +325,14 @@ class AudioSensor(Sensor):
                         orig_file_size = os.path.getsize(wav_output_filename)
                         logger.debug(
                             f"Audio stream closed with size {orig_file_size} on port "
-                            f"{self.sensor_cfg.sensor_index}"
+                            f"{self.config.sensor_index}"
                         )
 
                         # Let the wave file close, then change it's name to include the end timestamp
-                        final_output_filename = self.audio_ds.save_recording(wav_output_filename, 
-                                                                             start_time=start_time, 
-                                                                             end_time=api.utc_now())
+                        final_output_filename = self.save_recording(stream_index=AUDIO_SENSOR_STREAM_INDEX,
+                                                                    temporary_file=wav_output_filename, 
+                                                                    start_time=start_time, 
+                                                                    end_time=api.utc_now())
 
                         logger.info(
                             f"Saved audio for {self.port}: {length_to_record!s}s to {final_output_filename}; "

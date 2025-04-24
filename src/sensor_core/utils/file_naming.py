@@ -1,47 +1,54 @@
 from datetime import datetime
 from pathlib import Path
 from random import random
-from typing import Optional
+from typing import NamedTuple, Optional
 
 from sensor_core import api
 from sensor_core import configuration as root_cfg
 
 logger = root_cfg.setup_logger("sensor_core")
 
+class DATA_ID(NamedTuple):
+    """Datastream ID is composed of {datastream_type_id}_{device_id}_{sensor_id}"""
+    type_id: str
+    device_id: str
+    sensor_index: int
+    stream_index: int
+
+    def __str__(self) -> str:
+        return f"{self.type_id}_{self.device_id}_{self.sensor_index:02d}_{self.stream_index:02d}"
+
 
 def create_data_id(device_id: str, 
-                 type_id: str, 
-                 sensor_index: int,
-                 node_index: Optional[int] = None) -> str:
+                   sensor_index: int,
+                   type_id: str, 
+                   stream_index: int) -> str:
     """Returns a standard, universally unique, identifier for the Datastream"""
-    if node_index:
-        return f"{type_id}_{device_id}_{sensor_index:02d}N{node_index:02d}"
-    else:
-        return f"{type_id}_{device_id}_{sensor_index:02d}"
+    return f"{type_id}_{device_id}_{sensor_index:02d}_{stream_index:02d}"
 
-def parse_data_id(ds_id: str) -> tuple[str, str, int, Optional[int]]:
+def parse_data_id(data_id: str) -> DATA_ID:
     """Parse a Datastream ID into its components.
 
     Parameters
     ----------
-    ds_id - Datastream ID to be parsed
+    data_id - Datastream ID to be parsed
 
     Return
     ------
-    A tuple with the following components:
+    A DATA_ID NamedTuple with the following components:
         bapi.RECORD_ID.DS_TYPE_ID       - always
         bapi.RECORD_ID.DEVICE_ID        - always
         bapi.RECORD_ID.SENSOR_INDEX     - always
-        bapi.RECORD_ID.NODE_INDEX       - if present, otherwise None
+        bapi.RECORD_ID.STREAM_INDEX     - always
     """
-    fields = ds_id.split("_")
-    assert len(fields) == 3, f"Error parsing ds_id:{ds_id}"
-    if "N" in fields[2]:
-        sensor_index, node_index = fields[2].split("N")
-        return fields[0], fields[1], int(sensor_index), int(node_index)
-    else:
-        # Split the last field into sensor_index and node_index using the "N" separator
-        return fields[0], fields[1], int(fields[2]), None
+    fields = data_id.split("_")
+    assert len(fields) == 4, f"Error parsing data_id:{data_id}"
+    return DATA_ID(
+        type_id=fields[0],
+        device_id=fields[1],
+        sensor_index=int(fields[2]),
+        stream_index=int(fields[3]),
+    )
         
 
 def parse_record_filename(fname: Path | str) -> dict:
@@ -58,6 +65,7 @@ def parse_record_filename(fname: Path | str) -> dict:
         bapi.RECORD_ID.DS_TYPE_ID       - always
         bapi.RECORD_ID.DEVICE_ID        - always
         bapi.RECORD_ID.SENSOR_INDEX     - always
+        bapi.RECORD_ID.STREAM_INDEX     - always
         bapi.RECORD_ID.TIMESTAMP        - always
         bapi.RECORD_ID.SUFFIX           - always
         bapi.RECORD_ID.END_TIME         - if present
@@ -70,8 +78,8 @@ def parse_record_filename(fname: Path | str) -> dict:
     if isinstance(fname, str):
         fname = Path(fname)
 
-    # Check that the filename has at least 4 "_"
-    if fname.name.count("_") < 4:
+    # Check that the filename has at least 5 "_"
+    if fname.name.count("_") < 5:
         logger.warning(f"Invalid filename format - too few _ in {fname.name}")
         return {}
 
@@ -97,19 +105,21 @@ def parse_record_filename(fname: Path | str) -> dict:
     if len(device_id) != 12:
         raise ValueError(f"Error parsing filename device_id:{fname}")
     sensor_id = int(fields[3])
+    stream_index = int(fields[4])
     # Convert the start_time and end_time to datetime objects
-    start_time = api.utc_from_str(fields[4])
-    if len(fields) > 5:
-        end_time = api.utc_from_str(fields[5])
+    start_time = api.utc_from_str(fields[5])
     if len(fields) > 6:
-        primary_offset_index = int(fields[6])
+        end_time = api.utc_from_str(fields[6])
     if len(fields) > 7:
-        secondary_offset_index = int(fields[7])
+        primary_offset_index = int(fields[7])
+    if len(fields) > 8:
+        secondary_offset_index = int(fields[8])
 
     fields_dict = {
         api.RECORD_ID.VERSION.value: version,
         api.RECORD_ID.DEVICE_ID.value: device_id,
         api.RECORD_ID.SENSOR_INDEX.value: sensor_id,
+        api.RECORD_ID.STREAM_INDEX.value: stream_index,
         api.RECORD_ID.DATA_TYPE_ID.value: datastream_type_id,
         api.RECORD_ID.TIMESTAMP.value: start_time,
         api.RECORD_ID.END_TIME.value: end_time,
@@ -141,7 +151,7 @@ def get_file_datetime(fname: Path | str) -> datetime:
 
 def get_record_filename(
     dst_dir: Path,
-    ds_id: str,
+    data_id: str,
     suffix: str,
     start_time: datetime,
     end_time: Optional[datetime] = None,
@@ -172,7 +182,7 @@ def get_record_filename(
     elif frame_number is None:
         assert arbitrary_index is None, "Arbitrary index is only valid if a frame number is specified."
 
-    fname = f"V3_{ds_id}_{api.utc_to_fname_str(start_time)}"
+    fname = f"V3_{data_id}_{api.utc_to_fname_str(start_time)}"
     if end_time is not None:
         fname += f"_{api.utc_to_fname_str(end_time)}"
         if frame_number is not None:
@@ -237,5 +247,12 @@ def get_zip_filename() -> Path:
 
 
 def get_log_filename() -> Path:
-    """Generate a filename for a log file in the TMP_DIR."""
+    """Generate a filename for a log file in the upload directory."""
     return root_cfg.EDGE_UPLOAD_DIR / f"V3_{root_cfg.my_device_id}_{api.utc_to_fname_str()}.log"
+
+def get_FAIR_filename(sensor_model: str, sensor_index: int, suffix: str) -> Path:
+    """Generate a filename for a fair file."""
+    return (
+        root_cfg.EDGE_UPLOAD_DIR / 
+        f"V3_{root_cfg.my_device_id}_{sensor_model}_{sensor_index}_{api.utc_to_fname_str()}.{suffix}"
+    )

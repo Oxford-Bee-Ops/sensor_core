@@ -1,15 +1,20 @@
-from typing import List, Optional, Tuple
+from typing import List, NamedTuple, Tuple
 
 from sensor_core import configuration as root_cfg
+from sensor_core.dp_config_object_defs import Stream
 from sensor_core.dp_tree_node import DPtreeNode
 from sensor_core.sensor import Sensor
 
 logger = root_cfg.setup_logger("sensor_core")
 
+class Edge(NamedTuple):
+    source: DPtreeNode
+    sink: DPtreeNode
+    stream: Stream
+    
 ###############################################################################################
 # DPtree represents the flow of data from the sensor to the cloud.
 # - the root node is the sensor
-# - the leaf nodes are output data in cloud storage described by Datastream
 # - the internal nodes are DataProcessors that process the data in some way
 # - the edges are the data flow between the nodes
 #
@@ -19,25 +24,21 @@ logger = root_cfg.setup_logger("sensor_core")
 #
 # DPtree supports the following methods for traversing the tree:
 # - get_processors(): returns a list of all processors in the tree
-# - get_datastreams(): returns a list of all datastreams in the tree
 # - search(): searches the tree for a node with the given attributes
 #
 # connect(from, to) and chain() are used to build the tree.
 # - 'from' accepts either a Sensor or a DataProcessor object.
-# - 'to' accepts either a DataProcessor or Datastream object.
+# - 'to' accepts a DataProcessor object.
 #
 # The first call to connect() or chain() must supply a Sensor object which
 # will create the root node of the tree.
-# The last call to connect() or chain() must supply a Datastream object which
-# will create the leaf node of the tree.
 #
 # The DPtree is built in a top-down fashion, starting from the root node and working down to the leaf nodes.
 # The DPtree creates DPtreeNode objects for each node in the tree.
 #################################################################################################
 class DPtree:
     """Represents a tree structure for data processing nodes.
-    The tree consists of a root node (Sensor) and various child nodes (DataProcessors) with leaf nodes 
-    being Datastreams.
+    The tree consists of a root node (Sensor) and various child nodes (DataProcessors).
 
     The tree is used to manage the flow of data from the sensor to the cloud storage.
     The tree supports the following operations:
@@ -46,18 +47,18 @@ class DPtree:
     - validate: Validates the tree structure to ensure all nodes are connected and valid.
     - get_node: Retrieves a node from the tree by its data_id.
     - get_processors: Retrieves all processor nodes in the tree.
-    - get_datastreams: Retrieves all datastream nodes in the tree.
     """
-    def __init__(self):
+    def __init__(self, sensor: Sensor):
         """
-        Initializes an empty DPtree.
+        Initializes a DPtree with a Sensor instance that forms the root of the tree.
         """
         # The sensor is the root node of the tree.
-        self.sensor: Optional[Sensor] = None
+        self.sensor: Sensor = sensor
 
         # Nodes are stored in a dictionary indexed by data_id
         # The data_id represents the edge between the source and the recipient node.
-        self._nodes: dict[str, DPtreeNode] = {}
+        self._nodes: dict[str, DPtreeNode] = {"root": sensor}
+        self._edges: list[Edge] = []
 
     def connect(
         self,
@@ -71,37 +72,49 @@ class DPtree:
 
         Usage example:
             dp_tree.connect(my_sensor_cfg.out(0), data_processor_cfg)
-            dp_tree.connect(my_dp_cfg.out(2), datastream_cfg)
+            dp_tree.connect(my_dp_cfg.out(2), my_dp2_cfg)
 
         Args:
             output: A tuple where the first element is the source node configuration 
                     (Sensor or DataProcessor), and the second element is an integer representing the 
                     output stream identifier.
-            input: The destination node configuration, which must be a DataProcessor or Datastream.
+            input: The destination node configuration, which must be a DataProcessor.
         """
-        src_instance, stream_index = source
+        src_node, stream_index = source
+
+        config = src_node.get_config()
+        if config is None:
+            raise ValueError(f"The source node has no configuration {src_node}.")
+        if config.outputs is None:
+            raise ValueError(f"The source node has no outputs {src_node}.")
+        if stream_index >= len(config.outputs):
+            raise ValueError(f"Output stream index {stream_index} is out of range for {src_node}.")
+
+        stream = config.outputs[stream_index]
+        if stream is None:
+            raise ValueError(f"Node has no output stream at stream_index {stream_index}, {src_node}.")
+
         if not self.sensor:
-            if not isinstance(src_instance, Sensor):
+            # New tree
+            if not isinstance(src_node, Sensor):
                 raise ValueError("The first connect() call must provide a Sensor object "
                                  "for the 'from' field.")
-            self.sensor = DPtreeNode(src_instance)
+            self.sensor = src_node
         else:
             # The source should already exist in the tree.
-            src_data_id = src_instance.get_data_id()
-            if src_data_id not in self._nodes:
-                raise ValueError(f"{src_data_id} is not connected.")
+            if src_node not in self._nodes.values():
+                raise ValueError(f"Source node {src_node} is not yet connected; connect it first")
 
-        data_id = sink.get_data_id()
+        data_id = stream.get_data_id(self.sensor.sensor_index)
         if data_id in self._nodes:
-            raise ValueError(f"{sink.get_data_id()} is already connected.")
+            raise ValueError(f"Stream {data_id} is already connected.")
 
+        # Add the sink node to our list of known nodes.
         self._nodes[data_id] = sink
 
-        if stream_index in src_instance._dpnode_children:
-            raise ValueError(f"Output stream {stream_index} is already connected from {src_data_id}.")
-        
-        # Build the tree by storing the child node with the output index as the key.
-        src_instance._dpnode_children[stream_index] = sink
+        # Build the tree structure by storing the child node with the output index as the key.
+        src_node._dpnode_children[stream_index] = sink
+        self._edges.append(Edge(src_node, sink, stream))
 
 
     def chain(self, *configs: DPtreeNode) -> None:
@@ -127,8 +140,17 @@ class DPtree:
         Raises:
             KeyError: If the node with the specified data_id does not exist in the tree.
         """
-        return self._nodes.get(data_id)
+        return self._nodes[data_id]
     
+    def get_edges(self) -> List[Edge]:
+        """
+        Retrieves all edges in the tree.
+
+        Returns:
+            A list of tuples representing the edges in the tree.
+        """
+        return self._edges
+
     def get_processors(self) -> List[DPtreeNode]:
         """
         Retrieves all processor nodes in the tree.
@@ -136,16 +158,7 @@ class DPtree:
         Returns:
             A list of DataProcessor objects representing the processors in the tree.
         """
-        return [node for node in self._nodes if self.is_instance_of_type(node, "DataProcessor")]
-
-    def get_datastreams(self) -> List[DPtreeNode]:
-        """
-        Retrieves all datastream nodes in the tree.
-
-        Returns:
-            A list of Datastream objects representing the datastreams in the tree.
-        """
-        return [node for node in self._nodes if self.is_instance_of_type(node, "Datastream")]
+        return [node for node in self._nodes.values() if self.is_instance_of_type(node, "DataProcessor")]
 
     def export(self) -> dict:
         """
@@ -167,45 +180,10 @@ class DPtree:
         Raises:
             ValueError: If the tree is invalid.
         """
-        if not self.sensor:
-            raise ValueError("The tree must have a root node.")
-        if not isinstance(self.sensor, Sensor):
-            raise ValueError("The root node must be a Sensor object.")
-        if not self._validate_leaf_nodes():
-            raise ValueError("All leaf nodes must be Datastream objects.")
-        if not self._validate_all_nodes_connected():
-            raise ValueError("All nodes must be connected.")
-
-    def _validate_leaf_nodes(self) -> bool:
-        """
-        Checks that all leaf nodes in the tree are Datastream objects.
-
-        Returns:
-            True if all leaf nodes are valid, False otherwise.
-        """
-        for node in self._nodes.values():
-            if (not node._dpnode_children) and (not self.is_instance_of_type(node, "Datastream")):
-                return False
-        return True
-
-    def _validate_all_nodes_connected(self) -> bool:
-        """
-        Checks that all nodes in the tree are connected.
-
-        Returns:
-            True if all nodes are connected, False otherwise.
-        """
-        visited = set()
-
-        def dfs(node: DPtreeNode) -> None:
-            if node in visited:
-                return
-            visited.add(node)
-            for child in node._dpnode_children.values():  # Iterate over child nodes in the dictionary.
-                dfs(child)
-
-        dfs(self.sensor)
-        return len(visited) == len(self._nodes)
+        from sensor_core import config_validator
+        is_valid, error_msg = config_validator.validate(self)
+        if not is_valid:
+            raise ValueError(f"DPtree validation failed: {error_msg}")
 
     @staticmethod
     def is_instance_of_type(obj, type_name: str) -> bool:

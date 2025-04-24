@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable, Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -53,12 +53,15 @@ class WifiClient:
 class DeviceCfg(Configuration):
     """Configuration for a device"""
 
+    # DPtree objects define the Sensor and DataProcessor objects that will be used to process the data.
+    # This field holds a list of function references that when called return the instantiated DPtree objects
+    # for this device.
+    # We use function references so that we only instantiate the DPtree objects when we need them.
+    dp_trees_create_method: Optional[Callable] = None
+
     name: str = "default"
     device_id: str = "unknown"
     notes: str = "blank"
-
-    # Sensor and datastream configuration
-    dp_trees: list = field(default_factory=list)
 
     # Default cloud container for file upload
     cc_for_upload: str = "sensor-core-upload"

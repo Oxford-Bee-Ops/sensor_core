@@ -9,9 +9,7 @@ import psutil
 
 from sensor_core import api
 from sensor_core import configuration as root_cfg
-from sensor_core.datastream import Datastream
-from sensor_core.dp_tree import DPtree
-from sensor_core.dp_tree_node_types import Stream, DatastreamCfg, SensorCfg
+from sensor_core.dp_config_object_defs import SensorCfg, Stream
 from sensor_core.sensor import Sensor
 from sensor_core.utils import utils
 
@@ -70,7 +68,7 @@ if root_cfg.running_on_rpi:
 
 logger = root_cfg.setup_logger("sensor_core")
 
-# HEART - special DatastreamType for recording device & system health
+# HEART - special datastream for recording device & system health
 HEART_FIELDS = [
     "boot_time",
     "last_update_timestamp",
@@ -91,7 +89,7 @@ HEART_FIELDS = [
     "sensor_core_version",
 ]
 
-# WARNING - special DatastreamType for capturing warning and error logs from any component
+# WARNING - special datastream for capturing warning and error logs from any component
 WARNING_FIELDS = [
     "time_logged",
     "message",
@@ -106,18 +104,15 @@ WARNING_STREAM_INDEX = 1
 DEVICE_HEALTH_CFG = SensorCfg(
     sensor_type="SYS",
     sensor_index=0,
-    type_id="DeviceHealth",
-    node_index=0,
     description="Internal device health",
     outputs=[
-        Stream(HEART_STREAM_INDEX, format="log", fields=HEART_FIELDS),
-        Stream(WARNING_STREAM_INDEX, format="log", fields=WARNING_FIELDS),
+        Stream(api.HEART_DS_TYPE_ID, HEART_STREAM_INDEX, format="log", fields=HEART_FIELDS),
+        Stream(api.WARNING_DS_TYPE_ID, WARNING_STREAM_INDEX, format="log", fields=WARNING_FIELDS),
     ],
-    sensor_class_ref="sensor_core.device_health.DeviceHealth",
 )
 
 class DeviceHealth(Sensor):
-    """Monitors device health and provides telemetry data as a SensorCore datastream.
+    """Monitors device health and provides data as a SensorCore datastream.
     Produces the following data:
     - HEART (DS type ID) provides periodic heartbeats with device health data up to cloud storage.
     - WARNINGS (DS type ID) captures warning and error logs produced by any component, aggregates
@@ -135,11 +130,7 @@ class DeviceHealth(Sensor):
         self.cum_bytes_sent = 0
         self.log_counter = 0
         self.client_wlan = "wlan0"
-    
-    def build_dptree(self) -> DPtree:
-        sys_dptree = DPtree(root=self)
-        return sys_dptree
-
+        
     def run(self) -> None:
         """Main loop for the DeviceHealth sensor.
         This method is called when the thread is started.

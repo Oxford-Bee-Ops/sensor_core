@@ -9,7 +9,7 @@ from typing import Optional
 import psutil
 
 from sensor_core import api
-from sensor_core.config_objects import FAILED_TO_LOAD, DeviceCfg, Keys, SystemCfg
+from sensor_core.device_config_object_defs import FAILED_TO_LOAD, DeviceCfg, Keys, SystemCfg
 from sensor_core.utils import dc
 
 
@@ -190,11 +190,6 @@ TAKE_PICTURE_FLAG = FLAGS_DIR / "TAKE_PICTURE"
 # Used by BCLI to signal to AudioCapture and VideoCapture to pause recording
 PERMANENT_PAUSE_RECORDING_FLAG = FLAGS_DIR / "PAUSE_RECORDING_FLAG"
 
-# We use a dummy device for testing purposes and when no config is specified
-DUMMY_DEVICE = DeviceCfg(device_id=DUMMY_MAC, name="DUMMY")
-INVENTORY: dict[str, DeviceCfg] = {DUMMY_MAC: DUMMY_DEVICE}
-my_device: DeviceCfg = DUMMY_DEVICE
-
 ############################################################################################################
 # Set up logging
 #
@@ -353,6 +348,16 @@ system_cfg = _load_system_cfg()
 #############################################################################################
 # Store the provided inventory
 ##############################################################################################
+DUMMY_DEVICE = DeviceCfg(
+    name="DUMMY",
+    device_id=DUMMY_MAC,
+    notes="DUMMY MAC address for testing",
+    dp_trees_create_method=None,
+)
+INVENTORY: dict[str, DeviceCfg] = {}
+my_device: DeviceCfg = DUMMY_DEVICE
+
+
 def load_inventory() -> Optional[list[DeviceCfg] | None]:
     """Load the inventory using the my_fleet_config value defined in SystemCfg class."""
     inventory: list[DeviceCfg] = []
@@ -369,6 +374,7 @@ def load_inventory() -> Optional[list[DeviceCfg] | None]:
             logger.error(f"{RAISE_WARN()}Failed to load config from {system_cfg.my_fleet_config}: {e}")
 
     return inventory
+
 
 def set_inventory(inventory: list[DeviceCfg]) -> dict[str, DeviceCfg]:
     """Reload the inventory from the config file.
@@ -395,14 +401,11 @@ def check_inventory_loaded() -> bool:
     """Check if the inventory has been loaded.
     This is used in testing to check if the inventory has been loaded.
     """
-    global INVENTORY
-
     # If we have not loaded the inventory yet, it will still be set to the DUMMY_DEVICE
-    if my_device == DUMMY_DEVICE:
+    if (my_device is None) or len(INVENTORY) > 0:
         return False
-
-    # Check if the inventory is empty
-    return len(INVENTORY) > 0
+    else:
+        return True
 
 def update_my_device_id(new_device_id: str) -> None:
     """Function used in testing to change the device_id"""

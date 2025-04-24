@@ -1,11 +1,10 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from time import sleep
 
 from sensor_core import api
 from sensor_core import configuration as root_cfg
-from sensor_core.config_objects import Datastream, DatastreamCfg
+from sensor_core.dp_config_object_defs import Stream
 from sensor_core.dp_engine import DPengine
-from sensor_core.dp_tree_node import DPtree, Stream
 from sensor_core.sensor import Sensor, SensorCfg
 
 logger = root_cfg.setup_logger("sensor_core")
@@ -23,19 +22,6 @@ SCORE_FIELDS = [
     "count",
     "duration",
 ]
-SCORE_DS_TYPE = DatastreamCfg(
-    type_id=api.SCORE_DS_TYPE_ID,
-    input=Stream(0, "log", SCORE_FIELDS),
-    output=[Stream(0, "csv", SCORE_FIELDS)],
-    description=(
-        "Data on sample counts and recording period durations from all Datastreams. "
-        "The data is automatically recorded by the SensorCore for all datastreams when "
-        "they log data or save a recording."
-    ),
-    cloud_container=root_cfg.my_device.cc_for_system_records,
-    edge_processors=None,
-)
-
 # SCORP - special DatastreamType for recording performance of the data pipeline
 SCORP_FIELDS = [
     "data_processor_id", 
@@ -43,31 +29,17 @@ SCORP_FIELDS = [
     "observed_sensor_index", 
     "duration"
 ]
-SCORP_DS_TYPE = DatastreamCfg(
-    type_id=api.SCORP_DS_TYPE_ID,
-    input_format="log",
-    input_fields=SCORP_FIELDS,
-    output_streams="csv",
-    output_fields=SCORP_FIELDS,
-    description=(
-        "Performance data from the data pipeline. "
-        "The data is recorded as a log file on the device and archived as a CSV file."
-    ),
-    cloud_container=root_cfg.my_device.cc_for_system_records,
-    edge_processors=None,
-)
 
 SC_TRACKING_CFG = SensorCfg(
     sensor_type="SYS",
     sensor_index=0,
-    type_id="ScTracking",
-    node_index=0,
     description="SensorCore self-telemetry",
     outputs=[
-        Stream(0, format="log", fields=SCORE_FIELDS),
-        Stream(1, format="log", fields=SCORP_FIELDS),
+        Stream(api.SCORE_DS_TYPE_ID, 0, format="log", fields=SCORE_FIELDS, 
+               cloud_container=root_cfg.my_device.cc_for_system_records),
+        Stream(api.SCORP_DS_TYPE_ID, 1, format="log", fields=SCORP_FIELDS, 
+               cloud_container=root_cfg.my_device.cc_for_system_records),
     ],
-    sensor_class_ref="sensor_core.device_health.DeviceHealth",
 )
 
 class SelfTracker(Sensor):
@@ -78,12 +50,7 @@ class SelfTracker(Sensor):
     """
     def __init__(self) -> None:
         super().__init__(SC_TRACKING_CFG)
-
-    def build_dptree(self) -> DPtree:
-        sys_dptree = DPtree()
-        sys_dptree.connect((self, 0), Datastream(SCORE_DS_TYPE))
-        sys_dptree.connect((self, 1), Datastream(SCORP_DS_TYPE))
-        return sys_dptree
+        self.last_ran: datetime = api.utc_now()
 
     def set_dp_engine(self, dp_engines: list[DPengine]) -> None:
         """Set the DPengine for the SelfTracking sensor.
@@ -102,7 +69,7 @@ class SelfTracker(Sensor):
         while not self.stop_requested:
             # Trigger each datastream to log sample counts
             for dp_engine in self.dp_engines:
-                dp_engine.log_sample_data(self.last_ran, self)
+                dp_engine.log_sample_data(self.last_ran)
 
             # Set timer for next run
             self.last_ran = api.utc_now()

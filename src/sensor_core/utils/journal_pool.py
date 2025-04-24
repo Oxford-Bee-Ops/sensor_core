@@ -10,7 +10,7 @@ import pandas as pd
 from sensor_core import api
 from sensor_core import configuration as root_cfg
 from sensor_core.configuration import Mode
-from sensor_core.dp_tree_node_types import DPtreeNodeCfg
+from sensor_core.dp_config_object_defs import Stream
 from sensor_core.utils import file_naming
 from sensor_core.utils.cloud_journal import CloudJournal
 from sensor_core.utils.journal import Journal
@@ -48,8 +48,7 @@ class JournalPool(ABC):
         return JournalPool._instance
 
     @abstractmethod
-    def add_rows(self, dp: DPtreeNodeCfg, 
-                 stream_index: int, 
+    def add_rows(self, stream: Stream, 
                  data: list[dict], 
                  timestamp: Optional[datetime] = None) -> None:
         """Add data rows as a list of dictionaries
@@ -60,8 +59,7 @@ class JournalPool(ABC):
 
     @abstractmethod
     def add_rows_from_df(self, 
-                         dp: DPtreeNodeCfg, 
-                         stream_index: int, 
+                         stream: Stream, 
                          data: pd.DataFrame, 
                          timestamp: Optional[datetime] = None
     ) -> None:
@@ -94,8 +92,7 @@ class CloudJournalPool(JournalPool):
         self.jlock = Lock()
 
     def add_rows(self, 
-                 dp: DPtreeNodeCfg, 
-                 stream_index: int, 
+                 stream: Stream, 
                  data: list[dict], 
                  timestamp: Optional[datetime] = None) -> None:
         """Add data to the appropriate CloudJournal, which will auto-sync to the cloud
@@ -104,11 +101,11 @@ class CloudJournalPool(JournalPool):
 
         assert timestamp is not None, "Timestamp must be provided for add_rows_from_df with CloudJournalPool"
         with self.jlock:
-            cj = self._get_journal(dp, stream_index, timestamp)
+            cj = self._get_journal(stream, timestamp)
             cj.add_rows(data)
 
     def add_rows_from_df(
-        self, dp: DPtreeNodeCfg, stream_index: int, data: pd.DataFrame, timestamp: Optional[datetime] = None
+        self, stream: Stream, data: pd.DataFrame, timestamp: Optional[datetime] = None
     ) -> None:
         """Add data to the appropriate CloudJournal, which will auto-sync to the cloud
 
@@ -116,7 +113,7 @@ class CloudJournalPool(JournalPool):
 
         assert timestamp is not None, "Timestamp must be provided for add_rows_from_df with CloudJournalPool"
         with self.jlock:
-            cj = self._get_journal(dp, stream_index, timestamp)
+            cj = self._get_journal(stream, timestamp)
             cj.add_rows_from_df(data)
 
     def flush_journals(self) -> None:
@@ -135,27 +132,24 @@ class CloudJournalPool(JournalPool):
                 cj.stop()
                 break
 
-    def _get_journal(self, dp: DPtreeNodeCfg, stream_index: int, day: datetime) -> CloudJournal:
+    def _get_journal(self, stream: Stream, day: datetime) -> CloudJournal:
         """Generate the CloudJournal filename for a DPtreeNodeCfg.
 
         The V3 filename format is:
             V3_{DPtreeNodeCfg_type_id}_{day}.csv
         """
         # Check that the output_fields contain at least all the bapi.REQD_RECORD_ID_FIELDS
-        assert dp.outputs is not None, f"output_streams must be set in {dp.type_id}"
-        assert dp.outputs[stream_index] is not None, (
-            f"output_streams[{stream_index}] must be set in {dp.type_id}")
-        assert dp.outputs[stream_index].fields is not None, (
-            f"output_fields must be set in {dp.type_id}[{stream_index}]")
+        assert stream.fields is not None, (
+            f"output_fields must be set in {stream}")
 
-        fname = file_naming.get_cloud_journal_filename(dp.type_id, day)
+        fname = file_naming.get_cloud_journal_filename(stream.type_id, day)
 
         if fname.name not in self._cj_pool:
             # Users can choose a cloud_container per DS or use the default one
-            cloud_container = dp.outputs[stream_index].cloud_container
+            cloud_container = stream.cloud_container
             if cloud_container is None:
                 cloud_container = root_cfg.my_device.cc_for_journals
-            cj = CloudJournal(fname, cloud_container, dp.outputs[stream_index].fields)
+            cj = CloudJournal(fname, cloud_container, stream.fields)
             self._cj_pool[fname.name] = cj
         else:
             cj = self._cj_pool[fname.name]
@@ -173,26 +167,24 @@ class LocalJournalPool(JournalPool):
         self.jlock = Lock()
 
     def add_rows(self, 
-                 dp: DPtreeNodeCfg, 
-                 stream_index: int, 
+                 stream: Stream, 
                  data: list[dict], 
                  timestamp: Optional[datetime] = None) -> None:
         """Add data to the appropriate Journal, which will auto-upload to the cloud"""
 
         with self.jlock:
-            j = self._get_journal(dp, stream_index)
+            j = self._get_journal(stream)
             j.add_rows(data)
 
     def add_rows_from_df(self, 
-                         dp: DPtreeNodeCfg, 
-                         stream_index: int, 
+                         stream: Stream, 
                          data: pd.DataFrame, 
                          timestamp: Optional[datetime] = None
     ) -> None:
         """Add data to the appropriate Journal, which will auto-sync to the cloud"""
 
         with self.jlock:
-            j = self._get_journal(dp, stream_index)
+            j = self._get_journal(stream)
             j.add_rows_from_df(data)
 
     def flush_journals(self) -> None:
@@ -232,12 +224,12 @@ class LocalJournalPool(JournalPool):
         self.flush_journals()
         # No threads to stop
 
-    def _get_journal(self, dp: DPtreeNodeCfg, stream_index: int) -> Journal:
+    def _get_journal(self, stream: Stream) -> Journal:
         """Generate the Journal filename for a DPtreeNodeCfg."""
 
-        fname = file_naming.get_journal_filename(dp.type_id)
+        fname = file_naming.get_journal_filename(stream.type_id)
         if fname.name not in self._jpool:
-            j = Journal(fname, cached=True, reqd_columns=dp.outputs[stream_index].fields)
+            j = Journal(fname, cached=True, reqd_columns=stream.fields)
             self._jpool[fname.name] = j
         else:
             j = self._jpool[fname.name]

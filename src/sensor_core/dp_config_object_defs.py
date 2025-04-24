@@ -1,40 +1,52 @@
 from dataclasses import dataclass
 from typing import Optional
+
 from sensor_core import api
 from sensor_core import configuration as root_cfg
+from sensor_core.utils import file_naming
 
 logger = root_cfg.setup_logger("sensor_core")
 
 @dataclass
 class Stream:
     """Defines the format and fields present in a datastream coming from a DPtreeNode."""
+    # Used to identify the type & purpose of data in file names, etc.
+    # In combination with the index, this will be unique to a given sensor.
+    # In combination with the device_id & sensor_index this must be globally unique.
+    type_id: str
     # Idenfier for the output stream.
     index: int
     # The type of data being produced by this output stream.
     format: api.FILE_FORMATS
     # The human-readable name of the output stream.
-    fields: list[str]
+    fields: Optional[list[str]] = None
     # The cloud storage container to which the data is archived.
     # This is required for all types uploading files, other than output_format="CSV".
     # "CSV" data is uploaded to the DeviceCfg.cc_for_journals container.
     cloud_container: Optional[str] = None
 
+    # Human-understandable description of the data in the stream
+    description: Optional[str] = ""
+
+    def get_data_id(self, sensor_index: int) -> str:
+        """
+        Returns the unique identifier for this node.  Used in filenaming and other data management.
+
+        Returns:
+            The unique identifier for this node.
+        """
+        return file_naming.create_data_id(root_cfg.my_device_id, sensor_index, self.type_id, self.index)
 
 @dataclass
 class DPtreeNodeCfg:
     """Defines the configuration for a node in the DPtree.
-    SensorCfg, DataProcessorCfg, and DatastreamCfg all inherit from this class.
+    SensorCfg & DataProcessorCfg inherit from this class.
     """
-    # The type of sensor, DP or Datastream.  
-    # This is used to identify the type & purpose of data being processed.
-    # In combination with the sensor_id, this will be unique if this is a Datastream.
-    # If this is a Datastreams, the combination of device_id, sensor_id and type_id must be globally unique.
-    type_id: str
-
+    outputs: list[Stream]
+    
     # Human-meaningful description of the node.
     description: str
-    outputs: Optional[list[Stream]] = None
-    
+
     # Some sources support saving of sample raw recordings to the archive.
     # This string is interpreted by the Sensor or DataProcessor to determine the frequency of 
     # raw data sampling. The format of this string is specific to the Sensor or DataProcessor.
@@ -68,10 +80,11 @@ class SensorCfg(DPtreeNodeCfg):
     """
     sensor_index: int = 0
     sensor_type: api.SENSOR_TYPES = 'NOT_SET'
+    sensor_model: str = root_cfg.FAILED_TO_LOAD
 
 
 @dataclass
 class DataProcessorCfg(DPtreeNodeCfg):
     """Defines the configuration for a concrete DataProcessor class implementation.
     Can be subclassed to add additional configuration parameters specific to the DataProcessor class."""
-    node_index: int = -1
+    

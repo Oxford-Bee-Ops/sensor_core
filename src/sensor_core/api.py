@@ -17,6 +17,7 @@ class RECORD_ID(Enum):
     DATA_TYPE_ID = "data_type_id"
     DEVICE_ID = "device_id"
     SENSOR_INDEX = "sensor_index"
+    STREAM_INDEX = "stream_index"
     TIMESTAMP = "logged_time"
     END_TIME = "end_time"
     OFFSET = "primary_offset_index"
@@ -31,6 +32,7 @@ REQD_RECORD_ID_FIELDS = [
     RECORD_ID.DATA_TYPE_ID.value,
     RECORD_ID.DEVICE_ID.value,
     RECORD_ID.SENSOR_INDEX.value,
+    RECORD_ID.STREAM_INDEX.value,
     RECORD_ID.TIMESTAMP.value,
 ]
 ALL_RECORD_ID_FIELDS = [*REQD_RECORD_ID_FIELDS, 
@@ -102,6 +104,10 @@ SYSTEM_DS_TYPES = [
     SCORE_DS_TYPE_ID,
     SCORP_DS_TYPE_ID,
 ]
+SCORP_STREAM_INDEX = 0
+SCORE_STREAM_INDEX = 1
+
+
 ############################################################
 # Datetime formats used in the system
 #

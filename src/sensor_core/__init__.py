@@ -5,16 +5,16 @@
 import importlib.metadata
 
 from . import api, configuration
-from .config_objects import (
+from .data_processor import DataProcessor
+from .device_config_object_defs import (
     DeviceCfg,
 )
-from .data_processor import DataProcessor
+from .dp_config_object_defs import (
+    DataProcessorCfg,
+    SensorCfg,
+)
 from .sensor import Sensor
 from .sensor_core import SensorCore
-from .dp_tree_node_types import (
-    SensorCfg,
-    DataProcessorCfg,
-) 
 
 try:
     __version__ = importlib.metadata.version("sensor-core")

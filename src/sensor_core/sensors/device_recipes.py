@@ -13,16 +13,20 @@
 #             -> cloud_processors: list[DataProcessorCfg]
 #
 ###################################################################################################
-from sensor_core import DPengine, SensorDsCfg
 from sensor_core import configuration as root_cfg
-from sensor_core.sensors.config_object_defs import (
-    ARUCO_DATA_DS,
-    ARUCO_MARKED_UP_VIDEO_DS,
-    CONTINUOUS_VIDEO_DS,
-    CONTINUOUS_VIDEO_DS_TYPE_ID,
-    TRAP_CAM_DS,
+from sensor_core.dp_config_object_defs import Stream
+from sensor_core.dp_tree import DPtree
+from sensor_core.sensors import processor_video_aruco
+from sensor_core.sensors.processor_video_trap_cam import (
+    DEFAULT_TRAPCAM_PROCESSOR_CFG,
+    ProcessorVideoTrapCam,
+)
+from sensor_core.sensors.sensor_rpicam_vid import (
+    DEFAULT_RPICAM_SENSOR_CFG,
+    RPICAM_DATA_TYPE_ID,
+    RPICAM_STREAM_INDEX,
+    RpicamSensor,
     RpicamSensorCfg,
-    TrapCamProcessorCfg,
 )
 
 logger = root_cfg.setup_logger("sensor_core")
@@ -31,16 +35,27 @@ logger = root_cfg.setup_logger("sensor_core")
 ###################################################################################################
 # Low FPS continuous video reording device
 ###################################################################################################
-continuous_video_4fps_device = [
-    SensorDsCfg(
-        sensor_cfg=RpicamSensorCfg(
-            rpicam_cmd = "rpicam-vid --framerate 4 --width 640 --height 480 -o FILENAME -t 180000 -v 0"
-        ),
-        datastream_cfgs=[
-            CONTINUOUS_VIDEO_DS,
+def create_continuous_video_4fps_device() -> list[DPtree]:
+    """Create a standard camera device."""
+    sensor_index = 0
+    sensor_cfg = RpicamSensorCfg(
+        description="Low FPS continuous video recording device",
+        sensor_index=sensor_index,
+        outputs=[
+            Stream(
+                type_id=RPICAM_DATA_TYPE_ID,
+                index=RPICAM_STREAM_INDEX,
+                format="mp4",
+                cloud_container="sensor-core-upload",
+                description="Basic continuous video recording.",
+            )
         ],
+        rpicam_cmd="rpicam-vid --framerate 4 --width 640 --height 480 -o FILENAME -t 180000 -v 0"
     )
-]
+    my_sensor = RpicamSensor(sensor_cfg)
+    my_tree = DPtree(my_sensor)
+    return [my_tree]
+
 ###################################################################################################
 # Trap cameras
 #
@@ -49,94 +64,50 @@ continuous_video_4fps_device = [
 # The original continuous video recording is deleted after being passed to the trap cam DP; 
 # we could opt to save raw samples if we wanted to.
 ###################################################################################################
-trap_cam_device = [
-    SensorDsCfg(
-        sensor_cfg=RpicamSensorCfg(
-            rpicam_cmd = ("rpicam-vid --autofocus-mode manual --lens-position 6 "
-                          "--framerate 4 --width 640 --height 480 -o FILENAME -t 180000 -v 0")
-        ),
-        datastream_cfgs=[
-            DPengine(
-                type_id = CONTINUOUS_VIDEO_DS_TYPE_ID,
-                input_format = "mp4",
-                output_format = "mp4",
-                description = "Basic continuous video recording.",
-                cloud_container = "sensor-core-upload",
-                edge_processors=[
-                    TrapCamProcessorCfg(
-                        derived_datastreams=[
-                            TRAP_CAM_DS,
-                        ],
-                    )
-                ],
-            ),
-        ],
-    )
-]
+def create_trapcam_device(sensor_index: int) -> list[DPtree]:
+    """Create a standard camera device."""
 
-double_trap_cam_device = [
-    SensorDsCfg(
-        sensor_cfg=RpicamSensorCfg(
-            sensor_index = 0,
-            rpicam_cmd = ("rpicam-vid --camera SENSOR_INDEX --autofocus-mode manual --lens-position 6 "
-                          "--framerate 8 --width 480 --height 640 -o FILENAME -t 180000 -v 0")
-        ),
-        datastream_cfgs=[
-            DPengine(
-                type_id = CONTINUOUS_VIDEO_DS_TYPE_ID,
-                input_format = "mp4",
-                output_format = "mp4",
-                description = "Basic continuous video recording.",
-                cloud_container = "sensor-core-upload",
-                edge_processors=[
-                    TrapCamProcessorCfg(
-                        min_blob_size=1000,
-                        max_blob_size=1000000,
-                        derived_datastreams=[
-                            TRAP_CAM_DS,
-                        ],
-                    )
-                ],
-            ),
-        ],
-    ),
-    SensorDsCfg(
-        sensor_cfg=RpicamSensorCfg(
-            sensor_index = 1,
-            rpicam_cmd = ("rpicam-vid --camera SENSOR_INDEX --autofocus-mode manual --lens-position 6 "
-                          "--framerate 8 --width 480 --height 640 -o FILENAME -t 180000 -v 0")
-        ),
-        datastream_cfgs=[
-            DPengine(
-                type_id = CONTINUOUS_VIDEO_DS_TYPE_ID,
-                input_format = "mp4",
-                output_format = "mp4",
-                description = "Basic continuous video recording.",
-                cloud_container = "sensor-core-upload",
-                edge_processors=[
-                    TrapCamProcessorCfg(
-                        min_blob_size=1000,
-                        max_blob_size=1000000,
-                        derived_datastreams=[
-                            TRAP_CAM_DS,
-                        ],
-                    )
-                ],
-            ),
-        ],
+    # Define the sensor
+    cfg = DEFAULT_RPICAM_SENSOR_CFG
+    cfg.sensor_index = sensor_index
+    my_sensor = RpicamSensor(cfg)
+
+    # Define the DataProcessor
+    my_dp = ProcessorVideoTrapCam(DEFAULT_TRAPCAM_PROCESSOR_CFG, sensor_index=sensor_index)
+
+    # Connect the DataProcessor to the Sensor
+    my_tree = DPtree(my_sensor)
+    my_tree.connect(
+        source=(my_sensor, RPICAM_STREAM_INDEX),
+        sink=my_dp,
     )
-]
-###################################################################################################
-# Device for spotting Aruco markers in video
-###################################################################################################
-aruco_device = [
-    SensorDsCfg(
-        sensor_cfg=RpicamSensorCfg(
-            rpicam_cmd = "rpicam-vid --framerate 4 --width 640 --height 480 -o FILENAME -t 180000 -v 0"
-        ),
-        datastream_cfgs=[
-            ARUCO_DATA_DS,
-            ARUCO_MARKED_UP_VIDEO_DS,
-        ],
+    return [my_tree]
+
+def create_double_trapcam_device() -> list[DPtree]:
+    camera1 = create_trapcam_device(sensor_index=0)
+    camera2 = create_trapcam_device(sensor_index=1)
+    return camera1 + camera2
+
+####################################################################################################
+# Aruco camera device
+####################################################################################################
+def create_aruco_camera_device(sensor_index: int) -> list[DPtree]:
+    """Create a device that spots aruco markers."""
+
+    # Sensor
+    cfg = DEFAULT_RPICAM_SENSOR_CFG
+    cfg.sensor_index = sensor_index
+    my_sensor = RpicamSensor(cfg)
+
+    # DataProcessor
+    my_dp = processor_video_aruco.VideoArucoProcessor(
+        processor_video_aruco.DEFAULT_AUROCO_PROCESSOR_CFG,
+        sensor_index=sensor_index)
+
+    # Connect the DataProcessor to the Sensor
+    my_tree = DPtree(my_sensor)
+    my_tree.connect(
+        source=(my_sensor, RPICAM_STREAM_INDEX),
+        sink=my_dp,
     )
-]
+    return [my_tree]
