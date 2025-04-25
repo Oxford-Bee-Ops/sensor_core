@@ -1,6 +1,6 @@
+import logging
 from threading import Thread
 from time import sleep
-import logging
 
 import pytest
 from example.my_fleet_config import INVENTORY

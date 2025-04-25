@@ -29,12 +29,14 @@ EXAMPLE_SENSOR_CFG = SensorCfg(
     description = "Dummy sensor for testing purposes",
     # The list of data output streams from the sensor.
     outputs=[
-        Stream(EXAMPLE_FILE_DS_TYPE_ID, EXAMPLE_FILE_STREAM_INDEX, "jpg", 
-               cloud_container="sensor-core-upload"),
-        Stream(EXAMPLE_LOG_DS_TYPE_ID, EXAMPLE_LOG_STREAM_INDEX, "log", ["temperature"]),
+        Stream("Example image file stream",
+                EXAMPLE_FILE_DS_TYPE_ID, EXAMPLE_FILE_STREAM_INDEX, "jpg", 
+                cloud_container="sensor-core-upload",
+                sample_probability="1.0",
+                sample_container="sensor-core-upload"),
+        Stream("Example log file stream",
+                EXAMPLE_LOG_DS_TYPE_ID, EXAMPLE_LOG_STREAM_INDEX, "log", ["temperature"]),
     ],
-    sample_container="sensor-core-upload",
-    sample_probability="1.0",
 )
 
 #############################################################################################################

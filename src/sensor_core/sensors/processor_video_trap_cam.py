@@ -29,15 +29,15 @@ DEFAULT_TRAPCAM_PROCESSOR_CFG = TrapCamProcessorCfg(
     description="Video processor that detects movement in video files and saves segments with movement.",
     outputs=[
         Stream(
+            description="Video samples with movement detected.",
             type_id=TRAPCAM_DS_TYPE_ID,
             index=TRAPCAM_STREAM_INDEX,
             format="mp4",
             cloud_container="sensor-core-upload",
-            description="Video samples with movement detected.",
+            sample_probability="0.1",
+            sample_container="sensor-core-upload",
         )
     ],
-    sample_probability="0.1",
-    sample_container="sensor-core-upload",
     min_blob_size=1000,
     max_blob_size=1000000,
 )

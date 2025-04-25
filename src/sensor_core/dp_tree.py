@@ -158,7 +158,9 @@ class DPtree:
         Returns:
             A list of DataProcessor objects representing the processors in the tree.
         """
-        return [node for node in self._nodes.values() if self.is_instance_of_type(node, "DataProcessor")]
+        return [
+            node for node in self._nodes.values() if not isinstance(node, Sensor)
+        ]
 
     def export(self) -> dict:
         """

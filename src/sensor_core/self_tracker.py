@@ -35,9 +35,11 @@ SC_TRACKING_CFG = SensorCfg(
     sensor_index=0,
     description="SensorCore self-telemetry",
     outputs=[
-        Stream(api.SCORE_DS_TYPE_ID, 0, format="log", fields=SCORE_FIELDS, 
+        Stream("System datastream of count data of records saved to streams", 
+               api.SCORE_DS_TYPE_ID, 0, format="log", fields=SCORE_FIELDS, 
                cloud_container=root_cfg.my_device.cc_for_system_records),
-        Stream(api.SCORP_DS_TYPE_ID, 1, format="log", fields=SCORP_FIELDS, 
+        Stream("System datastream of DataProcessor performance data", 
+               api.SCORP_DS_TYPE_ID, 1, format="log", fields=SCORP_FIELDS, 
                cloud_container=root_cfg.my_device.cc_for_system_records),
     ],
 )
@@ -52,7 +54,7 @@ class SelfTracker(Sensor):
         super().__init__(SC_TRACKING_CFG)
         self.last_ran: datetime = api.utc_now()
 
-    def set_dp_engine(self, dp_engines: list[DPengine]) -> None:
+    def set_dp_engines(self, dp_engines: list[DPengine]) -> None:
         """Set the DPengine for the SelfTracking sensor.
         
         This method is called by the EdgeOrchestrator when the SelfTracking is started.

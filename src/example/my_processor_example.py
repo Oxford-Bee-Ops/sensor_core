@@ -12,9 +12,15 @@ EXAMPLE_DF_DS_TYPE_ID = "DUMMD"
 EXAMPLE_DF_STREAM_INDEX = 0
 EXAMPLE_FILE_PROCESSOR_CFG = DataProcessorCfg(
     description="Example file processor for testing",
-    outputs=[Stream(EXAMPLE_DF_DS_TYPE_ID, EXAMPLE_DF_STREAM_INDEX, "df", ["pixel_count"])],
-    sample_probability = str(1.0), # Always upload - we assert this in the UnitTest
-    sample_container = "sensor-core-upload",
+    outputs=[Stream(description="Example dataframe stream",
+                    type_id=EXAMPLE_DF_DS_TYPE_ID, 
+                    index=EXAMPLE_DF_STREAM_INDEX, 
+                    format="df", 
+                    fields=["pixel_count"],
+                    cloud_container = "sensor-core-upload",
+                    sample_probability = str(1.0), # Always upload - we assert this in the UnitTest
+                    sample_container = "sensor-core-upload"),
+            ],
 )
 
 #############################################################################################################

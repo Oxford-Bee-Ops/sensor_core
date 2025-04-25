@@ -43,11 +43,11 @@ def create_continuous_video_4fps_device() -> list[DPtree]:
         sensor_index=sensor_index,
         outputs=[
             Stream(
+                description="Low FPS continuous video recording",
                 type_id=RPICAM_DATA_TYPE_ID,
                 index=RPICAM_STREAM_INDEX,
                 format="mp4",
                 cloud_container="sensor-core-upload",
-                description="Basic continuous video recording.",
             )
         ],
         rpicam_cmd="rpicam-vid --framerate 4 --width 640 --height 480 -o FILENAME -t 180000 -v 0"

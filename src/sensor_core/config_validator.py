@@ -4,11 +4,11 @@
 from abc import ABC, abstractmethod
 
 from sensor_core import api
+from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import CloudConnector
 from sensor_core.dp_tree import DPtree
 from sensor_core.dp_tree_node import DPtreeNode
 from sensor_core.sensor import Sensor, SensorCfg
-from sensor_core import configuration as root_cfg
 
 logger = root_cfg.setup_logger("sensor_core")
 
@@ -45,11 +45,11 @@ class Rule1_outputs_not_empty(ValidationRule):
 # Rule 2: check that the sensor model is set for all datastreams
 class Rule2_sensor_model_set(ValidationRule):
     def validate(self, dpnode: DPtreeNode) -> tuple[bool, str]:
-        if isinstance(dpnode, Sensor):
-            sensor: SensorCfg = dpnode.get_config()
-            if sensor.sensor_model is None or sensor.sensor_model == root_cfg.FAILED_TO_LOAD:
+        config = dpnode.get_config()
+        if isinstance(config, SensorCfg):
+            if config.sensor_model is None or config.sensor_model == root_cfg.FAILED_TO_LOAD:
                 return False, (
-                    f"Sensor model not set in {sensor.sensor_type} {sensor}"
+                    f"Sensor model not set in {config.sensor_type} {config}"
                 )
         return True, ""
 

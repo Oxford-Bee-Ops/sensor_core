@@ -81,18 +81,18 @@ DEFAULT_VIDEO_SENSOR_CFG = VideoSensorCfg(
     description = "Default video sensor",
     outputs = [
         Stream(
+            description="Continuous video recording",
             type_id=CONTINUOUS_VIDEO_DS_TYPE_ID,
             index=VIDEO_STREAM_INDEX,
             format="mp4",
             cloud_container="sensor-core-upload",
-            description="Continuous video recording",
         ),
         Stream(
+            description="Still image",
             type_id=STILL_IMAGE_DS_TYPE_ID,
             index=IMAGE_STREAM_INDEX,
             format="jpg",
             cloud_container="sensor-core-upload",
-            description="Still image",
         ),
     ],
 )

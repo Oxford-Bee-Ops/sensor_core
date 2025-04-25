@@ -167,7 +167,7 @@ class DPengine(Thread):
             for edge in self.dp_tree.get_edges():
                 try:
                     exec_start_time = api.utc_now()
-                    assert isinstance(edge, DataProcessorCfg)
+                    assert isinstance(edge.sink, DataProcessor)
                     dp: DataProcessor = edge.sink
                     stream = edge.stream
 
@@ -205,16 +205,7 @@ class DPengine(Thread):
 
                     # Log the processing time
                     exec_time = api.utc_now() - exec_start_time
-                    if DPengine._scorp_dp is not None:
-                        DPengine._scorp_dp.log(
-                            stream_index=api.SCORP_STREAM_INDEX,
-                            sensor_data={
-                                "mode": Mode.EDGE.value,
-                                "observed_type_id": stream.type_id,
-                                "observed_sensor_index": self.sensor_index,
-                                "duration": exec_time.total_seconds(),
-                            }
-                        )
+                    dp._scorp_stat(api.SCORP_STREAM_INDEX, duration=exec_time.total_seconds())
                 except Exception as e:
                     logger.error(
                         f"{root_cfg.RAISE_WARN()}Error processing files for {self}. e={e!s}",

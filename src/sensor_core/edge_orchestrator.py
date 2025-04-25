@@ -79,16 +79,17 @@ class EdgeOrchestrator:
             # SCORP - DP performance
             self.device_health = DeviceHealth()
             health_dpe = DPengine(DPtree(self.device_health))
+            self._sensorThreads.append(self.device_health)
             self._dpengines.append(health_dpe)
 
             self.selftracker = SelfTracker()
             tracker_dpe = DPengine(DPtree(self.selftracker))
+            self._sensorThreads.append(self.selftracker)
             self._dpengines.append(tracker_dpe)
-
-            # We set the system_dpe as a class variable so that all DPengine instances can 
+            self.selftracker.set_dp_engines(self._dpengines)
+            # We set the _selftracker as a class variable so that all DPtreeNoes instances can 
             # log their performance data
-            DPtreeNode._score_dp = self.selftracker
-            DPengine._scorp_dp = self.selftracker
+            DPtreeNode._selftracker = self.selftracker
 
             self._orchestrator_is_running = False
 

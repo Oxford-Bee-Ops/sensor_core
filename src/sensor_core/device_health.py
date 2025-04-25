@@ -106,8 +106,16 @@ DEVICE_HEALTH_CFG = SensorCfg(
     sensor_index=0,
     description="Internal device health",
     outputs=[
-        Stream(api.HEART_DS_TYPE_ID, HEART_STREAM_INDEX, format="log", fields=HEART_FIELDS),
-        Stream(api.WARNING_DS_TYPE_ID, WARNING_STREAM_INDEX, format="log", fields=WARNING_FIELDS),
+        Stream("Health heartbeat stream", 
+               api.HEART_DS_TYPE_ID, 
+               HEART_STREAM_INDEX, 
+               format="log", 
+               fields=HEART_FIELDS),
+        Stream("Warning log stream", 
+               api.WARNING_DS_TYPE_ID, 
+               WARNING_STREAM_INDEX, 
+               format="log", 
+               fields=WARNING_FIELDS),
     ],
 )
 

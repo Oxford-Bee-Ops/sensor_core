@@ -69,22 +69,22 @@ DEFAULT_AUDIO_PROCESSOR_CFG = AudioProcessorCfg(
     description = "HiveAudio processor for hive entrance audio",
     outputsv = [
         Stream(
+            description="FFT spectrograms of hive entrance audio recordings",
             type_id=FFT_FILES_TYPE_ID,
             index=FFT_STREAM_INDEX,
             format="png",
             cloud_container="sensor-core-upload",
-            description="FFT spectrograms of hive entrance audio recordings.",
+            sample_probability = "0.02",
+            sample_container = "sensor-core-upload",
         ),
         Stream(
+            description="Meta data on the hive entrance audio recordings",
             type_id=WAV_META_DATA_TYPE_ID,
             index=WAV_META_DATA_STREAM_INDEX,
             format="log",
             fields=WAV_META_DATA_FIELDS,
-            description="Meta data on the hive entrance audio recordings.",
         )
     ],
-    sample_probability = "0.02",
-    sample_container = "sensor-core-upload",
     ########################################################################
     # Custom fields
     ########################################################################

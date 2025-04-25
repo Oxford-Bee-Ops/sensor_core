@@ -1,8 +1,9 @@
 
-from abc import ABC
+import shutil
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
+from random import random
 from typing import Optional
 from zoneinfo import ZoneInfo
 
@@ -25,12 +26,11 @@ class DPnodeStats:
     count: int
     duration: float = 0.0
 
-class DPtreeNode(ABC):
-    """Abstract base class for nodes in the DPtree.
-    Sensor and DataProcessor inherit from this class.
+class DPtreeNode():
+    """Base class for nodes in the DPtree. Sensor and DataProcessor inherit from this class.
     """
     # Special Datastream for recording sample count / duration from the data pipeline.
-    _score_dp: "DPtreeNode"
+    _selftracker: "DPtreeNode"
 
     def __init__(self, config: DPtreeNodeCfg, sensor_index: int) -> None:
         """
@@ -45,8 +45,9 @@ class DPtreeNode(ABC):
 
         self._dpnode_children: dict[int, DPtreeNode] = {}  # Dictionary mapping output streams to child nodes.
 
-        # Record the number of datapoints recorded by this Datastream
-        self._dpnode_stats: dict[str, list[DPnodeStats]] = {}
+        # Record the number of datapoints recorded by this Datastream (by type_id).
+        self._dpnode_score_stats: dict[str, list[DPnodeStats]] = {}
+        self._dpnode_scorp_stats: dict[str, list[DPnodeStats]] = {}
 
         # Create the Journals that we will use to store this DPtree's output.
         self.journal_pool: JournalPool = JournalPool.get(mode=root_cfg.get_mode())
@@ -60,7 +61,7 @@ class DPtreeNode(ABC):
         """
         # Although the node may have children, we care about whether there is a child node for the
         # given stream_index. If there is no child node for this stream, is_leaf == True.
-        return not (stream_index in self._dpnode_children)
+        return stream_index not in self._dpnode_children
 
     def get_config(self) -> DPtreeNodeCfg:
         """Return the configuration for this node."""
@@ -152,7 +153,7 @@ class DPtreeNode(ABC):
 
         # Track the number of measurements recorded
         # These data points don't have a duration - that only applies to recordings.
-        stats_list: list[DPnodeStats] = self._dpnode_stats.get(stream.type_id, [])
+        stats_list: list[DPnodeStats] = self._dpnode_score_stats.get(stream.type_id, [])
         stats_list.append(DPnodeStats(api.utc_now(), 1))
 
         # We also spam the data to the logger for easy debugging and display in the bcli
@@ -179,7 +180,7 @@ class DPtreeNode(ABC):
 
         # Track the number of measurements recorded
         # These data points don't have a duration - that only applies to recordings.
-        stats_list = self._dpnode_stats.get(stream.type_id, [])
+        stats_list = self._dpnode_score_stats.get(stream.type_id, [])
         stats_list.append(DPnodeStats(api.utc_now(), len(sensor_data)))
 
 
@@ -235,13 +236,6 @@ class DPtreeNode(ABC):
         return new_fname
 
 
-    #########################################################################################################
-    #
-    # Data functions called by DataProcessors to save files
-    #
-    # Normally a DataProcessor returns a DataFrame to be passed to the next DP, but in some cases the
-    # DP needs to save a sub-sampled recording.
-    #########################################################################################################
     def save_sub_recording(
         self,
         stream_index: int,
@@ -313,32 +307,81 @@ class DPtreeNode(ABC):
 
         This is used by EdgeOrchestrator to periodically log observability data
         """
+        if DPtreeNode._selftracker is None:
+            logger.warning(f"{root_cfg.RAISE_WARN}SelfTracker not set; cannot log sample data")
+            return
+        
         stats_list: list[DPnodeStats]
-        for type_id, stats_list in self._dpnode_stats.items():
+        for type_id, stats_list in self._dpnode_score_stats.items():
             count = sum(x.count for x in stats_list)
             duration = sum(x.duration for x in stats_list)
 
             # Reset the datastream stats for the next period
-            self._dpnode_stats[type_id] = []
+            self._dpnode_score_stats[type_id] = []
 
-            # Log sample data
-            if DPtreeNode._score_dp is not None:
-                DPtreeNode._score_dp.log(
-                    stream_index=api.SCORP_STREAM_INDEX,
-                    sensor_data={
-                        "observed_type_id": type_id,
-                        "observed_sensor_index": self.sensor_index,
-                        "sample_period": api.utc_to_iso_str(sample_period_start_time),
-                        "count": str(count),
-                        "duration": str(duration),
-                    }
-                )
+            # Log SCORE data
+            DPtreeNode._selftracker.log(
+                stream_index=api.SCORE_STREAM_INDEX,
+                sensor_data={
+                    "observed_type_id": type_id,
+                    "observed_sensor_index": self.sensor_index,
+                    "sample_period": api.utc_to_iso_str(sample_period_start_time),
+                    "count": str(count),
+                    "duration": str(duration),
+                }
+            )
+
+        for type_id, stats_list in self._dpnode_scorp_stats.items():
+            count = sum(x.count for x in stats_list)
+            duration = sum(x.duration for x in stats_list)
+
+            # Reset the datastream stats for the next period
+            self._dpnode_scorp_stats[type_id] = []
+
+            # Log SCORP data
+            DPtreeNode._selftracker.log(
+                stream_index=api.SCORP_STREAM_INDEX,
+                sensor_data={
+                    "observed_type_id": type_id,
+                    "observed_sensor_index": self.sensor_index,
+                    "sample_period": api.utc_to_iso_str(sample_period_start_time),
+                    "count": str(count),
+                    "duration": str(duration),
+                }
+            )
+
+    
+    def save_sample(self, sample_probability: str | None) -> bool:
+        """Return True if this node should save sample data to the datastore.
+        This method can be subclassed to provide more complex sampling logic.
+        In this default implementation, we assume sample_probability is a
+        float value between 0.0 and 1.0."""
+        if sample_probability is None:
+            return False
+        try:
+            prob = float(sample_probability)
+            if prob < 0.0 or prob > 1.0:
+                raise ValueError(f"Invalid sample probability: {sample_probability}; "
+                                 f"expected a value between 0.0 and 1.0")
+        except ValueError:
+            raise ValueError(f"Invalid sample probability: {sample_probability}; "
+                             f"expected a value between 0.0 and 1.0")
+        
+        return random() < prob
+    
 
     #########################################################################################################
     #
     # Private methods in support of Sensors
     #
     #########################################################################################################
+    def _scorp_stat(self, stream_index: int, duration: float) -> None:
+        """Record the duration of a DataProcessor cycle in the SCORP stream."""
+        stream = self.get_stream(stream_index)
+        self._dpnode_scorp_stats.get(stream.type_id, []).append(DPnodeStats(api.utc_now(), 1, duration))
+
+        logger.debug(f"Recorded SCORP stat for {stream.type_id} duration {duration}")
+
     def _save_recording(
         self,
         stream_index: int,
@@ -428,6 +471,23 @@ class DPtreeNode(ABC):
                 new_fname = file_naming.increment_filename(new_fname)
             new_fname = src_file.rename(new_fname)
 
+        if self.save_sample(stream.sample_probability) and stream.sample_container is not None:
+            # Generate a *copy* of the raw sample file because the original is in the Processing directory
+            # and may soon by picked up by a DataProcessor.
+            # The filename is the same as the recording, but saved to the upload directory
+            if new_fname.parent == root_cfg.EDGE_UPLOAD_DIR:
+                logger.warning(f"All recordings are being saved, but we're also saving samples."
+                               f" Config error in {self.get_data_id(stream_index)} config?")
+                
+            sample_fname = file_naming.increment_filename(root_cfg.EDGE_UPLOAD_DIR / new_fname.name)
+            shutil.copy(new_fname, sample_fname)
+            CloudConnector.get_instance().upload_to_container(stream.sample_container,
+                                                [sample_fname], 
+                                                delete_src=True)
+            logger.info(f"Raw sample saved to {stream.sample_container}; "
+                        f"sample_prob={stream.sample_probability}")
+
+
         # If the dst_dir is EDGE_UPLOAD_DIR, we can use direct upload to the cloud
         if dst_dir == root_cfg.EDGE_UPLOAD_DIR:
             cloud_container = self.get_config().outputs[stream_index].cloud_container
@@ -437,10 +497,10 @@ class DPtreeNode(ABC):
 
         # Track the number of measurements recorded
         if end_time is None:
-            self._dpnode_stats.get(stream.type_id, []).append(DPnodeStats(api.utc_now(), 1))
+            self._dpnode_score_stats.get(stream.type_id, []).append(DPnodeStats(api.utc_now(), 1))
         else:
             # Track duration if this file represents a period
-            self._dpnode_stats[stream.type_id].append(
+            self._dpnode_score_stats[stream.type_id].append(
                 DPnodeStats(api.utc_now(), 1, (end_time - start_time).total_seconds())
             )
 

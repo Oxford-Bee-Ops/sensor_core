@@ -34,15 +34,13 @@ DEFAULT_RPICAM_SENSOR_CFG = RpicamSensorCfg(
     sensor_type="CAMERA",
     sensor_index=0,
     description="Video sensor that uses rpicam-vid",
-    sample_probability="0",
-    sample_container="sensor-core-upload",
     outputs=[
         Stream(
+            description="Basic continuous video recording.",
             type_id=RPICAM_DATA_TYPE_ID,
             index=RPICAM_STREAM_INDEX,
             format="mp4",
             cloud_container="sensor-core-upload",
-            description="Basic continuous video recording.",
         )
     ],
     rpicam_cmd = "rpicam-vid --framerate 15 --width 640 --height 480 -o FILENAME.mp4 -t 5000",

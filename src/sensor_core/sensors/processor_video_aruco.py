@@ -66,18 +66,18 @@ DEFAULT_AUROCO_PROCESSOR_CFG = ArucoProcessorCfg(
     description = "WHOCAM video processor",
     outputs = [
         Stream(
+            description="Identified ARUCO markers in videos.",
             type_id=ARUCO_DATA_DS_TYPE_ID,
             index=ARUCO_DATA_STREAM_INDEX,
             format="df",
             fields=MARKER_INFO_REQD_COLUMNS,
-            description="Identified ARUCO markers in videos.",
         ),
         Stream(
+            description="Marked up video data from a WHO camera",
             type_id=ARUCO_MARKED_UP_VIDEOS_DS_TYPE_ID,
             index=ARUCO_MARKED_UP_VIDEOS_STREAM_INDEX,
             format="mp4",
             cloud_container="sensor-core-upload",
-            description="Marked up video data from a WHO camera",
         )
     ],
     aruco_dict_name = "DICT_4X4_50",

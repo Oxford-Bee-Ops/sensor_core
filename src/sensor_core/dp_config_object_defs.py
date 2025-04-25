@@ -10,6 +10,8 @@ logger = root_cfg.setup_logger("sensor_core")
 @dataclass
 class Stream:
     """Defines the format and fields present in a datastream coming from a DPtreeNode."""
+    # Human-understandable description of the data in the stream
+    description: str
     # Used to identify the type & purpose of data in file names, etc.
     # In combination with the index, this will be unique to a given sensor.
     # In combination with the device_id & sensor_index this must be globally unique.
@@ -25,8 +27,14 @@ class Stream:
     # "CSV" data is uploaded to the DeviceCfg.cc_for_journals container.
     cloud_container: Optional[str] = None
 
-    # Human-understandable description of the data in the stream
-    description: Optional[str] = ""
+    # Some sources support saving of sample raw recordings to the archive.
+    # This string is interpreted by the Sensor or DataProcessor to determine the frequency of 
+    # raw data sampling. The format of this string is specific to the Sensor or DataProcessor.
+    # The default implementation interprets this string as a float sampling probability (0.0-1.0)
+    sample_probability: Optional[str] = None
+    # If sampling is enabled, a sample_container must be specified and exist in the cloud storage.
+    sample_container: Optional[str] = None
+
 
     def get_data_id(self, sensor_index: int) -> str:
         """
@@ -46,14 +54,6 @@ class DPtreeNodeCfg:
     
     # Human-meaningful description of the node.
     description: str
-
-    # Some sources support saving of sample raw recordings to the archive.
-    # This string is interpreted by the Sensor or DataProcessor to determine the frequency of 
-    # raw data sampling. The format of this string is specific to the Sensor or DataProcessor.
-    # The default implementation interprets this string as a float sampling probability (0.0-1.0)
-    sample_probability: Optional[str] = None
-    # If sampling is enabled, a sample_container must be specified and exist in the cloud storage.
-    sample_container: Optional[str] = None
 
 
 @dataclass
