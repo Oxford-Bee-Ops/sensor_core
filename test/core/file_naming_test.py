@@ -36,7 +36,7 @@ class Test_datastream:
             isinstance(fields[api.RECORD_ID.END_TIME.value], datetime)
             or fields[api.RECORD_ID.END_TIME.value] is None
         )
-        assert fields[api.RECORD_ID.SUFFIX.value] == output_format
+        assert fields[api.RECORD_ID.SUFFIX.value] == output_format.value
 
 
     @pytest.mark.quick

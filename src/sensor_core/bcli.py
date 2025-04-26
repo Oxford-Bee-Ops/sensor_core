@@ -428,8 +428,8 @@ class InteractiveMenu():
         if edge_orch is not None:
             for i, dptree in enumerate(edge_orch.dp_trees):
                 sensor_cfg = dptree.sensor.config
-                click.echo(f"{i}> {sensor_cfg.sensor_type} {sensor_cfg.sensor_model}"
-                           f" {sensor_cfg.sensor_index}")
+                click.echo(f"{i}> {sensor_cfg.sensor_type} {sensor_cfg.sensor_index} "
+                           f" {sensor_cfg.sensor_model}")
                 streams = dptree.sensor.config.outputs
                 if streams is not None:
                     for stream in streams:

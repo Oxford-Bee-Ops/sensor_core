@@ -1,4 +1,3 @@
-
 import shutil
 from dataclasses import asdict, dataclass
 from datetime import datetime
@@ -118,8 +117,7 @@ class DPtreeNode():
     #########################################################################################################
     def log(self, stream_index: int, sensor_data: dict) -> None:
         """Called by Sensor/DataProcessor to log a single 'row' of Sensor-generated data."""
-        config = self._dpnode_config
-        stream = config.outputs[stream_index]
+        stream = self.get_stream(stream_index)
         data_id = self.get_data_id(stream_index)
 
         logger.debug(f"Log sensor_data: {sensor_data} to DPnode:{data_id} stream {stream_index}")
@@ -153,7 +151,7 @@ class DPtreeNode():
 
         # Track the number of measurements recorded
         # These data points don't have a duration - that only applies to recordings.
-        stats_list: list[DPnodeStats] = self._dpnode_score_stats.get(stream.type_id, [])
+        stats_list: list[DPnodeStats] = self._dpnode_score_stats.setdefault(stream.type_id, [])
         stats_list.append(DPnodeStats(api.utc_now(), 1))
 
         # We also spam the data to the logger for easy debugging and display in the bcli
@@ -173,14 +171,13 @@ class DPtreeNode():
             logger.debug(f"Dataframe empty for {self.get_data_id(stream_index)}")
             return
         
-        config = self._dpnode_config
-        stream = config.outputs[stream_index]
+        stream = self.get_stream(stream_index)
         sensor_data = self._validate_output(sensor_data, stream)
         self.journal_pool.add_rows_from_df(stream, sensor_data)
 
         # Track the number of measurements recorded
         # These data points don't have a duration - that only applies to recordings.
-        stats_list = self._dpnode_score_stats.get(stream.type_id, [])
+        stats_list = self._dpnode_score_stats.setdefault(stream.type_id, [])
         stats_list.append(DPnodeStats(api.utc_now(), len(sensor_data)))
 
 
@@ -210,8 +207,6 @@ class DPtreeNode():
         end_time:datetime
             Tthe time that the recording ended.
         """
-        
-        config = self._dpnode_config
 
         # If on EDGE, files are either saved to the root_cfg.EDGE_PROCESSING_DIR if there are DPs registered,
         # or to the root_cfg.EDGE_UPLOAD_DIR if not.
@@ -229,7 +224,7 @@ class DPtreeNode():
             src_file=temporary_file,
             dst_dir=save_dir,
             start_time=start_time,
-            suffix=config.outputs[stream_index].format,
+            suffix=self.get_stream(stream_index).format,
             end_time=end_time,
         )
 
@@ -268,11 +263,7 @@ class DPtreeNode():
         secondary_offset_index: optional int
             An index that can be used to differentiate between multiple subsamples from a given frame.
         """
-        config = self._dpnode_config
-        assert config.outputs[stream_index] is not None, (
-            f"output_format must be specified on dp_config {config}"
-        )
-        suffix = config.outputs[stream_index].format
+        suffix = self.get_stream(stream_index).format
 
         # We save the recording to the EDGE|ETL_PROCESSING_DIR if there are more DPs to run, 
         # otherwise we save it to the EDGE|ETL_UPLOAD_DIR
@@ -342,6 +333,8 @@ class DPtreeNode():
             DPtreeNode._selftracker.log(
                 stream_index=api.SCORP_STREAM_INDEX,
                 sensor_data={
+                    # The data_processor_id is the subclass name of this object
+                    "data_processor_id": self.__class__.__name__,
                     "observed_type_id": type_id,
                     "observed_sensor_index": self.sensor_index,
                     "sample_period": api.utc_to_iso_str(sample_period_start_time),
@@ -378,7 +371,8 @@ class DPtreeNode():
     def _scorp_stat(self, stream_index: int, duration: float) -> None:
         """Record the duration of a DataProcessor cycle in the SCORP stream."""
         stream = self.get_stream(stream_index)
-        self._dpnode_scorp_stats.get(stream.type_id, []).append(DPnodeStats(api.utc_now(), 1, duration))
+        stats_list = self._dpnode_scorp_stats.setdefault(stream.type_id, [])
+        stats_list.append(DPnodeStats(api.utc_now(), 1, duration))
 
         logger.debug(f"Recorded SCORP stat for {stream.type_id} duration {duration}")
 
@@ -388,7 +382,7 @@ class DPtreeNode():
         src_file: Path,
         dst_dir: Path,
         start_time: datetime,
-        suffix: str,
+        suffix: api.FORMAT,
         end_time: Optional[datetime] = None,
         offset_index: Optional[int] = None,
         secondary_offset_index: Optional[int] = None,
@@ -419,7 +413,7 @@ class DPtreeNode():
 
         # Check that the file is of the correct format.
         # This should match the suffix provided.
-        if not src_file.suffix.endswith(suffix):
+        if not src_file.suffix.endswith(suffix.value):
             raise ValueError(f"File format {src_file.suffix} does not match expected suffix {suffix}.")
         
         # Check that the start_time and end_time are valid
@@ -490,17 +484,17 @@ class DPtreeNode():
 
         # If the dst_dir is EDGE_UPLOAD_DIR, we can use direct upload to the cloud
         if dst_dir == root_cfg.EDGE_UPLOAD_DIR:
-            cloud_container = self.get_config().outputs[stream_index].cloud_container
+            cloud_container = self.get_stream(stream_index).cloud_container
             assert cloud_container is not None
             CloudConnector.get_instance().upload_to_container(cloud_container, 
                                                               [new_fname], delete_src=True)
 
         # Track the number of measurements recorded
         if end_time is None:
-            self._dpnode_score_stats.get(stream.type_id, []).append(DPnodeStats(api.utc_now(), 1))
+            self._dpnode_score_stats.setdefault(stream.type_id, []).append(DPnodeStats(api.utc_now(), 1))
         else:
             # Track duration if this file represents a period
-            self._dpnode_score_stats[stream.type_id].append(
+            self._dpnode_score_stats.setdefault(stream.type_id, []).append(
                 DPnodeStats(api.utc_now(), 1, (end_time - start_time).total_seconds())
             )
 

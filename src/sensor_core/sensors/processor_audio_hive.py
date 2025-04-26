@@ -72,7 +72,7 @@ DEFAULT_AUDIO_PROCESSOR_CFG = AudioProcessorCfg(
             description="FFT spectrograms of hive entrance audio recordings",
             type_id=FFT_FILES_TYPE_ID,
             index=FFT_STREAM_INDEX,
-            format="png",
+            format=api.FORMAT.PNG,
             cloud_container="sensor-core-upload",
             sample_probability = "0.02",
             sample_container = "sensor-core-upload",
@@ -81,7 +81,7 @@ DEFAULT_AUDIO_PROCESSOR_CFG = AudioProcessorCfg(
             description="Meta data on the hive entrance audio recordings",
             type_id=WAV_META_DATA_TYPE_ID,
             index=WAV_META_DATA_STREAM_INDEX,
-            format="log",
+            format=api.FORMAT.LOG,
             fields=WAV_META_DATA_FIELDS,
         )
     ],

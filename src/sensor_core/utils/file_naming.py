@@ -152,7 +152,7 @@ def get_file_datetime(fname: Path | str) -> datetime:
 def get_record_filename(
     dst_dir: Path,
     data_id: str,
-    suffix: str,
+    suffix: api.FORMAT,
     start_time: datetime,
     end_time: Optional[datetime] = None,
     frame_number: Optional[int] = None,
@@ -191,8 +191,7 @@ def get_record_filename(
                 fname += f"_{arbitrary_index}"
 
     # The suffix can be explicitly passed in, or defaults to the ds_type.input_format
-    assert len(suffix) > 0
-    fname += f".{suffix}"
+    fname += f".{suffix.value}"
 
     # Add the path to the specified edge processing directory, creating the directory if it does not exist
     assert dst_dir is not None
@@ -233,10 +232,9 @@ def get_journal_filename(type_id: str) -> Path:
     return root_cfg.EDGE_STAGING_DIR.joinpath(f"V3_{type_id}_{root_cfg.my_device_id}.csv")
 
 
-def get_temporary_filename(suffix: str) -> Path:
+def get_temporary_filename(format: api.FORMAT) -> Path:
     """Generate a temporary filename in the TMP_DIR with the specified suffix."""
-    if suffix.startswith("."):
-        suffix = suffix[1:]
+    suffix = format.value
     tmp_fname = root_cfg.TMP_DIR.joinpath(f"tmp_{api.utc_to_fname_str()}_{random():.4g}.{suffix}")
     return tmp_fname
 
@@ -250,9 +248,10 @@ def get_log_filename() -> Path:
     """Generate a filename for a log file in the upload directory."""
     return root_cfg.EDGE_UPLOAD_DIR / f"V3_{root_cfg.my_device_id}_{api.utc_to_fname_str()}.log"
 
-def get_FAIR_filename(sensor_model: str, sensor_index: int, suffix: str) -> Path:
+def get_FAIR_filename(sensor_type: api.SENSOR_TYPE, sensor_index: int, suffix: str) -> Path:
     """Generate a filename for a fair file."""
     return (
         root_cfg.EDGE_UPLOAD_DIR / 
-        f"V3_{root_cfg.my_device_id}_{sensor_model}_{sensor_index}_{api.utc_to_fname_str()}.{suffix}"
+        f"V3_{root_cfg.my_device_id}_{sensor_type.value}_{sensor_index}_"
+        f"{api.utc_to_fname_str()}.{suffix}"
     )

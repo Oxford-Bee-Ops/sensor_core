@@ -26,24 +26,25 @@ class RpicamSensorCfg(SensorCfg):
     # Defines the rpicam-vid command to use to record video.
     # This should be as specified in the rpicam-vid documentation.
     # The filename should be substituted with FILENAME. 
-    # Example: "rpicam-vid --framerate 15 --width 640 --height 640 -o FILENAME.mp4 -t 5000"
+    # Example: "rpicam-vid --framerate 15 --width 640 --height 640 -o FILENAME -t 5000"
     # The FILENAME suffix should match the datastream input_format.
-    rpicam_cmd: str = "rpicam-vid --framerate 15 --width 640 --height 480 -o FILENAME.mp4 -t 5000"
+    rpicam_cmd: str = "rpicam-vid --framerate 15 --width 640 --height 480 -o FILENAME -t 5000"
 
 DEFAULT_RPICAM_SENSOR_CFG = RpicamSensorCfg(
-    sensor_type="CAMERA",
+    sensor_type=api.SENSOR_TYPE.CAMERA,
     sensor_index=0,
+    sensor_model="PiCameraModule3",
     description="Video sensor that uses rpicam-vid",
     outputs=[
         Stream(
             description="Basic continuous video recording.",
             type_id=RPICAM_DATA_TYPE_ID,
             index=RPICAM_STREAM_INDEX,
-            format="mp4",
+            format=api.FORMAT.MP4,
             cloud_container="sensor-core-upload",
         )
     ],
-    rpicam_cmd = "rpicam-vid --framerate 15 --width 640 --height 480 -o FILENAME.mp4 -t 5000",
+    rpicam_cmd = "rpicam-vid --framerate 15 --width 640 --height 480 -o FILENAME -t 5000",
 )
 
 class RpicamSensor(Sensor):
@@ -51,7 +52,7 @@ class RpicamSensor(Sensor):
         """Constructor for the RpicamSensor class"""
         super().__init__(config)
         self.config = config
-        self.recording_format = self.config.outputs[RPICAM_STREAM_INDEX].format
+        self.recording_format = self.get_stream(RPICAM_STREAM_INDEX).format
         self.rpicam_cmd = self.config.rpicam_cmd
 
         assert self.rpicam_cmd, (

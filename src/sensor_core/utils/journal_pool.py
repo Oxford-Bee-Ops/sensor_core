@@ -110,8 +110,9 @@ class CloudJournalPool(JournalPool):
         """Add data to the appropriate CloudJournal, which will auto-sync to the cloud
 
         All data MUST relate to the same DAY as timestamp."""
+        if timestamp is None:
+            timestamp = api.utc_now()
 
-        assert timestamp is not None, "Timestamp must be provided for add_rows_from_df with CloudJournalPool"
         with self.jlock:
             cj = self._get_journal(stream, timestamp)
             cj.add_rows_from_df(data)

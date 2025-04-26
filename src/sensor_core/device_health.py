@@ -102,20 +102,23 @@ WARNING_FIELDS = [
 HEART_STREAM_INDEX = 0
 WARNING_STREAM_INDEX = 1
 DEVICE_HEALTH_CFG = SensorCfg(
-    sensor_type="SYS",
+    sensor_type=api.SENSOR_TYPE.SYS,
     sensor_index=0,
+    sensor_model="DeviceHealth",
     description="Internal device health",
     outputs=[
         Stream("Health heartbeat stream", 
                api.HEART_DS_TYPE_ID, 
                HEART_STREAM_INDEX, 
-               format="log", 
-               fields=HEART_FIELDS),
+               format=api.FORMAT.LOG, 
+               fields=HEART_FIELDS,
+               cloud_container=root_cfg.my_device.cc_for_system_records),
         Stream("Warning log stream", 
                api.WARNING_DS_TYPE_ID, 
                WARNING_STREAM_INDEX, 
-               format="log", 
-               fields=WARNING_FIELDS),
+               format=api.FORMAT.LOG, 
+               fields=WARNING_FIELDS,
+               cloud_container=root_cfg.my_device.cc_for_system_records),
     ],
 )
 
@@ -158,6 +161,9 @@ class DeviceHealth(Sensor):
             self.log_counter += 1
             next_hour = (self.last_ran + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
             sleep_time = (next_hour - self.last_ran).total_seconds()
+            if root_cfg.TEST_MODE == root_cfg.MODE.TEST:
+                # In test mode, we want to run every 1 seconds
+                sleep_time = 1
             sleep(sleep_time)
 
     def log_health(self) -> None:

@@ -5,7 +5,7 @@
 ####################################################################################################
 from datetime import datetime
 from enum import Enum
-from typing import Final, Literal, Optional
+from typing import Optional
 from zoneinfo import ZoneInfo
 
 
@@ -49,27 +49,37 @@ ALL_RECORD_ID_FIELDS = [*REQD_RECORD_ID_FIELDS,
 #
 # Used in DUA & BCLI
 ############################################################
-INSTALL_TYPE_SENSOR = "rpi_sensor"
-INSTALL_TYPE_ETL = "etl"
-INSTALL_TYPES = [INSTALL_TYPE_SENSOR, INSTALL_TYPE_ETL]
+class INSTALL_TYPE(Enum):
+    RPI_SENSOR = "rpi_sensor"  # Sensor installation
+    ETL = "etl"  # ETL installation
+    NOT_SET = "NOT_SET"  # Invalid but used to declare the SensorCfg object
+
 
 ############################################################
-# Sensor types
+# Sensor interface type
 ############################################################
-SENSOR_TYPES = Literal['ENV', 'MIC', 'CAMERA', 'SYS', 'NOT_SET']
+class SENSOR_TYPE(Enum):
+    I2C = "I2C"  # Environmental sensor (e.g., temperature, humidity, etc.)
+    USB = "USB"  # Microphone sensor
+    CAMERA = "CAMERA"  # Camera sensor
+    SYS = "SYS"  # System sensor (e.g., self-tracking)
+    NOT_SET = "NOT_SET"  # Invalid but used to declare the SensorCfg object
 
 ############################################################
 # Datastream types
 ############################################################
-FILE_FORMATS = Literal[
-    "df", # Dataframe; can be saved as CSV
-    "log", # Jog (dict)
-    "jpg", 
-    "png", 
-    "mp4", 
-    "h264", 
-    "wav", 
-    "yaml"]
+class FORMAT(Enum):
+    DF = "df"  # Dataframe; can be saved as CSV
+    CSV = "csv"  # CSV text format
+    LOG = "log"  # JSON-like log format (dict)
+    JPG = "jpg"  # JPEG image format
+    PNG = "png"  # PNG image format
+    MP4 = "mp4"  # MP4 video format
+    H264 = "h264"  # H264 video format
+    WAV = "wav"  # WAV audio format
+    YAML = "yaml"  # YAML text format
+
+DATA_FORMATS = [FORMAT.DF, FORMAT.CSV, FORMAT.LOG]
 
 ############################################################
 # Tags used in logs sent from sensors to the ETL
@@ -77,18 +87,6 @@ FILE_FORMATS = Literal[
 RAISE_WARN_TAG = "RAISE_WARNING#V1"
 TELEM_TAG = "TELEM#V1: "
 
-############################################################
-# Datastream and DataProcessor configuration
-############################################################
-ON: Final[str] = "ON"
-OFF: Final[str] = "OFF"
-OPTIMISED: Final[str] = "OPTIMISED"
-
-############################################################
-# Datastream & Sensor status updates
-############################################################
-DS_STARTED = "STARTED"
-DS_STOPPED = "STOPPED"
 
 #############################################################
 # System Datastream types

@@ -153,7 +153,7 @@ class EdgeOrchestrator:
         # The orchestrator monitors it's own status and will re-register all Sensors and Datastreams.
 
 
-    def _get_sensor(self, sensor_type: str, sensor_index: int) -> Optional[Sensor | None]:
+    def _get_sensor(self, sensor_type: api.SENSOR_TYPE, sensor_index: int) -> Optional[Sensor | None]:
         """Private method to get a sensor by type & index"""
         logger.debug(f"_get_sensor {sensor_type} {sensor_index} from {self._sensorThreads}")
         for sensor in self._sensorThreads:
@@ -252,7 +252,7 @@ class EdgeOrchestrator:
                 logger.info(f"Waiting for sensor thread {sensor}")
                 sensor.join()
 
-        # Stop all the datastream threads
+        # Stop all the dataprocessor threads
         for dpe in self._dpengines:
             dpe.stop()
 

@@ -19,12 +19,12 @@ class Stream:
     # Idenfier for the output stream.
     index: int
     # The type of data being produced by this output stream.
-    format: api.FILE_FORMATS
+    format: api.FORMAT
     # The human-readable name of the output stream.
     fields: Optional[list[str]] = None
     # The cloud storage container to which the data is archived.
-    # This is required for all types uploading files, other than output_format="CSV".
-    # "CSV" data is uploaded to the DeviceCfg.cc_for_journals container.
+    # This is required for all types uploading files, other than output.format="DF".
+    # "DF" data is uploaded to the DeviceCfg.cc_for_journals container.
     cloud_container: Optional[str] = None
 
     # Some sources support saving of sample raw recordings to the archive.
@@ -64,22 +64,19 @@ class SensorCfg(DPtreeNodeCfg):
     Parameters:
     ----------
     sensor_type: str
-        One of the sensor types defined in api.SENSOR_TYPES.
+        One of the sensor types defined in api.SensorType.
+        These represent physical interface types on the Raspberry Pi (eg I2C, USB, Camera).
 
     sensor_index: int
-        The index of the sensor in the list of sensors.
+        The index of the sensor - represents the phsyical interface index or comms port.
+        For example, the physical USB port index or the I2C signaling channel.
         Must be unique in combination with the sensor_type.
-        Used, for example, where a device has 4 audio sensors.
 
-    sensor_class_ref: str
-        The fully qualified class name of the sensor.
-        This must be interpretable as a Class by the Python interpreter.
-
-    sensor_model_description: str
-        A human-readable description of the sensor model.
+    sensor_model: str
+        The device model of the sensor (eg AHT20, PiCameraModule2).
     """
+    sensor_type: api.SENSOR_TYPE = api.SENSOR_TYPE.NOT_SET
     sensor_index: int = 0
-    sensor_type: api.SENSOR_TYPES = 'NOT_SET'
     sensor_model: str = root_cfg.FAILED_TO_LOAD
 
 

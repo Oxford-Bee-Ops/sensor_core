@@ -3,6 +3,7 @@ from typing import Any, Callable, Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from sensor_core import api
 from sensor_core.utils import dc
 
 ############################################################################################
@@ -134,7 +135,7 @@ class SystemCfg(BaseSettings):
     ############################################################
     # Default-able settings
     ############################################################
-    install_type: str ="rpi_sensor"
+    install_type: api.INSTALL_TYPE = api.INSTALL_TYPE.RPI_SENSOR
     # Logging and storage settings
     enable_volatile_logs: str ="Yes"
     # Do you want SensorCore to start automatically after running the rpi_installer.sh script?

@@ -13,6 +13,9 @@
 #             -> cloud_processors: list[DataProcessorCfg]
 #
 ###################################################################################################
+from typing import Optional
+
+from sensor_core import api
 from sensor_core import configuration as root_cfg
 from sensor_core.dp_config_object_defs import Stream
 from sensor_core.dp_tree import DPtree
@@ -46,7 +49,7 @@ def create_continuous_video_4fps_device() -> list[DPtree]:
                 description="Low FPS continuous video recording",
                 type_id=RPICAM_DATA_TYPE_ID,
                 index=RPICAM_STREAM_INDEX,
-                format="mp4",
+                format=api.FORMAT.MP4,
                 cloud_container="sensor-core-upload",
             )
         ],
@@ -64,16 +67,22 @@ def create_continuous_video_4fps_device() -> list[DPtree]:
 # The original continuous video recording is deleted after being passed to the trap cam DP; 
 # we could opt to save raw samples if we wanted to.
 ###################################################################################################
-def create_trapcam_device(sensor_index: int) -> list[DPtree]:
+def create_trapcam_device(sensor_index: Optional[int] = 0) -> list[DPtree]:
     """Create a standard camera device."""
 
     # Define the sensor
     cfg = DEFAULT_RPICAM_SENSOR_CFG
-    cfg.sensor_index = sensor_index
+
+    # Update the sensor index if provided
+    if sensor_index is None:
+        cfg.sensor_index = 0
+    else:
+        cfg.sensor_index = sensor_index
+        
     my_sensor = RpicamSensor(cfg)
 
     # Define the DataProcessor
-    my_dp = ProcessorVideoTrapCam(DEFAULT_TRAPCAM_PROCESSOR_CFG, sensor_index=sensor_index)
+    my_dp = ProcessorVideoTrapCam(DEFAULT_TRAPCAM_PROCESSOR_CFG, sensor_index=cfg.sensor_index)
 
     # Connect the DataProcessor to the Sensor
     my_tree = DPtree(my_sensor)

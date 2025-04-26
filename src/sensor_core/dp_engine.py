@@ -14,7 +14,7 @@ from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import CloudConnector
 from sensor_core.configuration import Mode
 from sensor_core.data_processor import DataProcessor
-from sensor_core.dp_config_object_defs import DataProcessorCfg, SensorCfg, Stream
+from sensor_core.dp_config_object_defs import SensorCfg, Stream
 from sensor_core.dp_tree import DPtree
 from sensor_core.dp_tree_node import DPtreeNode
 from sensor_core.utils import file_naming
@@ -66,18 +66,18 @@ class DPengine(Thread):
     def save_FAIR_record(self) -> None:
         """Save a FAIR record describing this Sensor and associated data processing to the FAIR archive.
         """
-        logger.debug("Save FAIR record for {self}")
+        logger.debug(f"Save FAIR record for {self}")
         
         # We don't save FAIR records for system datastreams
-        if self.dp_tree.sensor.config.sensor_type == "SYS":
+        if self.dp_tree.sensor.config.sensor_type == api.SENSOR_TYPE.SYS:
             return
 
-        sensor_model = self.dp_tree.sensor.config.sensor_model
+        sensor_type = self.dp_tree.sensor.config.sensor_type
 
         # Wrap the "record" data in a FAIR record
         wrap: dict[str, dict | str | list] = {}
         wrap[api.RECORD_ID.VERSION.value] = "V3"
-        wrap[api.RECORD_ID.DATA_TYPE_ID.value] = sensor_model
+        wrap[api.RECORD_ID.DATA_TYPE_ID.value] = sensor_type.value
         wrap[api.RECORD_ID.DEVICE_ID.value] = self.device_id
         wrap[api.RECORD_ID.SENSOR_INDEX.value] = str(self.sensor_index)
         wrap[api.RECORD_ID.TIMESTAMP.value] = api.utc_to_iso_str()
@@ -88,7 +88,7 @@ class DPengine(Thread):
         wrap["fleet"] = list(root_cfg.INVENTORY.keys())
 
         # Save the FAIR record as a YAML file to the FAIR archive
-        fair_fname = file_naming.get_FAIR_filename(sensor_model, self.sensor_index, suffix="yaml")
+        fair_fname = file_naming.get_FAIR_filename(sensor_type, self.sensor_index, suffix="yaml")
         Path(fair_fname).parent.mkdir(parents=True, exist_ok=True)
         with open(fair_fname, "w") as f:
             yaml.dump(wrap, f)
@@ -178,7 +178,7 @@ class DPengine(Thread):
                     # The first DP may be invoked with recording files (jpg, h264, wav, etc) or a CSV
                     # as defined in the dp_config
                     #########################################################################################
-                    if stream.format in ["df", "csv"]:
+                    if stream.format in api.DATA_FORMATS:
                         # Find and load CSVs as DFs
                         input_df = self._get_csv_as_df(stream)
                         if input_df is not None:
@@ -205,7 +205,7 @@ class DPengine(Thread):
 
                     # Log the processing time
                     exec_time = api.utc_now() - exec_start_time
-                    dp._scorp_stat(api.SCORP_STREAM_INDEX, duration=exec_time.total_seconds())
+                    dp._scorp_stat(stream.index, duration=exec_time.total_seconds())
                 except Exception as e:
                     logger.error(
                         f"{root_cfg.RAISE_WARN()}Error processing files for {self}. e={e!s}",
@@ -214,7 +214,7 @@ class DPengine(Thread):
 
             # We want to run this loop every minute, so see how long it took us since the start_time
             sleep_time = RUN_FREQUENCY_SECS - (api.utc_now() - start_time).total_seconds()
-            logger.debug(f"DataProcessor loop sleeping for {sleep_time} seconds")
+            logger.debug(f"DataProcessor ({dp}) sleeping for {sleep_time} seconds")
             if sleep_time > 0:
                 sleep(sleep_time)
 
@@ -225,7 +225,7 @@ class DPengine(Thread):
         else:
             src = root_cfg.ETL_PROCESSING_DIR
         data_id = stream.get_data_id(self.sensor_index)
-        files = list(src.glob(f"*{data_id}*.{stream.format}"))
+        files = list(src.glob(f"*{data_id}*.{stream.format.value}"))
 
         # We must return only files that are not currently being written to
         # Do not return files modified in the last few seconds

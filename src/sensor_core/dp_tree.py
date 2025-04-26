@@ -82,15 +82,7 @@ class DPtree:
         """
         src_node, stream_index = source
 
-        config = src_node.get_config()
-        if config is None:
-            raise ValueError(f"The source node has no configuration {src_node}.")
-        if config.outputs is None:
-            raise ValueError(f"The source node has no outputs {src_node}.")
-        if stream_index >= len(config.outputs):
-            raise ValueError(f"Output stream index {stream_index} is out of range for {src_node}.")
-
-        stream = config.outputs[stream_index]
+        stream = src_node.get_stream(stream_index)
         if stream is None:
             raise ValueError(f"Node has no output stream at stream_index {stream_index}, {src_node}.")
 

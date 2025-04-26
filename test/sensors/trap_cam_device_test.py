@@ -48,6 +48,8 @@ class Test_trap_cam_device:
 
             # We should have identified bees in the video and save the info to the EXITCAM datastream
             th.assert_records("sensor-core-fair", 
-                            {"V3_RAWVIDEO*": 1, "V3_TRAPCAM*": 1})
+                            {"V3_*": 1})
             th.assert_records("sensor-core-journals", 
                             {"*": 0})
+            th.assert_records("sensor-core-upload", 
+                            {"V3_TRAPCAM*": 1})

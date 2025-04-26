@@ -21,7 +21,7 @@ EXAMPLE_LOG_STREAM_INDEX = 1
 #############################################################################################################
 EXAMPLE_SENSOR_CFG = SensorCfg(
     # The type of sensor.
-    sensor_type = "ENV",
+    sensor_type = api.SENSOR_TYPE.I2C,
     # Sensor index
     sensor_index = 1,
     sensor_model="ExampleSensor",
@@ -30,12 +30,18 @@ EXAMPLE_SENSOR_CFG = SensorCfg(
     # The list of data output streams from the sensor.
     outputs=[
         Stream("Example image file stream",
-                EXAMPLE_FILE_DS_TYPE_ID, EXAMPLE_FILE_STREAM_INDEX, "jpg", 
+                EXAMPLE_FILE_DS_TYPE_ID, 
+                EXAMPLE_FILE_STREAM_INDEX, 
+                api.FORMAT.JPG, 
+                ["temperature"],
                 cloud_container="sensor-core-upload",
                 sample_probability="1.0",
                 sample_container="sensor-core-upload"),
         Stream("Example log file stream",
-                EXAMPLE_LOG_DS_TYPE_ID, EXAMPLE_LOG_STREAM_INDEX, "log", ["temperature"]),
+                EXAMPLE_LOG_DS_TYPE_ID, 
+                EXAMPLE_LOG_STREAM_INDEX, 
+                api.FORMAT.LOG, 
+                ["temperature"]),
     ],
 )
 
@@ -56,7 +62,7 @@ class ExampleSensor(Sensor):
         while not self.stop_requested:
             self.log(stream_index=EXAMPLE_LOG_STREAM_INDEX,
                      sensor_data={"temperature": 25.0})
-            fname = file_naming.get_temporary_filename("jpg")
+            fname = file_naming.get_temporary_filename(api.FORMAT.JPG)
             # Generate a random image file
             with open(fname, "w") as f:
                 f.write("This is a dummy image file")

@@ -212,7 +212,9 @@ def set_log_level(level: int) -> None:
     module_logger.debug("Debug logging enabled for sensor_core")
 
 
-def setup_logger(name: str, level: Optional[int]=None, filename: Optional[str|Path]=None) -> logging.Logger:
+def setup_logger(name: str, 
+                 level: Optional[int] = None, 
+                 filename: Optional[str | Path] = None) -> logging.Logger:
     global _DEFAULT_LOG
     if level is not None:
         set_log_level(level)
@@ -223,12 +225,14 @@ def setup_logger(name: str, level: Optional[int]=None, filename: Optional[str|Pa
         logger.setLevel(_LOG_LEVEL)
         if len(logger.handlers) == 0:
             handler = JournaldLogHandler()
-            handler.setFormatter(logging.Formatter("%(name)s %(levelname)-6s %(message)s"))
+            handler.setFormatter(logging.Formatter("%(name)s %(levelname)-6s [%(thread)d] %(message)s"))
             logger.addHandler(handler)
     else:  # elif root_cfg.running_on_windows
         logger = logging.getLogger(name)
         logger.setLevel(_LOG_LEVEL)
-        formatter = logging.Formatter("%(asctime)-15s %(name)-6s %(levelname)-6s - %(message)s")
+        formatter = logging.Formatter(
+            "%(asctime)-15s %(name)-6s %(levelname)-6s [%(thread)d] %(message)s"
+        )
 
         # Create a console handler and set the log level
         # Check if we've already added a console handler

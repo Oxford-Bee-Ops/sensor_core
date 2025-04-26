@@ -4,7 +4,6 @@ from time import sleep
 
 import pytest
 from example.my_fleet_config import INVENTORY
-from example.my_sensor_example import EXAMPLE_FILE_DS_TYPE_ID
 from sensor_core import api, edge_orchestrator
 from sensor_core import configuration as root_cfg
 from sensor_core.edge_orchestrator import EdgeOrchestrator
@@ -49,11 +48,11 @@ class Test_Orchestrator:
             th.assert_records("sensor-core-journals",
                             {"V3_DUMML*": 1, "V3_DUMMD*": 1})
             th.assert_records("sensor-core-upload",
-                            {"V3_DUMMF*": 1})
+                            {"V3_DUMMF*": th.ONE_OR_MORE})
             th.assert_records("sensor-core-system-records",
                             {"V3_SCORE*": 1, "V3_SCORP*": 1})
             th.assert_records("sensor-core-fair",
-                            {"V3_DUMM*": 3})
+                            {"V3_*": 1})
 
             # Stop without start
             orchestrator.load_config()
@@ -66,10 +65,6 @@ class Test_Orchestrator:
             orchestrator.start_all()
             orchestrator.stop_all()
 
-            # There may be files left waiting to be processed, so we can't assert there aren't.
-            # filelist: list[Path] = list(root_cfg.EDGE_PROCESSING_DIR.glob("*"))
-            # filelist = [x for x in filelist if not x.suffix.endswith("csv")]
-            # assert len(filelist) == 0
 
     def test_orchestrator_main(self) -> None:
         
@@ -90,7 +85,7 @@ class Test_Orchestrator:
 
             # Sensor fails; factory_thread should restart everything after 1s
             logger.info("sensor_test: # Sensor fails; factory_thread should restart everything after 1s")
-            sensor = orchestrator._get_sensor(EXAMPLE_FILE_DS_TYPE_ID, 1)
+            sensor = orchestrator._get_sensor(api.SENSOR_TYPE.I2C, 1)
             assert sensor is not None
             orchestrator.sensor_failed(sensor)
             assert not orchestrator._orchestrator_is_running

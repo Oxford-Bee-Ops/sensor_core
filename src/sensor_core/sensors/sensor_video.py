@@ -76,22 +76,23 @@ class VideoSensorCfg(SensorCfg):
 
 
 DEFAULT_VIDEO_SENSOR_CFG = VideoSensorCfg(
-    sensor_type = "CAMERA",
+    sensor_type = api.SENSOR_TYPE.CAMERA,
     sensor_index = 1,
+    sensor_model="PiCameraModule3",
     description = "Default video sensor",
     outputs = [
         Stream(
             description="Continuous video recording",
             type_id=CONTINUOUS_VIDEO_DS_TYPE_ID,
             index=VIDEO_STREAM_INDEX,
-            format="mp4",
+            format=api.FORMAT.MP4,
             cloud_container="sensor-core-upload",
         ),
         Stream(
             description="Still image",
             type_id=STILL_IMAGE_DS_TYPE_ID,
             index=IMAGE_STREAM_INDEX,
-            format="jpg",
+            format=api.FORMAT.JPG,
             cloud_container="sensor-core-upload",
         ),
     ],
@@ -117,7 +118,7 @@ class VideoSensor(Sensor):
         self.video_zoom = self.config.video_zoom
         self.focal_length = self.config.focal_length
         self.video_quality = self.config.video_quality
-        self.video_format = self.config.outputs[VIDEO_STREAM_INDEX].format
+        self.video_format = self.get_stream(VIDEO_STREAM_INDEX).format
 
         # Track the periodic taking of still images for PAMCAMs
         self.still_interval = self.config.still_interval
@@ -240,7 +241,7 @@ class VideoSensor(Sensor):
         start_time = api.utc_now()
 
         # Create the timestamped filename just before we start recording
-        vid_output_filename = file_naming.get_temporary_filename("h264")
+        vid_output_filename = file_naming.get_temporary_filename(api.FORMAT.H264)
         logger.info(f"Recording to {vid_output_filename} for {record_for_seconds} seconds")
 
         camera.start_recording(encoder, str(vid_output_filename), quality=self.video_quality)
@@ -252,7 +253,7 @@ class VideoSensor(Sensor):
 
         # Reformat to MP4 if required
         new_fname = vid_output_filename
-        if self.video_format == "mp4":
+        if self.video_format == api.FORMAT.MP4:
             # Convert the H264 file to MP4 format and delete the original H264 file
             new_fname = new_fname.with_suffix(".mp4")
             if logger.isEnabledFor(10):
@@ -280,7 +281,7 @@ class VideoSensor(Sensor):
         if not utils.pause_recording() or bcli_test_mode:
             start_time = api.utc_now()
             camera.start()
-            still_output_filename = file_naming.get_temporary_filename("jpg")
+            still_output_filename = file_naming.get_temporary_filename(api.FORMAT.JPG)
             camera.capture_file(still_output_filename)
             camera.stop()
             logger.info(f"Temporarily saved image to {still_output_filename}")

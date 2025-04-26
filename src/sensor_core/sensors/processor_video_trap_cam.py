@@ -32,7 +32,7 @@ DEFAULT_TRAPCAM_PROCESSOR_CFG = TrapCamProcessorCfg(
             description="Video samples with movement detected.",
             type_id=TRAPCAM_DS_TYPE_ID,
             index=TRAPCAM_STREAM_INDEX,
-            format="mp4",
+            format=api.FORMAT.MP4,
             cloud_container="sensor-core-upload",
             sample_probability="0.1",
             sample_container="sensor-core-upload",
@@ -145,7 +145,7 @@ class ProcessorVideoTrapCam(DataProcessor):
                     # Not currently recording; start recording
                     sample_first_frame = current_frame
                     sample_last_movement_frame = current_frame
-                    temp_filename=file_naming.get_temporary_filename("mp4")
+                    temp_filename=file_naming.get_temporary_filename(api.FORMAT.MP4)
                     output_stream = cv2.VideoWriter(
                         filename=str(temp_filename),
                         fourcc=fourcc,

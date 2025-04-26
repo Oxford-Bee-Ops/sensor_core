@@ -70,7 +70,7 @@ class DeviceManager:
         self.led_flash_counter = 0
         self.red_led = False
         self.green_led = False
-        if root_cfg.system_cfg.install_type == api.INSTALL_TYPE_SENSOR:
+        if root_cfg.system_cfg.install_type == api.INSTALL_TYPE.RPI_SENSOR:
             self.red_led_obj: LED = None
             self.green_led_obj: LED = None
             # Start the LED management thread

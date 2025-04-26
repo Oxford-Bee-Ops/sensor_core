@@ -31,7 +31,8 @@ class AudioSensorCfg(SensorCfg):
     # SensorCfg fields
     ############################################################
     # The type of sensor.
-    sensor_type: api.SENSOR_TYPES = "MIC"
+    sensor_type: api.SENSOR_TYPE = api.SENSOR_TYPE.USB
+    sensor_model: str = "USBAudioSensor"
     # A human-readable description of the sensor model.
     description: str = "Default audio sensor"
 
@@ -290,7 +291,7 @@ class AudioSensor(Sensor):
                 while time_to_sleep == 0 and not self.stop_requested:
                     logger.debug("Next audio while on " + str(self.port))
                     recording_successful = True
-                    wav_output_filename = file_naming.get_temporary_filename("wav")
+                    wav_output_filename = file_naming.get_temporary_filename(api.FORMAT.WAV)
                     try:
                         arecord_cmd = (
                             f"arecord -D hw:{dev_index!s} -r {samp_rate!s} -c {chans!s}"

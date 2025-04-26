@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pandas as pd
-from sensor_core import DataProcessor
+from sensor_core import DataProcessor, api
 from sensor_core import configuration as root_cfg
 from sensor_core.dp_config_object_defs import DataProcessorCfg, Stream
 from sensor_core.utils import file_naming
@@ -15,11 +15,11 @@ EXAMPLE_FILE_PROCESSOR_CFG = DataProcessorCfg(
     outputs=[Stream(description="Example dataframe stream",
                     type_id=EXAMPLE_DF_DS_TYPE_ID, 
                     index=EXAMPLE_DF_STREAM_INDEX, 
-                    format="df", 
+                    format=api.FORMAT.DF, 
                     fields=["pixel_count"],
-                    cloud_container = "sensor-core-upload",
-                    sample_probability = str(1.0), # Always upload - we assert this in the UnitTest
-                    sample_container = "sensor-core-upload"),
+                    #sample_probability = str(1.0), # Always upload - we assert this in the UnitTest
+                    #sample_container = "sensor-core-upload"
+                    ),
             ],
 )
 
