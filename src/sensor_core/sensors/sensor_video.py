@@ -24,10 +24,10 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from time import sleep
 
-from sensor_core import Sensor, SensorCfg, api
+from sensor_core import Sensor, SensorCfg, api, file_naming
 from sensor_core import configuration as root_cfg
 from sensor_core.dp_config_object_defs import Stream
-from sensor_core.utils import file_naming, utils
+from sensor_core.utils import utils
 
 if root_cfg.running_on_rpi:
     from libcamera import Transform, controls  # type: ignore

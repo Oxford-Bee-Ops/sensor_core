@@ -45,11 +45,10 @@ class SensorCore:
             for device in fleet_config:
                 # Check the device configuration is valid
                 dp_trees = EdgeOrchestrator._safe_call_create_method(device.dp_trees_create_method)
-                for dp_tree in dp_trees:
-                    is_valid, errors = config_validator.validate(dp_tree)
-                    if not is_valid:
-                        errors.append(f"Invalid configuration for device {device.device_id}: {errors}")
-                        break
+                is_valid, errors = config_validator.validate_trees(dp_trees)
+                if not is_valid:
+                    errors.append(f"Invalid configuration for device {device.device_id}: {errors}")
+                    break
         except Exception as e:
             errors.append(str(e))
 

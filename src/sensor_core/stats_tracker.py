@@ -51,9 +51,8 @@ SC_TRACKING_CFG = SensorCfg(
     ],
 )
 
-class SelfTracker(Sensor):
-    """SelfTracking is a special Sensor class that is used to track the performance of 
-    the SensorCore system.
+class StatTracker(Sensor):
+    """A special Sensor class that is used to track the performance of the SensorCore system.
     
     It is not a physical sensor, but is used to track the performance of the system.
     """

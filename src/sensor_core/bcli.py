@@ -15,8 +15,8 @@ from crontab import CronTab
 from sensor_core import SensorCore, api, device_health
 from sensor_core import configuration as root_cfg
 from sensor_core.edge_orchestrator import EdgeOrchestrator
-from sensor_core.utils import dc, utils
-from sensor_core.utils.utils import disable_console_logging
+from sensor_core.utils import utils, utils_clean
+from sensor_core.utils.utils_clean import disable_console_logging
 
 logger = root_cfg.setup_logger("common")
 
@@ -158,7 +158,7 @@ class InteractiveMenu():
             click.echo(f"{dash_line}")
             click.echo("# SYSTEM CONFIGURATION")
             click.echo(f"{dash_line}")
-            click.echo(f"\n{dc.display_dataclass(root_cfg.system_cfg)}")
+            click.echo(f"\n{utils_clean.display_dataclass(root_cfg.system_cfg)}")
 
 
         click.echo(f"\n{dash_line}")

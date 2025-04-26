@@ -155,7 +155,7 @@ RULE_SET: list[ValidationRule] = [
     Rule7_reserved_fieldnames(),
 ]
 
-def validate(dptree: DPtree) -> tuple[bool, list[str]]:
+def validate_trees(dptrees: list[DPtree]) -> tuple[bool, list[str]]:
     """
     Validate the configuration using all added rules.
 
@@ -169,24 +169,49 @@ def validate(dptree: DPtree) -> tuple[bool, list[str]]:
     is_valid = True
     errors = []
 
-    if not dptree:
+    if not dptrees:
         return False, ["No tree provided for validation."]
-    
-    if not isinstance(dptree, DPtree):
-        return False, ["dptree is not a DPtree."]
-    
-    for rule in RULE_SET:
-        try:
-            for dpnode in dptree._nodes.values():
-                success, error_message = rule.validate(dpnode)
-                if not success:
-                    is_valid = False
-                    errors.append(error_message)
-        except Exception as e:
+
+    if isinstance(dptrees, DPtree):
+        dptrees = [dptrees]    
+
+    #######################################################################################################
+    # Run cross-tree validation rules
+    #######################################################################################################
+    # Build an index of all sensor_type+sensor_index combinations and check for duplicates
+    sensor_index_map = {}
+    for dptree in dptrees:
+        sensor_cfg: SensorCfg = dptree.sensor.get_config()
+        sensor_type_index = f"{sensor_cfg.sensor_type}_{sensor_cfg.sensor_index}"
+        if sensor_type_index in sensor_index_map:
             is_valid = False
             errors.append(
-                f"Error validating rule {rule.__class__.__name__}: {e!s}"
+                f"Duplicate sensor type and index found ({sensor_cfg.sensor_type} {sensor_cfg.sensor_index})"
+                f" in {dptree} and {sensor_index_map[sensor_type_index]}."
+                f" Each sensor type + index must be unique on the device as they represent physical interfaces."
             )
+            break
+        else:
+            # Add the sensor type and index to the map
+            sensor_index_map[sensor_type_index] = dptree
 
+    ######################################################################################################
+    # Run within-tree validation rules
+    #################################################################################################
+    if is_valid:
+        for dptree in dptrees:
+            for rule in RULE_SET:
+                try:
+                    for dpnode in dptree._nodes.values():
+                        success, error_message = rule.validate(dpnode)
+                        if not success:
+                            is_valid = False
+                            errors.append(error_message)
+                except Exception as e:
+                    is_valid = False
+                    errors.append(
+                        f"Error validating rule {rule.__class__.__name__}: {e!s}"
+                    )
+        
     return is_valid, errors
 

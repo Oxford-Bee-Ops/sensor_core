@@ -6,11 +6,10 @@ from typing import Optional
 import cv2
 import pandas as pd
 
-from sensor_core import api
+from sensor_core import api, file_naming
 from sensor_core import configuration as root_cfg
 from sensor_core.data_processor import DataProcessor
 from sensor_core.dp_config_object_defs import DataProcessorCfg, Stream
-from sensor_core.utils import file_naming
 
 logger = root_cfg.setup_logger("sensor_core")
 

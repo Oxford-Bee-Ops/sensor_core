@@ -9,7 +9,7 @@ from azure.storage.blob import BlobClient, BlobLeaseClient, ContainerClient, Sta
 
 from sensor_core import api
 from sensor_core import configuration as root_cfg
-from sensor_core.utils import file_naming as fn
+from sensor_core import file_naming as fn
 
 logger = root_cfg.setup_logger(name="sensor_core")
 

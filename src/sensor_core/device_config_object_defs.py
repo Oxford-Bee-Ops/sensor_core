@@ -4,7 +4,7 @@ from typing import Any, Callable, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from sensor_core import api
-from sensor_core.utils import dc
+from sensor_core.utils import utils_clean
 
 ############################################################################################
 #
@@ -31,7 +31,7 @@ class Configuration:
             self.update_field(field_name, value)
 
     def display(self) -> str:
-        display_str = dc.display_dataclass(self)
+        display_str = utils_clean.display_dataclass(self)
         return display_str
 
     def get_field(self, field_name: str) -> Any:

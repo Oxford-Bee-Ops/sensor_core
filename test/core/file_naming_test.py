@@ -3,10 +3,9 @@ from datetime import datetime, timedelta
 import pytest
 from example import my_fleet_config
 from example.my_sensor_example import EXAMPLE_FILE_DS_TYPE_ID, EXAMPLE_FILE_STREAM_INDEX, EXAMPLE_SENSOR_CFG
-from sensor_core import api
+from sensor_core import api, file_naming
 from sensor_core import configuration as root_cfg
 from sensor_core.dp_tree import DPtree
-from sensor_core.utils import file_naming
 
 logger = root_cfg.setup_logger("sensor_core")
 root_cfg.TEST_MODE = root_cfg.MODE.TEST

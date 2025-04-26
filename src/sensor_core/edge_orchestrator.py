@@ -7,16 +7,15 @@ from datetime import timedelta
 from time import sleep
 from typing import Callable, Optional
 
-from sensor_core import api, dp_engine
+from sensor_core import api, dp_engine, file_naming
 from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import CloudConnector
 from sensor_core.device_health import DeviceHealth
 from sensor_core.dp_engine import DPengine
 from sensor_core.dp_tree import DPtree
 from sensor_core.dp_tree_node import DPtreeNode
-from sensor_core.self_tracker import SelfTracker
+from sensor_core.stats_tracker import StatTracker
 from sensor_core.sensor import Sensor
-from sensor_core.utils import file_naming
 from sensor_core.utils.journal_pool import JournalPool
 
 logger = root_cfg.setup_logger("sensor_core")
@@ -82,7 +81,7 @@ class EdgeOrchestrator:
             self._sensorThreads.append(self.device_health)
             self._dpengines.append(health_dpe)
 
-            self.selftracker = SelfTracker()
+            self.selftracker = StatTracker()
             tracker_dpe = DPengine(DPtree(self.selftracker))
             self._sensorThreads.append(self.selftracker)
             self._dpengines.append(tracker_dpe)

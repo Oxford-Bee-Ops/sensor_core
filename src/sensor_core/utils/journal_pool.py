@@ -7,11 +7,10 @@ from typing import Optional
 
 import pandas as pd
 
-from sensor_core import api
+from sensor_core import api, file_naming
 from sensor_core import configuration as root_cfg
 from sensor_core.configuration import Mode
 from sensor_core.dp_config_object_defs import Stream
-from sensor_core.utils import file_naming
 from sensor_core.utils.cloud_journal import CloudJournal
 from sensor_core.utils.journal import Journal
 

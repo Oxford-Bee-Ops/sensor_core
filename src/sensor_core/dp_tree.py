@@ -163,32 +163,3 @@ class DPtree:
         """
         # DptreeNode.export() is recursive - so start with the root node.
         return self.sensor.export()
-
-    ###############################################################################################
-    # Validate methods
-    ###############################################################################################
-    def validate(self) -> None:
-        """
-        Validates the tree structure.
-
-        Raises:
-            ValueError: If the tree is invalid.
-        """
-        from sensor_core import config_validator
-        is_valid, error_msg = config_validator.validate(self)
-        if not is_valid:
-            raise ValueError(f"DPtree validation failed: {error_msg}")
-
-    @staticmethod
-    def is_instance_of_type(obj, type_name: str) -> bool:
-        """
-        Checks if the given object is of a specific type using the type's name.
-
-        Args:
-            obj: The object to check.
-            type_name: The name of the type as a string.
-
-        Returns:
-            True if the object is of the specified type, False otherwise.
-        """
-        return type(obj).__name__ == type_name

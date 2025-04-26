@@ -10,7 +10,7 @@ import psutil
 
 from sensor_core import api
 from sensor_core.device_config_object_defs import FAILED_TO_LOAD, DeviceCfg, Keys, SystemCfg
-from sensor_core.utils import dc
+from sensor_core.utils import utils_clean
 
 
 ############################################################################################
@@ -105,7 +105,7 @@ elif running_on_rpi:
     SC_CODE_DIR = CODE_DIR / "sensor_core"
     CFG_DIR = HOME_DIR / ".sensor_core"  # In the base user directory on the RPi
     ROOT_WORKING_DIR = Path("/sensor_core")  # We always create a /sensor_core directory on the RPi
-    dc.create_root_working_dir(ROOT_WORKING_DIR)
+    utils_clean.create_root_working_dir(ROOT_WORKING_DIR)
 
 elif running_on_linux:
     # This is Docker on Linux
@@ -114,7 +114,7 @@ elif running_on_linux:
     SC_CODE_DIR = Path("/app")
     CFG_DIR = Path("/run/secrets")
     ROOT_WORKING_DIR = Path("/sensor_core")
-    dc.create_root_working_dir(ROOT_WORKING_DIR)
+    utils_clean.create_root_working_dir(ROOT_WORKING_DIR)
 else:
     raise Exception("Unknown platform: " + platform.platform())
 

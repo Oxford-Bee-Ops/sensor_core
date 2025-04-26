@@ -12,6 +12,7 @@ from .device_config_object_defs import (
 from .dp_config_object_defs import (
     DataProcessorCfg,
     SensorCfg,
+    Stream,
 )
 from .sensor import Sensor
 from .sensor_core import SensorCore
@@ -30,6 +31,6 @@ __all__ = [
     "Sensor",
     "SensorCfg",
     "SensorCore",
+    "Stream",
     "api",
-    "configuration"
 ]
