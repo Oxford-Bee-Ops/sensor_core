@@ -50,9 +50,7 @@ class ExampleProcessor(DataProcessor):
         if len(input_data) > 0:
             for f in input_data:
                 # Generate output to the primary datastream
-                fields_dict = file_naming.parse_record_filename(f)
-                fields_dict.update({"pixel_count": 25})
-                output_data.append(fields_dict)
+                output_data.append({"pixel_count": 25})
 
         # Generate data for the derived datastream
         self.save_data(stream_index=EXAMPLE_DF_STREAM_INDEX,
