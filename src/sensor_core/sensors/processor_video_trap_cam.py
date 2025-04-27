@@ -13,7 +13,7 @@ from sensor_core.dp_config_objects import DataProcessorCfg, Stream
 
 logger = root_cfg.setup_logger("sensor_core")
 
-TRAPCAM_DS_TYPE_ID = "TRAPCAM"
+TRAPCAM_TYPE_ID = "TRAPCAM"
 TRAPCAM_STREAM_INDEX: int = 0
 
 @dataclass
@@ -29,7 +29,7 @@ DEFAULT_TRAPCAM_PROCESSOR_CFG = TrapCamProcessorCfg(
     outputs=[
         Stream(
             description="Video samples with movement detected.",
-            type_id=TRAPCAM_DS_TYPE_ID,
+            type_id=TRAPCAM_TYPE_ID,
             index=TRAPCAM_STREAM_INDEX,
             format=api.FORMAT.MP4,
             cloud_container="sensor-core-upload",
@@ -43,7 +43,7 @@ DEFAULT_TRAPCAM_PROCESSOR_CFG = TrapCamProcessorCfg(
 
 class ProcessorVideoTrapCam(DataProcessor):
     def __init__(self, config: TrapCamProcessorCfg, sensor_index: int) -> None:
-        super().__init__(config, sensor_index=sensor_index)
+        super().__init__(config, sensor_index)
         self.config: TrapCamProcessorCfg = config
         self.kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
         self.background_subtractor = cv2.createBackgroundSubtractorMOG2()

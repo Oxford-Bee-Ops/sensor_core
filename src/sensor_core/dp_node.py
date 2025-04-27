@@ -77,9 +77,12 @@ class DPnode():
         Raises:
             ValueError: If the stream index is out of range for this node's configuration.
         """
-        if self._dpnode_config.outputs is None or len(self._dpnode_config.outputs) <= stream_index:
+        outputs = self._dpnode_config.outputs
+        if outputs is None:
+            raise ValueError(f"Outputs are not defined for {self._dpnode_config}.")
+        if len(outputs) <= stream_index:
             raise ValueError(f"Stream index {stream_index} is out of range for {self._dpnode_config}.")
-        return self._dpnode_config.outputs[stream_index]
+        return outputs[stream_index]
 
     def get_data_id(self, stream_index: int) -> str:
         """Return the data ID for the specified stream.
@@ -526,7 +529,12 @@ class DPnode():
                     output_data[field] = self.sensor_index
                 elif field == api.RECORD_ID.DATA_TYPE_ID.value:
                     output_data[field] = stream.type_id
-
+                elif field == api.RECORD_ID.STREAM_INDEX.value:
+                    output_data[field] = stream.index
+                elif field == api.RECORD_ID.NAME.value:
+                   output_data[field] = root_cfg.my_device.name
+                else:
+                    assert False, f"Unknown RECORD_ID field {field}"    
         # Check the values in the RECORD_ID are not nan or empty
         for field in api.REQD_RECORD_ID_FIELDS:
             if not output_data[field].notna().all():
