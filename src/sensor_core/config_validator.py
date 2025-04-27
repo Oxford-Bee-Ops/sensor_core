@@ -6,9 +6,9 @@ from abc import ABC, abstractmethod
 from sensor_core import api
 from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import CloudConnector
-from sensor_core.dp_config_object_defs import Stream
+from sensor_core.dp_config_objects import Stream
+from sensor_core.dp_node import DPnode
 from sensor_core.dp_tree import DPtree
-from sensor_core.dp_tree_node import DPtreeNode
 from sensor_core.sensor import SensorCfg
 
 logger = root_cfg.setup_logger("sensor_core")
@@ -16,7 +16,7 @@ logger = root_cfg.setup_logger("sensor_core")
 class ValidationRule(ABC):
     """ Base class for validation rules. Extend this class to implement specific rules. """
     @abstractmethod
-    def validate(self, dpnode: DPtreeNode) -> tuple[bool, str]:
+    def validate(self, dpnode: DPnode) -> tuple[bool, str]:
         """
         Validate the configuration.
 
@@ -35,7 +35,7 @@ class ValidationRule(ABC):
 
 # Rule 1: check that the outputs list is not empty
 class Rule1_outputs_not_empty(ValidationRule):
-    def validate(self, dpnode: DPtreeNode) -> tuple[bool, str]:
+    def validate(self, dpnode: DPnode) -> tuple[bool, str]:
         outputs: list = dpnode.get_config().outputs
         if outputs is None or len(outputs) == 0:
             return False, (
@@ -58,7 +58,7 @@ class Rule1_outputs_not_empty(ValidationRule):
 
 # Rule 2: check that the sensor model is set for all datastreams
 class Rule2_sensor_type_model_set(ValidationRule):
-    def validate(self, dpnode: DPtreeNode) -> tuple[bool, str]:
+    def validate(self, dpnode: DPnode) -> tuple[bool, str]:
         config = dpnode.get_config()
         if isinstance(config, SensorCfg):
             if config.sensor_type is None or config.sensor_type == api.SENSOR_TYPE.NOT_SET:
@@ -73,7 +73,7 @@ class Rule2_sensor_type_model_set(ValidationRule):
 
 # Rule 3: no _ in any stream type_id
 class Rule3_no_underscore_in_type_id(ValidationRule):
-    def validate(self, dpnode: DPtreeNode) -> tuple[bool, str]:
+    def validate(self, dpnode: DPnode) -> tuple[bool, str]:
         outputs = dpnode.get_config().outputs
         if outputs:
             for stream in outputs:
@@ -86,7 +86,7 @@ class Rule3_no_underscore_in_type_id(ValidationRule):
 
 # Rule4: check that cloud_container is set on all datastreams other than type log / df / csv
 class Rule4_cloud_container_specified(ValidationRule):
-    def validate(self, dpnode: DPtreeNode) -> tuple[bool, str]:
+    def validate(self, dpnode: DPnode) -> tuple[bool, str]:
         outputs = dpnode.get_config().outputs
         if outputs:
             for stream in outputs:
@@ -101,7 +101,7 @@ class Rule4_cloud_container_specified(ValidationRule):
 
 # Rule5: check that all cloud_containers exist in the blobstore using cloud_connector.container_exists()
 class Rule5_cloud_container_exists(ValidationRule):
-    def validate(self, dpnode: DPtreeNode) -> tuple[bool, str]:
+    def validate(self, dpnode: DPnode) -> tuple[bool, str]:
         cc = CloudConnector.get_instance()
         outputs = dpnode.get_config().outputs
         if outputs:
@@ -118,7 +118,7 @@ class Rule5_cloud_container_exists(ValidationRule):
 
 # Rule 6: any datastream of type log, csv or df must have output fields set
 class Rule6_csv_output_fields(ValidationRule):
-    def validate(self, dpnode: DPtreeNode) -> tuple[bool, str]:
+    def validate(self, dpnode: DPnode) -> tuple[bool, str]:
         outputs = dpnode.get_config().outputs
         if outputs:
             for stream in outputs:
@@ -131,7 +131,7 @@ class Rule6_csv_output_fields(ValidationRule):
 
 # Rule 7: don't declare field names that are in use for record_id fields
 class Rule7_reserved_fieldnames(ValidationRule):
-    def validate(self, dpnode: DPtreeNode) -> tuple[bool, str]:
+    def validate(self, dpnode: DPnode) -> tuple[bool, str]:
         outputs = dpnode.get_config().outputs
         if outputs:
             for stream in outputs:
@@ -179,16 +179,18 @@ def validate_trees(dptrees: list[DPtree]) -> tuple[bool, list[str]]:
     # Run cross-tree validation rules
     #######################################################################################################
     # Build an index of all sensor_type+sensor_index combinations and check for duplicates
-    sensor_index_map = {}
+    sensor_index_map: dict[str, DPtree] = {}
     for dptree in dptrees:
-        sensor_cfg: SensorCfg = dptree.sensor.get_config()
+        config = dptree.sensor.get_config()
+        assert isinstance(config, SensorCfg)
+        sensor_cfg: SensorCfg = config
         sensor_type_index = f"{sensor_cfg.sensor_type}_{sensor_cfg.sensor_index}"
         if sensor_type_index in sensor_index_map:
             is_valid = False
             errors.append(
                 f"Duplicate sensor type and index found ({sensor_cfg.sensor_type} {sensor_cfg.sensor_index})"
                 f" in {dptree} and {sensor_index_map[sensor_type_index]}."
-                f" Each sensor type + index must be unique on the device as they represent physical interfaces."
+                f" Each sensor_type+index must be unique as they represent physical interfaces."
             )
             break
         else:

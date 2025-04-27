@@ -8,8 +8,8 @@ import threading
 from abc import ABC, abstractmethod
 
 from sensor_core import configuration as root_cfg
-from sensor_core.dp_config_object_defs import SensorCfg
-from sensor_core.dp_tree_node import DPtreeNode
+from sensor_core.dp_config_objects import SensorCfg
+from sensor_core.dp_node import DPnode
 
 logger = root_cfg.setup_logger("sensor_core")
 
@@ -17,7 +17,7 @@ logger = root_cfg.setup_logger("sensor_core")
 #############################################################################################################
 # Super class that implements a thread to read the sensor data
 #############################################################################################################
-class Sensor(threading.Thread, DPtreeNode, ABC):
+class Sensor(threading.Thread, DPnode, ABC):
     
     def __init__(self, config: SensorCfg) -> None:
         """Initialise the Sensor superclass.
@@ -30,7 +30,7 @@ class Sensor(threading.Thread, DPtreeNode, ABC):
             The configuration for the sensor.
         """
         threading.Thread.__init__(self)
-        DPtreeNode.__init__(self, config, config.sensor_index)
+        DPnode.__init__(self, config, config.sensor_index)
 
         logger.info(f"Initialise sensor {self!r}")
 

@@ -11,7 +11,7 @@ import pandas as pd
 from sensor_core import api, file_naming
 from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import CloudConnector
-from sensor_core.dp_config_object_defs import DPtreeNodeCfg, Stream
+from sensor_core.dp_config_objects import DPtreeNodeCfg, Stream
 from sensor_core.utils.journal_pool import JournalPool
 from sensor_core.utils.sc_test_emulator import ScEmulator
 
@@ -24,11 +24,11 @@ class DPnodeStats:
     count: int
     duration: float = 0.0
 
-class DPtreeNode():
+class DPnode():
     """Base class for nodes in the DPtree. Sensor and DataProcessor inherit from this class.
     """
     # Special Datastream for recording sample count / duration from the data pipeline.
-    _selftracker: "DPtreeNode"
+    _selftracker: "DPnode"
 
     def __init__(self, config: DPtreeNodeCfg, sensor_index: int) -> None:
         """
@@ -41,7 +41,7 @@ class DPtreeNode():
         self._dpnode_config: DPtreeNodeCfg = config
         self.sensor_index: int = sensor_index
 
-        self._dpnode_children: dict[int, DPtreeNode] = {}  # Dictionary mapping output streams to child nodes.
+        self._dpnode_children: dict[int, DPnode] = {}  # Dictionary mapping output streams to child nodes.
 
         # Record the number of datapoints recorded by this Datastream (by type_id).
         self._dpnode_score_stats: dict[str, list[DPnodeStats]] = {}
@@ -297,7 +297,7 @@ class DPtreeNode():
 
         This is used by EdgeOrchestrator to periodically log observability data
         """
-        if DPtreeNode._selftracker is None:
+        if DPnode._selftracker is None:
             logger.warning(f"{root_cfg.RAISE_WARN}SelfTracker not set; cannot log sample data")
             return
         
@@ -310,7 +310,7 @@ class DPtreeNode():
             self._dpnode_score_stats[type_id] = []
 
             # Log SCORE data
-            DPtreeNode._selftracker.log(
+            DPnode._selftracker.log(
                 stream_index=api.SCORE_STREAM_INDEX,
                 sensor_data={
                     "observed_type_id": type_id,
@@ -329,7 +329,7 @@ class DPtreeNode():
             self._dpnode_scorp_stats[type_id] = []
 
             # Log SCORP data
-            DPtreeNode._selftracker.log(
+            DPnode._selftracker.log(
                 stream_index=api.SCORP_STREAM_INDEX,
                 sensor_data={
                     # The data_processor_id is the subclass name of this object

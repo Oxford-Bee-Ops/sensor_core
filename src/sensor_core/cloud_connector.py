@@ -3,6 +3,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
+from queue import Queue
+from threading import Thread
+from time import sleep
 from typing import Optional
 
 from azure.storage.blob import BlobClient, BlobLeaseClient, ContainerClient, StandardBlobTier
@@ -36,6 +39,15 @@ tier_map = {
     BlobTier.COLD: StandardBlobTier.ARCHIVE,
 }
 
+##########################################################################################################
+
+
+# Default implementation of the CloudConnector class and interface definition.
+# This class is used to connect to the cloud storage provider (Azure Blob Storage) but does so 
+# # synchronously.
+##########################################################################################################
+
+
 class CloudConnector:
     def __init__(self) -> None:
         if root_cfg.my_device is None:
@@ -49,13 +61,21 @@ class CloudConnector:
     @staticmethod
     def get_instance(type: Optional[CloudType]=CloudType.AZURE) -> "CloudConnector":
         """We use a factory pattern to offer up alternative types of CloudConnector for accessing
-        different cloud storage providers and / or the local emulator."""
+        different cloud storage providers and / or the local emulator.
+        
+        The user should call stop() on any instance of CloudConnector before exiting the program, 
+        so that all resources are cleaned up and threads exit cleanly."""
         if type == CloudType.AZURE and root_cfg.TEST_MODE == root_cfg.MODE.PRODUCTION:
-            return CloudConnector()
+            return AsyncCloudConnector()
         elif type == CloudType.LOCAL_EMULATOR or root_cfg.TEST_MODE == root_cfg.MODE.TEST:
             return LocalCloudConnector()
         else:
             raise ValueError(f"Unsupported cloud type: {type}")
+
+    def stop(self) -> None:
+        """Stop the cloud connector"""
+        # Only required for the AsyncCloudConnector; the default implementation does nothing
+        pass
 
     def upload_to_container(
         self,
@@ -615,7 +635,11 @@ class LocalCloudConnector(CloudConnector):
         containerClient = self.local_cloud / container
 
         files = file_paths = []
-        file_paths = list(containerClient.glob(f"{prefix}*"))
+        if prefix is not None:
+            query = f"{prefix}*"
+        else:
+            query = "*"
+        file_paths = list(containerClient.glob(query))
         files = [f.name for f in file_paths]
 
         if suffix is not None:
@@ -639,3 +663,140 @@ class LocalCloudConnector(CloudConnector):
             return datetime.fromtimestamp(last_modified, tz=timezone.utc)
         else:
             return datetime.min.replace(tzinfo=timezone.utc)
+
+#####################################################################################################
+# AsyncCloudConnector class
+# This class uses async methods to *UPLOAD* files to the cloud storage provider (Azure Blob Storage).
+# This improves resilience to transient network issues and reduces data loss.
+# Download / exists / list methods are *not* asynchronous and use the default CloudConnector.
+#####################################################################################################
+class AsyncCloudConnector(Thread, CloudConnector):
+    class METHOD(Enum):
+        """Enum for the supported methods"""
+        UPLOAD = "upload"
+        APPEND = "append"
+
+    def __init__(self) -> None:
+        Thread.__init__(self)
+        CloudConnector.__init__(self)
+        self._stop_requested = False
+        self._upload_queue: Queue = Queue()
+        self.start()
+
+    #################################################################################################
+    # Public methods
+    #################################################################################################
+    def upload_to_container(
+        self,
+        dst_container: str,
+        src_files: list[Path],
+        delete_src: Optional[bool] = True,
+        blob_tier: Enum = BlobTier.HOT,
+    ) -> None:
+        """
+        Async version of upload_to_container using a queue and thread pool for parallel uploads.
+        """
+        if not isinstance(src_files, list):
+            src_files = [src_files]
+
+        for file in src_files:
+            if not file.exists():
+                logger.error(f"{root_cfg.RAISE_WARN()}Upload of file {file} aborted; does not exist")
+                src_files.remove(file)
+        
+        if src_files:
+            self._upload_queue.put((AsyncCloudConnector.METHOD.UPLOAD, 
+                                    dst_container, 
+                                    src_files, 
+                                    delete_src, 
+                                    blob_tier,
+                                    0))
+
+    def append_to_cloud(
+        self, dst_container: str, src_file: Path, safe_mode: Optional[bool] = False
+    ) -> bool:
+        """
+        Async version of append_to_cloud.
+        """
+        if isinstance(src_file, str):
+            src_file = Path(src_file)
+        
+        if not src_file.exists():
+            logger.error(f"{root_cfg.RAISE_WARN()}Upload failed because file {src_file} does not exist")
+            return False
+
+        self._upload_queue.put((AsyncCloudConnector.METHOD.APPEND, 
+                                dst_container, 
+                                [src_file], 
+                                False, 
+                                BlobTier.HOT,
+                                0))
+
+        return True
+
+    def stop(self) -> None:
+        """Stop the cloud connector"""
+        # Stop the executor and process the queue
+        self._stop_requested = True
+
+        # Trigger the ThreadPoolExecutor to stop
+        self._upload_queue.put((None, None, None, None, None, None))
+        self.join()
+
+
+    ##################################################################################################
+    # Private methods
+    ##################################################################################################
+    def _async_upload_method(
+        self,
+        method: METHOD,
+        dst_container: str,
+        src_files: list[Path],
+        delete_src: Optional[bool] = True,
+        blob_tier: Enum = BlobTier.HOT,
+        iteration: int = 0,
+    ) -> None:
+        """A wrapper to handle failure when uploading a file to the cloud asynchronously.
+        We re-queue the upload if it fails if the src files still exist.
+        This method is called on a thread from the ThreadPoolExecutor."""
+        try:
+            if method == AsyncCloudConnector.METHOD.UPLOAD:
+                super().upload_to_container(dst_container, src_files, delete_src, blob_tier)
+            elif method == AsyncCloudConnector.METHOD.APPEND:
+                super().append_to_cloud(dst_container, src_files[0], False)
+        except Exception as e:
+            # Check all the src_files still exist and drop any that don't
+            logger.warning(f"Upload failed for {src_files} on iter {iteration}: {e!s}")
+            for file in src_files:
+                if not file.exists():
+                    src_files.remove(file)
+
+            if src_files:
+                # Re-queue the upload if any src_files still exist
+                self._upload_queue.put((method, 
+                                        dst_container, 
+                                        src_files, 
+                                        delete_src, 
+                                        blob_tier,
+                                        iteration + 1))
+                # Back off for a bit before re-trying the upload
+                sleep(2 * iteration)
+
+    def run(self) -> None:
+        """Use a ThreadPoolExecutor to process the upload queue."""
+
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            while not self._stop_requested:
+                method, dst_container, files, delete_src, blob_tier, iteration = self._upload_queue.get()
+                executor.submit(self._async_upload_method,
+                                method, 
+                                dst_container, 
+                                files, 
+                                delete_src, 
+                                blob_tier,
+                                iteration)
+                self._upload_queue.task_done()
+
+        logger.info("Upload queue processing stopped")
+
+

@@ -27,7 +27,5 @@ class Test_configuration:
     def test_config_validator(self) -> None:
         # Check the configuration is valid
         dptrees = my_fleet_config.create_example_device()
-        for dptree in dptrees:
-            # Check the datastreams are valid
-            is_valid, error_message = config_validator.validate_tree(dptree)
-            assert is_valid, error_message
+        is_valid, error_message = config_validator.validate_trees(dptrees)
+        assert is_valid, error_message

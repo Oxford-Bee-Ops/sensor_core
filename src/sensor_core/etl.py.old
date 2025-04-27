@@ -27,7 +27,7 @@ from time import sleep
 from sensor_core import api
 from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import CloudConnector
-from sensor_core.dp_engine import DPengine
+from sensor_core.dpworker import DPworker
 from sensor_core.utils import file_naming
 
 logger = root_cfg.setup_logger(name="sensor_core")
@@ -95,7 +95,7 @@ class DatastreamFactory:
 
     def __init__(self) -> None:
         """Initialise the DatastreamFactory"""
-        self._datastreams: dict[str, DPengine] = {}
+        self._datastreams: dict[str, DPworker] = {}
         self._stop_requested_event = Event()
         # We start the first iteration with a short timer, so we start work quickly, but then back-off
         self._sleep_time = 5 * 60
@@ -119,7 +119,7 @@ class DatastreamFactory:
                 continue
             else:
                 file_details = file_naming.parse_record_filename(f)
-                datastream = DPengine(
+                datastream = DPworker(
                     file_details[api.RECORD_ID.DATA_TYPE_ID.value],
                     file_details[api.RECORD_ID.DEVICE_ID.value],
                     file_details[api.RECORD_ID.SENSOR_INDEX.value],

@@ -10,7 +10,7 @@ from time import sleep
 
 from sensor_core import Sensor, SensorCfg, api, file_naming
 from sensor_core import configuration as root_cfg
-from sensor_core.dp_config_object_defs import Stream
+from sensor_core.dp_config_objects import Stream
 from sensor_core.utils import utils
 
 logger = root_cfg.setup_logger("sensor_core")

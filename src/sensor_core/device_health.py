@@ -9,7 +9,7 @@ import psutil
 
 from sensor_core import api
 from sensor_core import configuration as root_cfg
-from sensor_core.dp_config_object_defs import SensorCfg, Stream
+from sensor_core.dp_config_objects import SensorCfg, Stream
 from sensor_core.sensor import Sensor
 from sensor_core.utils import utils
 

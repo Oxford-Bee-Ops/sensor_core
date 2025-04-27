@@ -3,8 +3,8 @@ from time import sleep
 
 from sensor_core import api
 from sensor_core import configuration as root_cfg
-from sensor_core.dp_config_object_defs import Stream
-from sensor_core.dp_engine import DPengine
+from sensor_core.dp_config_objects import Stream
+from sensor_core.dp_worker_thread import DPworker
 from sensor_core.sensor import Sensor, SensorCfg
 
 logger = root_cfg.setup_logger("sensor_core")
@@ -60,12 +60,12 @@ class StatTracker(Sensor):
         super().__init__(SC_TRACKING_CFG)
         self.last_ran: datetime = api.utc_now()
 
-    def set_dp_engines(self, dp_engines: list[DPengine]) -> None:
-        """Set the DPengine for the SelfTracking sensor.
+    def set_dpworkers(self, dpworkers: list[DPworker]) -> None:
+        """Set the DPworker for the SelfTracking sensor.
         
         This method is called by the EdgeOrchestrator when the SelfTracking is started.
         """
-        self.dp_engines = dp_engines
+        self.dpworkers = dpworkers
 
     def run(self) -> None:
         """Main loop for the DeviceHealth sensor.
@@ -76,10 +76,10 @@ class StatTracker(Sensor):
 
         while not self.stop_requested:
             logger.debug(f"SelfTracker {self.sensor_index} running log_sample_data() "
-                         f"for {len(self.dp_engines)} DP engines")
+                         f"for {len(self.dpworkers)} DP engines")
             # Trigger each datastream to log sample counts
-            for dp_engine in self.dp_engines:
-                dp_engine.log_sample_data(self.last_ran)
+            for dpworker in self.dpworkers:
+                dpworker.log_sample_data(self.last_ran)
 
             # Set timer for next run
             self.last_ran = api.utc_now()

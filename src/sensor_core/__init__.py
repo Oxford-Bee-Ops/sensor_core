@@ -5,11 +5,11 @@
 import importlib.metadata
 
 from . import api, configuration
-from .data_processor import DataProcessor
-from .device_config_object_defs import (
+from .device_config_objects import (
     DeviceCfg,
 )
-from .dp_config_object_defs import (
+from .dp import DataProcessor
+from .dp_config_objects import (
     DataProcessorCfg,
     SensorCfg,
     Stream,

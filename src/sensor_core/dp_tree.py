@@ -1,15 +1,15 @@
 from typing import List, NamedTuple, Tuple
 
 from sensor_core import configuration as root_cfg
-from sensor_core.dp_config_object_defs import Stream
-from sensor_core.dp_tree_node import DPtreeNode
+from sensor_core.dp_config_objects import Stream
+from sensor_core.dp_node import DPnode
 from sensor_core.sensor import Sensor
 
 logger = root_cfg.setup_logger("sensor_core")
 
 class Edge(NamedTuple):
-    source: DPtreeNode
-    sink: DPtreeNode
+    source: DPnode
+    sink: DPnode
     stream: Stream
     
 ###############################################################################################
@@ -57,13 +57,13 @@ class DPtree:
 
         # Nodes are stored in a dictionary indexed by data_id
         # The data_id represents the edge between the source and the recipient node.
-        self._nodes: dict[str, DPtreeNode] = {"root": sensor}
+        self._nodes: dict[str, DPnode] = {"root": sensor}
         self._edges: list[Edge] = []
 
     def connect(
         self,
-        source: Tuple[DPtreeNode, int],
-        sink: DPtreeNode,
+        source: Tuple[DPnode, int],
+        sink: DPnode,
     ) -> None:
         """
         Connects two nodes in the tree.
@@ -109,7 +109,7 @@ class DPtree:
         self._edges.append(Edge(src_node, sink, stream))
 
 
-    def chain(self, *configs: DPtreeNode) -> None:
+    def chain(self, *configs: DPnode) -> None:
         """
         Connects multiple nodes in a single chain.
 
@@ -119,7 +119,7 @@ class DPtree:
         for i in range(len(configs) - 1):
             self.connect((configs[i], 0), configs[i + 1])  # Default metadata value is 0.
 
-    def get_node(self, data_id: str) -> DPtreeNode:
+    def get_node(self, data_id: str) -> DPnode:
         """
         Retrieves a node from the tree by its data_id.
 
@@ -143,7 +143,7 @@ class DPtree:
         """
         return self._edges
 
-    def get_processors(self) -> List[DPtreeNode]:
+    def get_processors(self) -> List[DPnode]:
         """
         Retrieves all processor nodes in the tree.
 

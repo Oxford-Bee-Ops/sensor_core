@@ -1,5 +1,5 @@
 
-from sensor_core.device_config_object_defs import DeviceCfg, WifiClient
+from sensor_core.device_config_objects import DeviceCfg, WifiClient
 from sensor_core.dp_tree import DPtree
 
 from example.my_processor_example import EXAMPLE_FILE_PROCESSOR_CFG, ExampleProcessor

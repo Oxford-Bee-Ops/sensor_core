@@ -7,15 +7,15 @@ from datetime import timedelta
 from time import sleep
 from typing import Callable, Optional
 
-from sensor_core import api, dp_engine, file_naming
+from sensor_core import api, dp_worker_thread, file_naming
 from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import CloudConnector
 from sensor_core.device_health import DeviceHealth
-from sensor_core.dp_engine import DPengine
+from sensor_core.dp_node import DPnode
 from sensor_core.dp_tree import DPtree
-from sensor_core.dp_tree_node import DPtreeNode
-from sensor_core.stats_tracker import StatTracker
+from sensor_core.dp_worker_thread import DPworker
 from sensor_core.sensor import Sensor
+from sensor_core.stats_tracker import StatTracker
 from sensor_core.utils.journal_pool import JournalPool
 
 logger = root_cfg.setup_logger("sensor_core")
@@ -49,7 +49,7 @@ class EdgeOrchestrator:
         self.reset_orchestrator_state()
         if root_cfg.TEST_MODE == root_cfg.MODE.TEST:
             # Override the RUN_FREQUENCY_SECS so that tests exit faster; default is 60s
-            dp_engine.RUN_FREQUENCY_SECS = 1
+            dp_worker_thread.RUN_FREQUENCY_SECS = 1
         logger.info(f"Initialised EdgeOrchestrator {self!r}")
 
     @staticmethod
@@ -65,7 +65,7 @@ class EdgeOrchestrator:
         logger.debug("Reset orchestrator state")
         with EdgeOrchestrator.orchestrator_lock:
             self._sensorThreads: list[Sensor] = []
-            self._dpengines: list[DPengine] = []
+            self._dpworkers: list[DPworker] = []
             self.dp_trees: list[DPtree] = []
 
             self._stop_upload_requested = threading.Event()
@@ -77,18 +77,18 @@ class EdgeOrchestrator:
             # SCORE - data save events
             # SCORP - DP performance
             self.device_health = DeviceHealth()
-            health_dpe = DPengine(DPtree(self.device_health))
+            health_dpe = DPworker(DPtree(self.device_health))
             self._sensorThreads.append(self.device_health)
-            self._dpengines.append(health_dpe)
+            self._dpworkers.append(health_dpe)
 
             self.selftracker = StatTracker()
-            tracker_dpe = DPengine(DPtree(self.selftracker))
+            tracker_dpe = DPworker(DPtree(self.selftracker))
             self._sensorThreads.append(self.selftracker)
-            self._dpengines.append(tracker_dpe)
-            self.selftracker.set_dp_engines(self._dpengines)
+            self._dpworkers.append(tracker_dpe)
+            self.selftracker.set_dpworkers(self._dpworkers)
             # We set the _selftracker as a class variable so that all DPtreeNoes instances can 
             # log their performance data
-            DPtreeNode._selftracker = self.selftracker
+            DPnode._selftracker = self.selftracker
 
             self._orchestrator_is_running = False
 
@@ -99,7 +99,7 @@ class EdgeOrchestrator:
             "SensorCore running": str(self.is_running()),
             "Sensor threads": str(self._sensorThreads),
             "Upload timer": str(self._upload_timer),
-            "DPtrees": str(self._dpengines),
+            "DPtrees": str(self._dpworkers),
         }
         return status
 
@@ -114,7 +114,7 @@ class EdgeOrchestrator:
                 logger.info(self.status())
                 raise ValueError(f"Sensor already added: {sensor!r}")
             self._sensorThreads.append(sensor)
-            self._dpengines.append(DPengine(dptree))
+            self._dpworkers.append(DPworker(dptree))
 
     @staticmethod
     def _safe_call_create_method(create_method: Optional[Callable]) -> list[DPtree]:
@@ -167,7 +167,7 @@ class EdgeOrchestrator:
     #
     #########################################################################################################
     def start_all(self) -> None:
-        """Start all Sensor & DPengine threads"""
+        """Start all Sensor & DPworker threads"""
 
         if self._orchestrator_is_running:
             logger.warning(f"Sensor_manager is already running; {self}")
@@ -181,8 +181,8 @@ class EdgeOrchestrator:
         # Set the flag monitored by the SensorFactory
         self._orchestrator_is_running = True
 
-        # Start the DPengine threads
-        for dpe in self._dpengines:
+        # Start the DPworker threads
+        for dpe in self._dpworkers:
             dpe.start()
 
         # Only once we've started the datastreams, do we start the Sensor threads
@@ -252,11 +252,11 @@ class EdgeOrchestrator:
                 sensor.join()
 
         # Stop all the dataprocessor threads
-        for dpe in self._dpengines:
+        for dpe in self._dpworkers:
             dpe.stop()
 
         # Block until all Datastreams have exited
-        for dpe in self._dpengines:
+        for dpe in self._dpworkers:
             if dpe.is_alive():
                 logger.info(f"Waiting for datastream thread {dpe}")
                 dpe.join()

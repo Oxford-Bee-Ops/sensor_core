@@ -17,7 +17,7 @@ from typing import Optional
 
 from sensor_core import api
 from sensor_core import configuration as root_cfg
-from sensor_core.dp_config_object_defs import Stream
+from sensor_core.dp_config_objects import Stream
 from sensor_core.dp_tree import DPtree
 from sensor_core.sensors import processor_video_aruco
 from sensor_core.sensors.processor_video_trap_cam import (

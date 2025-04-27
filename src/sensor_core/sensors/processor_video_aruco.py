@@ -13,7 +13,7 @@ import pandas as pd
 
 from sensor_core import DataProcessor, api, file_naming
 from sensor_core import configuration as root_cfg
-from sensor_core.dp_config_object_defs import DataProcessorCfg, Stream
+from sensor_core.dp_config_objects import DataProcessorCfg, Stream
 
 cv2.setRNGSeed(42)
 

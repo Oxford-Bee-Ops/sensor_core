@@ -13,10 +13,10 @@ from sensor_core import api, file_naming
 from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import CloudConnector
 from sensor_core.configuration import Mode
-from sensor_core.data_processor import DataProcessor
-from sensor_core.dp_config_object_defs import SensorCfg, Stream
+from sensor_core.dp import DataProcessor
+from sensor_core.dp_config_objects import SensorCfg, Stream
+from sensor_core.dp_node import DPnode
 from sensor_core.dp_tree import DPtree
-from sensor_core.dp_tree_node import DPtreeNode
 
 logger = root_cfg.setup_logger("sensor_core")
 
@@ -25,19 +25,19 @@ logger = root_cfg.setup_logger("sensor_core")
 RUN_FREQUENCY_SECS = 60
 
 
-class DPengine(Thread):
-    """A DPengine is the thread that processes data through a DPtree.
+class DPworker(Thread):
+    """A DPworker is the thread that processes data through a DPtree.
     Note: the Sensor has a separate thread.
     """
-    _scorp_dp: DPtreeNode
+    _scorp_dp: DPnode
 
     def __init__(
         self,
         dp_tree: DPtree,
     ) -> None:
-        """Initialise the DPengine."""
+        """Initialise the DPworker."""
         super().__init__()
-        logger.debug(f"Initialising DPengine {self}")
+        logger.debug(f"Initialising DPworker {self}")
 
         self._stop_requested = False
 
@@ -51,7 +51,7 @@ class DPengine(Thread):
         # This is not unique on the device, but must be unique in combination with the datastream_type_id.
         self.sensor_index = dp_tree.sensor.config.sensor_index
 
-        # start_time is a datetime object that describes the time the DPengine was started.
+        # start_time is a datetime object that describes the time the DPworker was started.
         # This should be set by calling the start() method, and not set during initialization.
         self.dpe_start_time: Optional[datetime] = None
 
@@ -111,7 +111,7 @@ class DPengine(Thread):
 
     #########################################################################################################
     #
-    # DPengine worker thread methods
+    # DPworker worker thread methods
     #
     #########################################################################################################
 
@@ -124,7 +124,7 @@ class DPengine(Thread):
         if self.dpe_start_time is None:
             self.dpe_start_time = api.utc_now()
             # Call our superclass Thread start() method which schedule our run() method
-            logger.info(f"Starting DPengine {self} in {root_cfg.get_mode()} mode")
+            logger.info(f"Starting DPworker {self} in {root_cfg.get_mode()} mode")
             super().start()
         else:
             logger.warning(f"{root_cfg.RAISE_WARN()}Datastream {self} already started.")
@@ -157,7 +157,7 @@ class DPengine(Thread):
         # If there are no data processors, we can exit the thread because data will be saved 
         # directly to the cloud
         if len(self.dp_tree.get_processors()) == 0:
-            logger.debug(f"No DataProcessors registered; exiting DPengine loop; {self!r}")
+            logger.debug(f"No DataProcessors registered; exiting DPworker loop; {self!r}")
             return
 
         while not self._stop_requested:
@@ -185,7 +185,7 @@ class DPengine(Thread):
                             dp.process_data(input_df)
                     else:
                         # DPs may process recording files
-                        input_files = self._get_ds_files(stream)
+                        input_files = self._get_stream_files(stream)
                         if input_files is not None and len(input_files) > 0:
                             logger.debug(f"Invoking {dp} with {len(input_files)} files")
                             dp.process_data(input_files)
@@ -217,7 +217,7 @@ class DPengine(Thread):
             if sleep_time > 0:
                 sleep(sleep_time)
 
-    def _get_ds_files(self, stream: Stream) -> Optional[list[Path]]:
+    def _get_stream_files(self, stream: Stream) -> Optional[list[Path]]:
         """Find any files that match the requested Datastream (type, device_id & sensor_index)"""
         if root_cfg.get_mode() == Mode.EDGE:
             src = root_cfg.EDGE_PROCESSING_DIR

@@ -6,8 +6,8 @@ from pathlib import Path
 import pandas as pd
 
 from sensor_core import configuration as root_cfg
-from sensor_core.dp_config_object_defs import DataProcessorCfg
-from sensor_core.dp_tree_node import DPtreeNode
+from sensor_core.dp_config_objects import DataProcessorCfg
+from sensor_core.dp_node import DPnode
 
 logger = root_cfg.setup_logger("sensor_core")
 
@@ -17,7 +17,7 @@ logger = root_cfg.setup_logger("sensor_core")
 # Class: DataProcessor
 #
 #####################################################################################################
-class DataProcessor(DPtreeNode, ABC):
+class DataProcessor(DPnode, ABC):
     """DataProcessors are invoked by the Datastream to process data from a Sensor.
 
     The DataProcessor implements the process_data() function to process the Sensor data.
@@ -32,7 +32,7 @@ class DataProcessor(DPtreeNode, ABC):
                  config: DataProcessorCfg,
                  sensor_index: int, 
     ) -> None:
-        DPtreeNode.__init__(self, config, sensor_index)
+        DPnode.__init__(self, config, sensor_index)
         self.config = config
 
 

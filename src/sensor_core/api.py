@@ -77,6 +77,7 @@ class FORMAT(Enum):
     MP4 = "mp4"  # MP4 video format
     H264 = "h264"  # H264 video format
     WAV = "wav"  # WAV audio format
+    TXT = "txt"  # Text format
     YAML = "yaml"  # YAML text format
 
 DATA_FORMATS = [FORMAT.DF, FORMAT.CSV, FORMAT.LOG]

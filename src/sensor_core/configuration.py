@@ -9,7 +9,7 @@ from typing import Optional
 import psutil
 
 from sensor_core import api
-from sensor_core.device_config_object_defs import FAILED_TO_LOAD, DeviceCfg, Keys, SystemCfg
+from sensor_core.device_config_objects import FAILED_TO_LOAD, DeviceCfg, Keys, SystemCfg
 from sensor_core.utils import utils_clean
 
 

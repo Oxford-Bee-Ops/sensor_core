@@ -4,7 +4,7 @@ from crontab import CronTab
 
 from sensor_core import config_validator
 from sensor_core import configuration as root_cfg
-from sensor_core.device_config_object_defs import DeviceCfg
+from sensor_core.device_config_objects import DeviceCfg
 from sensor_core.device_health import DeviceHealth
 from sensor_core.edge_orchestrator import EdgeOrchestrator
 from sensor_core.utils import utils
