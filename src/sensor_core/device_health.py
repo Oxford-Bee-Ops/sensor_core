@@ -1,14 +1,16 @@
 import os
 import socket
 import subprocess
-from datetime import datetime
+from datetime import datetime, timedelta
+from time import sleep
 from typing import Any, Optional
 
 import psutil
 
 from sensor_core import api
 from sensor_core import configuration as root_cfg
-from sensor_core.datastream import Datastream
+from sensor_core.dp_config_objects import SensorCfg, Stream
+from sensor_core.sensor import Sensor
 from sensor_core.utils import utils
 
 if root_cfg.running_on_rpi:
@@ -66,8 +68,62 @@ if root_cfg.running_on_rpi:
 
 logger = root_cfg.setup_logger("sensor_core")
 
-class DeviceHealth():
-    """Monitors device health and provides telemetry data as a SensorCore datastream.
+# HEART - special datastream for recording device & system health
+HEART_FIELDS = [
+    "boot_time",
+    "last_update_timestamp",
+    "cpu_percent",
+    "total_memory_gb",
+    "memory_percent",
+    "memory_free",
+    "disk_percent",
+    "disk_bytes_written_in_period",
+    "io_bytes_sent",
+    "sc_mount_size",
+    "sc_ram_percent",
+    "cpu_temperature",
+    "ssid",
+    "ip_address",
+    "power_status",
+    "process_list",
+    "sensor_core_version",
+]
+
+# WARNING - special datastream for capturing warning and error logs from any component
+WARNING_FIELDS = [
+    "time_logged",
+    "message",
+    "process_id",
+    "process_name",
+    "executable_path",
+    "priority",
+]
+
+HEART_STREAM_INDEX = 0
+WARNING_STREAM_INDEX = 1
+DEVICE_HEALTH_CFG = SensorCfg(
+    sensor_type=api.SENSOR_TYPE.SYS,
+    sensor_index=0,
+    sensor_model="DeviceHealth",
+    description="Internal device health",
+    outputs=[
+        Stream("Health heartbeat stream", 
+               api.HEART_DS_TYPE_ID, 
+               HEART_STREAM_INDEX, 
+               format=api.FORMAT.LOG, 
+               fields=HEART_FIELDS,
+               cloud_container=root_cfg.my_device.cc_for_system_records),
+        Stream("Warning log stream", 
+               api.WARNING_DS_TYPE_ID, 
+               WARNING_STREAM_INDEX, 
+               format=api.FORMAT.LOG, 
+               fields=WARNING_FIELDS,
+               cloud_container=root_cfg.my_device.cc_for_system_records),
+    ],
+)
+
+class DeviceHealth(Sensor):
+    """Monitors device health and provides data as a SensorCore datastream.
     Produces the following data:
     - HEART (DS type ID) provides periodic heartbeats with device health data up to cloud storage.
     - WARNINGS (DS type ID) captures warning and error logs produced by any component, aggregates
@@ -75,7 +131,7 @@ class DeviceHealth():
     """
 
     def __init__(self) -> None:
-
+        super().__init__(DEVICE_HEALTH_CFG)
         ###############################
         # Telemetry tracking
         ###############################
@@ -85,13 +141,37 @@ class DeviceHealth():
         self.cum_bytes_sent = 0
         self.log_counter = 0
         self.client_wlan = "wlan0"
-    
-    def log_health(self, heart_ds: Datastream) -> None:
+        
+    def run(self) -> None:
+        """Main loop for the DeviceHealth sensor.
+        This method is called when the thread is started.
+        It runs in a loop, logging health data and warnings at regular intervals.
+        """
+        logger.info(f"Starting DeviceHealth thread {self!r}")
+
+        while not self.stop_requested:
+            # Log the health data
+            self.log_health()
+
+            # Log the warning data
+            self.log_warnings()
+
+            # Set timer for next run
+            self.last_ran = api.utc_now()
+            self.log_counter += 1
+            next_hour = (self.last_ran + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+            sleep_time = (next_hour - self.last_ran).total_seconds()
+            if root_cfg.TEST_MODE == root_cfg.MODE.TEST:
+                # In test mode, we want to run every 1 seconds
+                sleep_time = 1
+            sleep(sleep_time)
+
+    def log_health(self) -> None:
         """Logs device health data to the HEART datastream."""
         health = self.get_health()
-        heart_ds.log(health)
+        self.log(HEART_STREAM_INDEX, health)
 
-    def log_warnings(self, warning_ds: Datastream) -> None:
+    def log_warnings(self) -> None:
         """Capture warning and error logs to the WARNING datastream.
         We get these from the system journal and log them to the WARNING datastream.
         We capture logs tagged with the RAISE_WARN_TAG and all logs with priority <=4 (Warning)."""
@@ -103,9 +183,9 @@ class DeviceHealth():
 
             for log in logs:
                 if api.RAISE_WARN_TAG in log:
-                    warning_ds.log(log)
+                    self.log(WARNING_STREAM_INDEX, log)
                 elif log["priority"] <= 4:
-                    warning_ds.log(log)
+                    self.log(WARNING_STREAM_INDEX, log)
             
 
     ############################################################################################################

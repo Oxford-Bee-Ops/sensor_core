@@ -5,16 +5,15 @@
 import importlib.metadata
 
 from . import api, configuration
-from .config_objects import (
-    DataProcessorCfg,
-    DatastreamCfg,
+from .device_config_objects import (
     DeviceCfg,
-    DpContext,
-    SensorCfg,
-    SensorDsCfg,
 )
-from .data_processor import DataProcessor
-from .datastream import Datastream
+from .dp import DataProcessor
+from .dp_config_objects import (
+    DataProcessorCfg,
+    SensorCfg,
+    Stream,
+)
 from .sensor import Sensor
 from .sensor_core import SensorCore
 
@@ -28,14 +27,10 @@ __all__ = [
     "configuration",
     "DataProcessor",
     "DataProcessorCfg",
-    "Datastream",
-    "DatastreamCfg",
     "DeviceCfg",
-    "DpContext",
     "Sensor",
     "SensorCfg",
     "SensorCore",
-    "SensorDsCfg",
+    "Stream",
     "api",
-    "configuration"
 ]

@@ -183,3 +183,15 @@ FC=Fleet config; SC=system.cfg; KE=keys.env
 | Git repo | SC:`my_git_repo_url` | URL of your Git repo containing your configuration and any custom code
 | Git branch | SC:`my_git_branch` | Name of the Git branch to use if not main
 
+
+## Class model
+
+- bcli | CLI to SensorCore
+- sensor_core.SensorCore is the primary entry point for programmatic integration
+    - edge_orchestrator.EdgeOrchestrator manages overall program flow and start/stop of threads
+        - dp_node.DPnode superclass implements saving of data to Streams
+        - 
+        - sensor.Sensor superclass; there will be one per physical sensor
+        - dp.DataProcessor superclass; subclasses implement different processing of sensor data 
+        - Streams define the data produced by Sensors and DataProcessors
+        - dp_node

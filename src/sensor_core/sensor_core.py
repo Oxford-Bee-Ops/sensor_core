@@ -4,7 +4,7 @@ from crontab import CronTab
 
 from sensor_core import config_validator
 from sensor_core import configuration as root_cfg
-from sensor_core.config_objects import DeviceCfg
+from sensor_core.device_config_objects import DeviceCfg
 from sensor_core.device_health import DeviceHealth
 from sensor_core.edge_orchestrator import EdgeOrchestrator
 from sensor_core.utils import utils
@@ -41,12 +41,16 @@ class SensorCore:
         if not fleet_config:
             return (False, ["No configuration provided."])
         
-        # The fleet_config_py is a python file passed in as a class reference
-        # Evaluate the class reference before we save it
         try:
-            is_valid, errors = config_validator.validate(fleet_config)
+            for device in fleet_config:
+                # Check the device configuration is valid
+                dp_trees = EdgeOrchestrator._safe_call_create_method(device.dp_trees_create_method)
+                is_valid, errors = config_validator.validate_trees(dp_trees)
+                if not is_valid:
+                    errors.append(f"Invalid configuration for device {device.device_id}: {errors}")
+                    break
         except Exception as e:
-            errors = [str(e)]
+            errors.append(str(e))
 
         return (is_valid, errors)                
 
@@ -72,17 +76,12 @@ class SensorCore:
         if not success:
             raise Exception(error)
 
-        # The fleet_config_py is a python file passed in as a class reference
-        # Evaluate the class reference before we save it
-        try:
-            is_valid = False
-            errors: list[str] = []
-            is_valid, errors = config_validator.validate(fleet_config)
-        except Exception as e:
-            raise Exception(f"Error attempting to load fleet config: {e}")
-        finally:
-            if not is_valid:
-                raise Exception(f"Configuration in {fleet_config} is not valid:\n{errors}")
+        # Find the config for this device
+        logger.info(f"TEST_CREATE of fleet config with {len(fleet_config)} devices.")
+        is_valid, errors = self.test_configuration(fleet_config)
+        if not is_valid:
+            raise ValueError(f"Configuration is not valid: {errors}")
+        logger.info("Completed TEST_CREATE of fleet config.")
 
         # Load the configuration
         root_cfg.set_inventory(fleet_config)

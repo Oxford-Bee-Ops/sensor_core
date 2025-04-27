@@ -1,28 +1,22 @@
 ####################################################################################################
 # EdgeOrchestrator: Manages the state of the sensor threads
 ####################################################################################################
-import sys
 import threading
 import zipfile
-from dataclasses import asdict
 from datetime import timedelta
 from time import sleep
-from typing import Optional
+from typing import Callable, Optional
 
-from sensor_core import api, datastream
+from sensor_core import api, dp_worker_thread, file_naming
 from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import CloudConnector
-from sensor_core.datastream import Datastream, JournalPool
 from sensor_core.device_health import DeviceHealth
+from sensor_core.dp_node import DPnode
+from sensor_core.dp_tree import DPtree
+from sensor_core.dp_worker_thread import DPworker
 from sensor_core.sensor import Sensor
-from sensor_core.system_datastreams import (
-    FAIRY_DS_TYPE,
-    HEART_DS_TYPE,
-    SCORE_DS_TYPE,
-    SCORP_DS_TYPE,
-    WARNING_DS_TYPE,
-)
-from sensor_core.utils import file_naming, utils
+from sensor_core.stats_tracker import StatTracker
+from sensor_core.utils.journal_pool import JournalPool
 
 logger = root_cfg.setup_logger("sensor_core")
 
@@ -55,7 +49,7 @@ class EdgeOrchestrator:
         self.reset_orchestrator_state()
         if root_cfg.TEST_MODE == root_cfg.MODE.TEST:
             # Override the RUN_FREQUENCY_SECS so that tests exit faster; default is 60s
-            datastream.RUN_FREQUENCY_SECS = 1
+            dp_worker_thread.RUN_FREQUENCY_SECS = 1
         logger.info(f"Initialised EdgeOrchestrator {self!r}")
 
     @staticmethod
@@ -71,34 +65,30 @@ class EdgeOrchestrator:
         logger.debug("Reset orchestrator state")
         with EdgeOrchestrator.orchestrator_lock:
             self._sensorThreads: list[Sensor] = []
-            self._datastreams: list[Datastream] = []
-            self._datastream_sensor_map: dict[Datastream, Sensor] = {}
-
-            self._stop_observability_requested = threading.Event()
-            self._observability_timer: Optional[threading.Timer] = None
+            self._dpworkers: list[DPworker] = []
+            self.dp_trees: list[DPtree] = []
 
             self._stop_upload_requested = threading.Event()
             self._upload_timer: Optional[threading.Timer] = None
 
             # We create a series of special Datastreams for recording:
-            # SCORE - data save events
-            # SCORP - DP performance
-            # FAIRY - DS FAIR config records
             # HEART - device health
             # WARNING - captures error & warning logs
-            # Register it so that it's started / stopped with the rest.
-            # Set it in the superclass, so Datastreams can log to it.
-            self._score_ds = Datastream(SCORE_DS_TYPE, device_id=root_cfg.my_device_id, sensor_index=1)
-            self._scorp_ds = Datastream(SCORP_DS_TYPE, device_id=root_cfg.my_device_id, sensor_index=1)
-            self._fairy_ds = Datastream(FAIRY_DS_TYPE, device_id=root_cfg.my_device_id, sensor_index=1)
-            self._heart_ds = Datastream(HEART_DS_TYPE, device_id=root_cfg.my_device_id, sensor_index=1)
-            self._warning_ds = Datastream(WARNING_DS_TYPE, device_id=root_cfg.my_device_id, sensor_index=1)
-            self._register_datastreams([self._scorp_ds, self._score_ds, self._fairy_ds, self._heart_ds, 
-                                        self._warning_ds])
-            Datastream._set_special_dss(self._scorp_ds, self._score_ds, self._fairy_ds)
-
-            # Create the DeviceHealth object
+            # SCORE - data save events
+            # SCORP - DP performance
             self.device_health = DeviceHealth()
+            health_dpe = DPworker(DPtree(self.device_health))
+            self._sensorThreads.append(self.device_health)
+            self._dpworkers.append(health_dpe)
+
+            self.selftracker = StatTracker()
+            tracker_dpe = DPworker(DPtree(self.selftracker))
+            self._sensorThreads.append(self.selftracker)
+            self._dpworkers.append(tracker_dpe)
+            self.selftracker.set_dpworkers(self._dpworkers)
+            # We set the _selftracker as a class variable so that all DPtreeNoes instances can 
+            # log their performance data
+            DPnode._selftracker = self.selftracker
 
             self._orchestrator_is_running = False
 
@@ -108,43 +98,46 @@ class EdgeOrchestrator:
         status = {
             "SensorCore running": str(self.is_running()),
             "Sensor threads": str(self._sensorThreads),
-            "Observability timer": str(self._observability_timer),
             "Upload timer": str(self._upload_timer),
-            "Datastream-Sensor map": str(self._datastream_sensor_map),
-            "Datastreams": str(self._datastreams),
+            "DPtrees": str(self._dpworkers),
         }
         return status
 
-    def load_sensors(self) -> None:
-        """Load the sensors based on the configuration and register them with the EdgeOrchestrator"""
+    def load_config(self) -> None:
+        """Load the sensor and data processor config into the EdgeOrchestrator by calling
+        the DeviceCfg.dp_trees_create_method()."""
+        self.dp_trees = self._safe_call_create_method(root_cfg.my_device.dp_trees_create_method)
+        for dptree in self.dp_trees:
+            sensor = dptree.sensor
+            if sensor in self._sensorThreads:
+                logger.error(f"{root_cfg.RAISE_WARN()}Sensor already added: {sensor!r}")
+                logger.info(self.status())
+                raise ValueError(f"Sensor already added: {sensor!r}")
+            self._sensorThreads.append(sensor)
+            self._dpworkers.append(DPworker(dptree))
 
-        if root_cfg.my_device.sensor_ds_list:
-            if not isinstance(root_cfg.my_device.sensor_ds_list, list):
-                root_cfg.my_device.sensor_ds_list = [root_cfg.my_device.sensor_ds_list]
+    @staticmethod
+    def _safe_call_create_method(create_method: Optional[Callable]) -> list[DPtree]:
+        """Call the create method and return the DPtree object.
+        Raises ValueError if the create method does not successfully create any DPtree objects."""
+        if create_method is None:
+            logger.error(f"{root_cfg.RAISE_WARN()}create_method not defined for {root_cfg.my_device_id}")
+            raise ValueError(f"create_method not defined for {root_cfg.my_device_id}")
 
-            # Loop around the SensorDatastreamConfig objects and instantiate the appropriate ones
-            for sds_config in root_cfg.my_device.sensor_ds_list:
-                sensor_cfg = sds_config.sensor_cfg
-                logger.info(
-                    f"Instantiating a {sensor_cfg.sensor_type} sensor on {root_cfg.my_device_id}"
-                    f" with sensor_index {sensor_cfg.sensor_index} using {sensor_cfg.sensor_class_ref}"
-                )
-                # Create a new sensor instance of the appropriate type
-                # sensor_cfg.sensor_class_ref is a class identifier str, so we need to call it to instantiate
-                # We pass in an index that can be used as the sensor_index, but it is up to the class
-                # __init__ to use the index as it sees fit.
-                try:
-                    sensor = utils.get_class_instance(sensor_cfg.sensor_class_ref, sds_config)
-                except Exception as e:
-                    logger.error(f"{root_cfg.RAISE_WARN()}Failed to instantiate "
-                                 f"{sensor_cfg.sensor_class_ref} {e}", exc_info=True)
-                    continue
+        logger.info(f"Creating DP trees for {root_cfg.my_device_id} using {create_method}")
+        dp_trees: list[DPtree] = create_method()
 
-                if sensor is not None:
-                    self._register_sensor(sensor)
-        else:
-            logger.error(f"{root_cfg.RAISE_WARN()}No sensor_ds_list defined for {root_cfg.my_device}")
+        if not dp_trees:
+            logger.error(f"{root_cfg.RAISE_WARN()}No sensors created by {root_cfg.my_device_id} "
+                            f"{create_method}")
+            raise ValueError(f"No sensors created by {create_method}")
 
+        if not isinstance(dp_trees, list):
+            logger.error(f"{root_cfg.RAISE_WARN()}create_method must return a list; "
+                         f"created {dp_trees.__type__}")
+            raise ValueError("create_method must return a list of DPtree objects")
+        
+        return dp_trees
 
     #########################################################################################################
     #
@@ -158,69 +151,15 @@ class EdgeOrchestrator:
         self.stop_all(restart=True)
         # The orchestrator monitors it's own status and will re-register all Sensors and Datastreams.
 
-    def _register_sensor(self, sensor: Sensor) -> None:
-        """Called by the Orchestrator to register newly created Sensors with the EdgeOrchestrator"""
 
-        logger.info(f"Register Sensor {sensor!r} to EdgeOrchestrator {self!r}")
-        assert isinstance(sensor, Sensor)
-        if sensor in self._sensorThreads:
-            logger.info(self.status())
-            raise ValueError(f"Sensor already added: {sensor!r}")
-
-        # Get the datastreams from the Sensor
-        datastreams = sensor.create_datastreams(sensor.sds_config.datastream_cfgs)
-        self._datastream_sensor_map.update({ds: sensor for ds in datastreams})
-        self._register_datastreams(datastreams)
-
-        self._sensorThreads.append(sensor)
-
-    def _get_sensor(self, sensor_type: str, sensor_index: int) -> Optional[Sensor| None]:
+    def _get_sensor(self, sensor_type: api.SENSOR_TYPE, sensor_index: int) -> Optional[Sensor | None]:
         """Private method to get a sensor by type & index"""
         logger.debug(f"_get_sensor {sensor_type} {sensor_index} from {self._sensorThreads}")
         for sensor in self._sensorThreads:
-            if (sensor._sensor_type == sensor_type) and (sensor._sensor_index == sensor_index):
+            if (sensor.config.sensor_type == sensor_type) and (sensor.sensor_index == sensor_index):
                 return sensor
         return None
 
-
-    #########################################################################################################
-    #
-    # Private methods for management of Datastreams
-    #
-    #########################################################################################################
-    def _register_datastreams(self, datastreams: list[Datastream]) -> None:
-        """Register a Sensor's Datastreams"""
-
-        with EdgeOrchestrator.orchestrator_lock:
-            # Check the datastreams aren't already registered
-            if any(ds in self._datastreams for ds in datastreams):  # Avoid infinite recursion
-                logger.info(f"1 or more Datastreams already registered, exiting: {datastreams}")
-                return
-
-            logger.info(f"Registering datastreams with EdgeOrchestrator: {datastreams}")
-
-            # Register the datastreams
-            if len(datastreams) > 0:
-                self._datastreams.extend(datastreams)
-
-            """
-            # Interrogate the datastreams to see if they have any derived datastreams
-            # This is recursive, so we can have multiple levels of derived datastreams
-            # But we need to make sure it's not infinitely recursive!
-            for ds in datastreams:
-                if ds._edge_dps is None:
-                    continue
-                for dp in ds._edge_dps:
-                    derived_datastreams = dp.create_derived_datastreams()
-                    if derived_datastreams is None:
-                        continue
-                    if any(ds in self._datastreams for ds in derived_datastreams):
-                        logger.info("Completed recursion")
-                    else:
-                        # Register the derived datastreams
-                        logger.info(f"Register derived datastreams: {derived_datastreams}")
-                        self._register_datastreams(derived_datastreams)
-            """
 
     #########################################################################################################
     #
@@ -228,7 +167,7 @@ class EdgeOrchestrator:
     #
     #########################################################################################################
     def start_all(self) -> None:
-        """Start all Sensor, Datastream and observability threads"""
+        """Start all Sensor & DPworker threads"""
 
         if self._orchestrator_is_running:
             logger.warning(f"Sensor_manager is already running; {self}")
@@ -242,31 +181,16 @@ class EdgeOrchestrator:
         # Set the flag monitored by the SensorFactory
         self._orchestrator_is_running = True
 
-        # Start the Datastreams threads
-        # Start FAIRY first, so that we can use it to save other FAIR archive records
-        self._fairy_ds.start()
-        for ds in self._datastreams:
-            # We exclude the FAIRY as it's explicitly started first
-            if ds.ds_config.ds_type_id == FAIRY_DS_TYPE.ds_type_id:
-                continue
-
-            # Write a log message to record that the datastream has started.
-            # This creates the FAIR config record that is archived along with the data.
-            ds_dict = asdict(ds.ds_config)  # DS config
-            ds_dict["ds_status_update"] = api.DS_STARTED
-            if ds in self._datastream_sensor_map:
-                sensor_config = self._datastream_sensor_map[ds].sds_config.sensor_cfg
-                ds_dict["sensor_config"] = asdict(sensor_config)
-            ds.save_FAIR_record(ds_dict)
-            ds.start()
+        # Start the DPworker threads
+        for dpe in self._dpworkers:
+            dpe.start()
 
         # Only once we've started the datastreams, do we start the Sensor threads
         # otherwise we get a "Datastream not started" error.
         for sensor in self._sensorThreads:
             sensor.start()
 
-        # We also start our own threads to periodically log the sample counts
-        self.start_observability_timer()
+        # Start the upload timer to sweep data to the cloud that isn't uploaded directly
         self.start_upload_timer()
 
         # Dump status to log
@@ -307,15 +231,11 @@ class EdgeOrchestrator:
         if not self._orchestrator_is_running:
             logger.warning(f"EdgeOrchestrator not started when stop called; {self}")
             logger.info(self.status())
-            if self._observability_timer:
-                self.stop_observability_timer()
             if self._upload_timer:  
                 self.stop_upload_timer()
             self.reset_orchestrator_state()
             return
 
-        # Stop our own observability Timer
-        self.stop_observability_timer()
         self.stop_upload_timer()
 
         # Stop all the sensor threads
@@ -331,17 +251,17 @@ class EdgeOrchestrator:
                 logger.info(f"Waiting for sensor thread {sensor}")
                 sensor.join()
 
-        # Stop all the datastream threads
-        for ds in self._datastreams:
-            ds.stop()
+        # Stop all the dataprocessor threads
+        for dpe in self._dpworkers:
+            dpe.stop()
 
         # Block until all Datastreams have exited
-        for ds in self._datastreams:
-            if ds.is_alive():
-                logger.info(f"Waiting for datastream thread {ds}")
-                ds.join()
+        for dpe in self._dpworkers:
+            if dpe.is_alive():
+                logger.info(f"Waiting for datastream thread {dpe}")
+                dpe.join()
             else:
-                logger.info(f"Datastream thread {ds} already stopped")
+                logger.info(f"Datastream thread {dpe} already stopped")
 
         # Trigger a flush_all on the CloudJournals so we save collected information 
         # before we kill everything
@@ -349,7 +269,6 @@ class EdgeOrchestrator:
         jp.flush_journals()
         jp.stop()
         
-
         # Clear our thread lists
         self.reset_orchestrator_state()
         self._orchestrator_is_running = False
@@ -390,52 +309,6 @@ class EdgeOrchestrator:
         # If we get here, the file exists, was touched within the last 2x _FREQUENCY seconds,
         # and the timestamp is > than the timestamp on the STOP_SENSOR_CORE_FLAG file.
         return True
-
-    #########################################################################################################
-    #
-    # Observability thread & methods
-    #
-    #########################################################################################################
-    def start_observability_timer(self) -> None:
-        logger.debug("Start obs timer")
-        self._observability_period_start_time = api.utc_now()
-        self.observability_run()
-
-    def stop_observability_timer(self) -> None:
-        logger.debug("Stop obs timer")
-        self._stop_observability_requested.set()
-        if self._observability_timer:
-            self._observability_timer.cancel()
-
-    def schedule_next_obs_run(self) -> None:
-        logger.debug("Schedule next obs timer")
-        if not self._stop_observability_requested.is_set():
-            start_time = api.utc_now()
-            next_hour = (start_time + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-            sleep_time = (next_hour - start_time).total_seconds()
-            self._observability_period_start_time = start_time
-            if self._observability_timer:
-                self._observability_timer.cancel()
-            self._observability_timer = threading.Timer(sleep_time, self.observability_run)
-            self._observability_timer.name = "obs_timer"
-            self._observability_timer.start()
-
-    # We run a thread to dump observability data on an hourly basis
-    def observability_run(self) -> None:
-        logger.debug(f"observability_run for period starting {self._observability_period_start_time}")
-
-        # Trigger each datastream to log sample counts
-        for ds in self._datastreams:
-            ds.log_sample_data(self._observability_period_start_time)
-
-        # Trigger the HEART and WARNING datastreams to log device health
-        self.device_health.log_health(self._heart_ds)
-        self.device_health.log_warnings(self._warning_ds)
-
-        # In testing, we call this method directly.  In this case, we don't want
-        # to schedule another Timer because we get hanging threads.
-        # So check if we've been scheduled (ie isAlive) or called directly.
-        self.schedule_next_obs_run()
 
     ########################################################################################################
     #
@@ -532,10 +405,9 @@ def main() -> None:
         orchestrator = EdgeOrchestrator.get_instance()
         if orchestrator.is_running() or orchestrator._orchestrator_is_running:
             logger.warning("SensorCore is already running; exiting")
-            orchestrator = None
             return
 
-        orchestrator.load_sensors()
+        orchestrator.load_config()
 
         # Start all the sensor threads
         orchestrator.start_all()
@@ -548,7 +420,7 @@ def main() -> None:
             # Restart the re-load and re-start the EdgeOrchestrator if it fails.
             if not orchestrator._orchestrator_is_running:
                 logger.error("Sensor manager failed; restarting")
-                orchestrator.load_sensors()
+                orchestrator.load_config()
                 orchestrator.start_all()
 
     except Exception as e:

@@ -3,19 +3,16 @@
 ########################################################
 import datetime as dt
 import hashlib
-import importlib
-import logging
 import os
 import random
 import shutil
 import subprocess
 import time
 import zipfile
-from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from threading import Timer
-from typing import Any, Generator, Optional
+from typing import Optional
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -273,18 +270,6 @@ def compute_local_md5(file_path: str) -> str:
     return md5_hash.hexdigest()
 
 
-############################################################
-# Instantiate an object from a class name
-# Pass in the provided arguments on instantiation
-############################################################
-def get_class_instance(class_path: str, *args: Any, **kwargs: Any) -> Any:
-    module_path, class_name = class_path.rsplit(".", 1)
-    module = importlib.import_module(module_path)
-    cls = getattr(module, class_name)
-    instance = cls(*args, **kwargs)
-    return instance
-
-
 def get_current_user() -> str:
     """Get the current user name."""
     if root_cfg.running_on_windows:
@@ -432,22 +417,3 @@ def convert_h264_to_mp4(src_file: Path, dst_file: Path) -> None:
     subprocess.run(command, check=True)
 
 
-@contextmanager
-def disable_console_logging(logger_name: str) -> Generator[Any, Any, Any]:
-    """
-    Temporarily disable console logging for the specified logger.
-    We use in the CLI to avoid interspersing log output with the output of the command.
-
-    Args:
-        logger_name: The name of the logger to modify.
-    """
-    logger = logging.getLogger(logger_name)
-    original_handlers = logger.handlers[:]  # Save the original handlers
-
-    # Remove console handlers
-    logger.handlers = [h for h in logger.handlers if not isinstance(h, logging.StreamHandler)]
-
-    try:
-        yield  # Allow the code block to execute
-    finally:
-        logger.handlers = original_handlers  # Restore original handlers

@@ -1,10 +1,12 @@
 ####################################################################################################
 # Utils that have no dependencies on other modules in the project
 ####################################################################################################
+import logging
 import subprocess
+from contextlib import contextmanager
 from dataclasses import fields, is_dataclass
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Generator, Union
 
 from pydantic_settings import BaseSettings
 
@@ -105,3 +107,24 @@ def save_settings_to_env(settings: BaseSettings, file_path: Union[str, Path]) ->
 
             # Convert the value to a string and escape special characters if needed
             env_file.write(f"{key}={value}\n")
+
+
+@contextmanager
+def disable_console_logging(logger_name: str) -> Generator[Any, Any, Any]:
+    """
+    Temporarily disable console logging for the specified logger.
+    We use in the CLI to avoid interspersing log output with the output of the command.
+
+    Args:
+        logger_name: The name of the logger to modify.
+    """
+    logger = logging.getLogger(logger_name)
+    original_handlers = logger.handlers[:]  # Save the original handlers
+
+    # Remove console handlers
+    logger.handlers = [h for h in logger.handlers if not isinstance(h, logging.StreamHandler)]
+
+    try:
+        yield  # Allow the code block to execute
+    finally:
+        logger.handlers = original_handlers  # Restore original handlers

@@ -5,26 +5,55 @@
 #
 ####################################################################################################
 
+from dataclasses import dataclass
 from time import sleep
 
-from sensor_core import Sensor, SensorDsCfg, api
+from sensor_core import Sensor, SensorCfg, api, file_naming
 from sensor_core import configuration as root_cfg
-from sensor_core.sensors.config_object_defs import RpicamSensorCfg
-from sensor_core.utils import file_naming, utils
+from sensor_core.dp_config_objects import Stream
+from sensor_core.utils import utils
 
 logger = root_cfg.setup_logger("sensor_core")
 
+RPICAM_DATA_TYPE_ID = "RPICAM"
+RPICAM_STREAM_INDEX: int = 0
+
+@dataclass
+class RpicamSensorCfg(SensorCfg):
+    ############################################################
+    # Add custom fields
+    ############################################################
+    # Defines the rpicam-vid command to use to record video.
+    # This should be as specified in the rpicam-vid documentation.
+    # The filename should be substituted with FILENAME. 
+    # Example: "rpicam-vid --framerate 15 --width 640 --height 640 -o FILENAME -t 5000"
+    # The FILENAME suffix should match the datastream input_format.
+    rpicam_cmd: str = "rpicam-vid --framerate 15 --width 640 --height 480 -o FILENAME -t 5000"
+
+DEFAULT_RPICAM_SENSOR_CFG = RpicamSensorCfg(
+    sensor_type=api.SENSOR_TYPE.CAMERA,
+    sensor_index=0,
+    sensor_model="PiCameraModule3",
+    description="Video sensor that uses rpicam-vid",
+    outputs=[
+        Stream(
+            description="Basic continuous video recording.",
+            type_id=RPICAM_DATA_TYPE_ID,
+            index=RPICAM_STREAM_INDEX,
+            format=api.FORMAT.MP4,
+            cloud_container="sensor-core-upload",
+        )
+    ],
+    rpicam_cmd = "rpicam-vid --framerate 15 --width 640 --height 480 -o FILENAME -t 5000",
+)
 
 class RpicamSensor(Sensor):
-    def __init__(self, sds_config: SensorDsCfg):
+    def __init__(self, config: RpicamSensorCfg):
         """Constructor for the RpicamSensor class"""
-        super().__init__(sds_config)
-        self.sds_config = sds_config
-
-        assert isinstance(sds_config.sensor_cfg, RpicamSensorCfg)
-        self.sensor_cfg: RpicamSensorCfg = sds_config.sensor_cfg
-        self.raw_format = self.sds_config.datastream_cfgs[0].raw_format
-        self.rpicam_cmd = self.sensor_cfg.rpicam_cmd
+        super().__init__(config)
+        self.config = config
+        self.recording_format = self.get_stream(RPICAM_STREAM_INDEX).format
+        self.rpicam_cmd = self.config.rpicam_cmd
 
         assert self.rpicam_cmd, (
             f"rpicam_cmd must be set in the sensor configuration: {self.rpicam_cmd}"
@@ -46,10 +75,6 @@ class RpicamSensor(Sensor):
             logger.warning("Video configuration is only supported on Raspberry Pi.")
             return
 
-        # Get the Datastream objects for this sensor so we can log / save data to them
-        # We expect 1 video datastream with raw_format="h264" or "mp4"
-        self.video_ds = self.get_datastreams(format=self.raw_format, expected=1)[0]
-
         # Main loop to record video and take still images
         while not self.stop_requested:
             try:
@@ -63,9 +88,7 @@ class RpicamSensor(Sensor):
                 start_time = api.utc_now()
 
                 # Get the filename for the video file
-                filename = file_naming.get_temporary_filename(
-                    self.video_ds.ds_config.raw_format
-                )
+                filename = file_naming.get_temporary_filename(self.recording_format)
 
                 # Replace the FILENAME placeholder in the command with the actual filename
                 cmd = self.rpicam_cmd.replace("FILENAME", str(filename))
@@ -73,7 +96,7 @@ class RpicamSensor(Sensor):
                 # If the "--camera SENSOR_INDEX" string is present, replace SENSOR_INDEX with
                 # the actual sensor index
                 if "--camera SENSOR_INDEX" in cmd:
-                    cmd = cmd.replace("SENSOR_INDEX", str(self.sds_config.sensor_cfg.sensor_index))
+                    cmd = cmd.replace("SENSOR_INDEX", str(self.sensor_index))
 
                 logger.info(f"Recording video with command: {cmd}")
 
@@ -82,7 +105,10 @@ class RpicamSensor(Sensor):
                 logger.info(f"Video recording completed with rc={rc}")
 
                 # Save the video file to the datastream
-                self.video_ds.save_recording(filename, start_time=start_time, end_time=api.utc_now())
+                self.save_recording(RPICAM_STREAM_INDEX, 
+                                    filename, 
+                                    start_time=start_time, 
+                                    end_time=api.utc_now())
 
             except FileNotFoundError as e:
                 logger.error(f"{root_cfg.RAISE_WARN()}FileNotFoundError in RpicamSensor: {e}", exc_info=True)

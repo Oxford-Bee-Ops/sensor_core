@@ -20,13 +20,14 @@
 
 import os
 import subprocess
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from time import sleep
 
-from sensor_core import Sensor, SensorDsCfg, api
+from sensor_core import Sensor, SensorCfg, api, file_naming
 from sensor_core import configuration as root_cfg
-from sensor_core.sensors.config_object_defs import VideoSensorCfg
-from sensor_core.utils import file_naming, utils
+from sensor_core.dp_config_objects import Stream
+from sensor_core.utils import utils
 
 if root_cfg.running_on_rpi:
     from libcamera import Transform, controls  # type: ignore
@@ -46,35 +47,81 @@ logger = root_cfg.setup_logger("sensor_core")
 # Default camera configuration
 ############################################################
 CAMERA_SENSOR_RESOLUTION = (4608, 2592)
+CONTINUOUS_VIDEO_DS_TYPE_ID = "RAWVIDEO"
+STILL_IMAGE_DS_TYPE_ID = "STILLIMAGE"
+VIDEO_STREAM_INDEX: int = 0
+IMAGE_STREAM_INDEX: int = 1
 
+@dataclass
+class VideoSensorCfg(SensorCfg):
+    ############################################################
+    # Add custom fields
+    ############################################################
+    video_format: str = "h264"  # Video format
+    video_resolution: tuple = (1920, 1080)  # Image resolution
+    still_resolution: tuple = (1920, 1080)  # Still image resolution
+    video_zoom: float = 1.0  # Zoom factor used on video only
+    video_quality: int = 2  # Video quality picamera2.encoders.Quality
+    av_rec_seconds: int = 180  # Record video for this many seconds
+    fps: float = 4.0  # Frames per second
+    focal_length: float = 0.2  # Focal length of the camera lens in metres
+    rotate_camera: int = 180  # Rotate the camera image by 180 degrees
+    # Interval between still images in seconds;
+    # 0 disables still images
+    # Cannot be less than 2s - use video recording for shorter intervals
+    still_interval: int = 3600
+    save_orig_video: bool = False  # Save the original video for upload to the cloud
+    save_first_frame: bool = False  # Save the first frame of the video as a JPEG
+    direct_video_upload: bool = True  # Upload the video directly to the cloud
+
+
+DEFAULT_VIDEO_SENSOR_CFG = VideoSensorCfg(
+    sensor_type = api.SENSOR_TYPE.CAMERA,
+    sensor_index = 1,
+    sensor_model="PiCameraModule3",
+    description = "Default video sensor",
+    outputs = [
+        Stream(
+            description="Continuous video recording",
+            type_id=CONTINUOUS_VIDEO_DS_TYPE_ID,
+            index=VIDEO_STREAM_INDEX,
+            format=api.FORMAT.MP4,
+            cloud_container="sensor-core-upload",
+        ),
+        Stream(
+            description="Still image",
+            type_id=STILL_IMAGE_DS_TYPE_ID,
+            index=IMAGE_STREAM_INDEX,
+            format=api.FORMAT.JPG,
+            cloud_container="sensor-core-upload",
+        ),
+    ],
+)
 
 class VideoSensor(Sensor):
-    def __init__(self, sds_config: SensorDsCfg):
+    def __init__(self, config: VideoSensorCfg):
         """Constructor for the VideoSensor class"""
-        super().__init__(sds_config)
-        self.sds_config = sds_config
-
-        # Type check the sensor configuration so we get strong type checking
-        assert isinstance(sds_config.sensor_cfg, VideoSensorCfg)
-        self.sensor_cfg: VideoSensorCfg = sds_config.sensor_cfg
+        super().__init__(config)
+        self.config: VideoSensorCfg = config
 
         # Need to reimplement bcli test mode @@@
         self.bcli_test_mode = False
         if self.bcli_test_mode:
             self.av_rec_seconds = 10
         else:
-            self.av_rec_seconds = self.sensor_cfg.av_rec_seconds
+            self.av_rec_seconds = self.config.av_rec_seconds
 
         # Set up the camera configuration based on the device type
-        self.video_resolution = self.sensor_cfg.video_resolution
-        self.still_resolution = self.sensor_cfg.still_resolution
-        self.framerate = self.sensor_cfg.fps
-        self.video_zoom = self.sensor_cfg.video_zoom
-        self.focal_length = self.sensor_cfg.focal_length
-        self.video_quality = self.sensor_cfg.video_quality
+        self.video_resolution = self.config.video_resolution
+        self.still_resolution = self.config.still_resolution
+        self.framerate = self.config.fps
+        self.video_zoom = self.config.video_zoom
+        self.focal_length = self.config.focal_length
+        self.video_quality = self.config.video_quality
+        self.video_format = self.get_stream(VIDEO_STREAM_INDEX).format
 
         # Track the periodic taking of still images for PAMCAMs
-        self.still_interval = self.sensor_cfg.still_interval
+        self.still_interval = self.config.still_interval
         if self.still_interval > 0:
             self.next_still_image_time = datetime.now().replace(minute=0, second=0, microsecond=0)
             self.next_still_image_time += timedelta(seconds=self.still_interval)
@@ -120,12 +167,6 @@ class VideoSensor(Sensor):
             logger.warning("Video configuration is only supported on Raspberry Pi.")
             return
 
-        # Get the Datastream objects for this sensor so we can log / save data to them
-        # We expect 0 or 1 video datastreams with raw_format="h264" or "mp4"
-        # We expect 0 or 1 still image datastreams with raw_format="jpg"
-        self.video_ds = self.get_datastreams(format=self.sensor_cfg.video_format, expected=1)[0]
-        self.image_ds = self.get_datastreams(format="jpg", expected=1)[0]
-
         # Use the "with" context manager to ensure camera is closed after use
         failures = 0
         with Picamera2() as camera:
@@ -138,15 +179,14 @@ class VideoSensor(Sensor):
             while not self.stop_requested:
                 try:
                     # Check if we need to take a still image
-                    if self.image_ds is not None:
-                        if self.time_to_take_still_image():
-                            self.configure_for_still_image(camera)
-                            self.take_still_image(camera, self.bcli_test_mode)
+                    if self.time_to_take_still_image():
+                        self.configure_for_still_image(camera)
+                        self.take_still_image(camera, self.bcli_test_mode)
 
-                            # We assume we always flip back to video recording after taking a still image
-                            # Re-configure video settings appropriately for PAMCAM or HIVECAM
-                            self.configure_for_video(camera)
-                            encoder = H264Encoder()
+                        # We assume we always flip back to video recording after taking a still image
+                        # Re-configure video settings appropriately for PAMCAM or HIVECAM
+                        self.configure_for_video(camera)
+                        encoder = H264Encoder()
 
                     # If memory is running low, we pause recording until the video_processor and push_to_cloud
                     # have dealt with the backlog.
@@ -155,17 +195,13 @@ class VideoSensor(Sensor):
                         continue
 
                     # Record video for the specified number of seconds
-                    if self.video_ds is not None:
-                        # To keep the video and audio in sync, we trim the recording time to 
-                        # finish on a multiple of the av_rec_seconds.
-                        # The audio recording logic does the same.
-                        now = datetime.now()
-                        current_sec = (now.minute * 60) + now.second
-                        record_for = self.av_rec_seconds - (current_sec % self.av_rec_seconds)
-                        self.capture_video(camera, encoder, record_for)
-                    else:
-                        # If we're not recording video, sleep for a bit to avoid a tight loop
-                        sleep(min(2, self.still_interval))
+                    # To keep the video and audio in sync, we trim the recording time to 
+                    # finish on a multiple of the av_rec_seconds.
+                    # The audio recording logic does the same.
+                    now = datetime.now()
+                    current_sec = (now.minute * 60) + now.second
+                    record_for = self.av_rec_seconds - (current_sec % self.av_rec_seconds)
+                    self.capture_video(camera, encoder, record_for)
 
                     # If we're in bcli_test_mode, we only want to record one video
                     if self.bcli_test_mode:
@@ -205,7 +241,7 @@ class VideoSensor(Sensor):
         start_time = api.utc_now()
 
         # Create the timestamped filename just before we start recording
-        vid_output_filename = file_naming.get_temporary_filename("h264")
+        vid_output_filename = file_naming.get_temporary_filename(api.FORMAT.H264)
         logger.info(f"Recording to {vid_output_filename} for {record_for_seconds} seconds")
 
         camera.start_recording(encoder, str(vid_output_filename), quality=self.video_quality)
@@ -217,7 +253,7 @@ class VideoSensor(Sensor):
 
         # Reformat to MP4 if required
         new_fname = vid_output_filename
-        if self.video_ds.ds_config.raw_format == "mp4":
+        if self.video_format == api.FORMAT.MP4:
             # Convert the H264 file to MP4 format and delete the original H264 file
             new_fname = new_fname.with_suffix(".mp4")
             if logger.isEnabledFor(10):
@@ -229,9 +265,9 @@ class VideoSensor(Sensor):
 
         logger.debug(f"Captured video {new_fname}")
 
-        assert self.video_ds is not None
-        self.video_ds.save_recording(
-            new_fname,
+        self.save_recording(
+            stream_index=VIDEO_STREAM_INDEX,
+            temporary_file=new_fname,
             start_time=start_time,
             end_time=end_time,
         )
@@ -245,17 +281,16 @@ class VideoSensor(Sensor):
         if not utils.pause_recording() or bcli_test_mode:
             start_time = api.utc_now()
             camera.start()
-            still_output_filename = self.image_ds.get_temporary_filename("jpg")
+            still_output_filename = file_naming.get_temporary_filename(api.FORMAT.JPG)
             camera.capture_file(still_output_filename)
             camera.stop()
             logger.info(f"Temporarily saved image to {still_output_filename}")
 
             # Save the image to the datastream
-            assert self.image_ds is not None
-            self.image_ds.save_recording(
-                still_output_filename,
-                start_time=start_time,
-                end_time=api.utc_now()
+            self.save_recording(
+                stream_index=IMAGE_STREAM_INDEX,
+                temporary_file=still_output_filename,
+                start_time=start_time
             )
 
     def configure_for_video(self, camera):
@@ -270,7 +305,7 @@ class VideoSensor(Sensor):
             camera.video_configuration.controls.ScalerCrop = self.scaler_crop
         camera.video_configuration.main.size = self.video_resolution
         camera.video_configuration.encode = "main"
-        if self.sensor_cfg.rotate_camera == 180:
+        if self.config.rotate_camera == 180:
             camera.video_configuration.transform = Transform(hflip=1, vflip=1)
         camera.configure("video")
 
@@ -286,7 +321,7 @@ class VideoSensor(Sensor):
         if self.video_zoom != 1.0:
             camera.still_configuration.controls.ScalerCrop = self.scaler_crop
         camera.still_configuration.size = self.still_resolution
-        if self.sensor_cfg.rotate_camera == 180:
+        if self.config.rotate_camera == 180:
             camera.still_configuration.transform = Transform(hflip=1, vflip=1)
         camera.configure("still")
 

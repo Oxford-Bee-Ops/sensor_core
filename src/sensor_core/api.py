@@ -5,7 +5,7 @@
 ####################################################################################################
 from datetime import datetime
 from enum import Enum
-from typing import Final, Literal, Optional
+from typing import Optional
 from zoneinfo import ZoneInfo
 
 
@@ -14,9 +14,10 @@ from zoneinfo import ZoneInfo
 ############################################################
 class RECORD_ID(Enum):
     VERSION = "version_id"
-    DS_TYPE_ID = "ds_type_id"
+    DATA_TYPE_ID = "data_type_id"
     DEVICE_ID = "device_id"
     SENSOR_INDEX = "sensor_index"
+    STREAM_INDEX = "stream_index"
     TIMESTAMP = "logged_time"
     END_TIME = "end_time"
     OFFSET = "primary_offset_index"
@@ -28,9 +29,10 @@ class RECORD_ID(Enum):
 
 REQD_RECORD_ID_FIELDS = [
     RECORD_ID.VERSION.value,
-    RECORD_ID.DS_TYPE_ID.value,
+    RECORD_ID.DATA_TYPE_ID.value,
     RECORD_ID.DEVICE_ID.value,
     RECORD_ID.SENSOR_INDEX.value,
+    RECORD_ID.STREAM_INDEX.value,
     RECORD_ID.TIMESTAMP.value,
 ]
 ALL_RECORD_ID_FIELDS = [*REQD_RECORD_ID_FIELDS, 
@@ -47,19 +49,38 @@ ALL_RECORD_ID_FIELDS = [*REQD_RECORD_ID_FIELDS,
 #
 # Used in DUA & BCLI
 ############################################################
-INSTALL_TYPE_SENSOR = "rpi_sensor"
-INSTALL_TYPE_ETL = "etl"
-INSTALL_TYPES = [INSTALL_TYPE_SENSOR, INSTALL_TYPE_ETL]
+class INSTALL_TYPE(Enum):
+    RPI_SENSOR = "rpi_sensor"  # Sensor installation
+    ETL = "etl"  # ETL installation
+    NOT_SET = "NOT_SET"  # Invalid but used to declare the SensorCfg object
+
 
 ############################################################
-# Sensor types
+# Sensor interface type
 ############################################################
-SENSOR_TYPES = Literal['ENV', 'MIC', 'CAMERA', 'SYS']
+class SENSOR_TYPE(Enum):
+    I2C = "I2C"  # Environmental sensor (e.g., temperature, humidity, etc.)
+    USB = "USB"  # Microphone sensor
+    CAMERA = "CAMERA"  # Camera sensor
+    SYS = "SYS"  # System sensor (e.g., self-tracking)
+    NOT_SET = "NOT_SET"  # Invalid but used to declare the SensorCfg object
 
 ############################################################
 # Datastream types
 ############################################################
-FILE_FORMATS = Literal["df", "log", "csv", "jpg", "png", "mp4", "h264", "wav", "yaml"]
+class FORMAT(Enum):
+    DF = "df"  # Dataframe; can be saved as CSV
+    CSV = "csv"  # CSV text format
+    LOG = "log"  # JSON-like log format (dict)
+    JPG = "jpg"  # JPEG image format
+    PNG = "png"  # PNG image format
+    MP4 = "mp4"  # MP4 video format
+    H264 = "h264"  # H264 video format
+    WAV = "wav"  # WAV audio format
+    TXT = "txt"  # Text format
+    YAML = "yaml"  # YAML text format
+
+DATA_FORMATS = [FORMAT.DF, FORMAT.CSV, FORMAT.LOG]
 
 ############################################################
 # Tags used in logs sent from sensors to the ETL
@@ -67,18 +88,24 @@ FILE_FORMATS = Literal["df", "log", "csv", "jpg", "png", "mp4", "h264", "wav", "
 RAISE_WARN_TAG = "RAISE_WARNING#V1"
 TELEM_TAG = "TELEM#V1: "
 
-############################################################
-# Datastream and DataProcessor configuration
-############################################################
-ON: Final[str] = "ON"
-OFF: Final[str] = "OFF"
-OPTIMISED: Final[str] = "OPTIMISED"
 
-############################################################
-# Datastream & Sensor status updates
-############################################################
-DS_STARTED = "STARTED"
-DS_STOPPED = "STOPPED"
+#############################################################
+# System Datastream types
+#############################################################
+HEART_DS_TYPE_ID = "HEART"
+WARNING_DS_TYPE_ID = "WARNING"
+SCORE_DS_TYPE_ID = "SCORE"
+SCORP_DS_TYPE_ID = "SCORP"
+
+SYSTEM_DS_TYPES = [
+    HEART_DS_TYPE_ID,
+    WARNING_DS_TYPE_ID,
+    SCORE_DS_TYPE_ID,
+    SCORP_DS_TYPE_ID,
+]
+SCORP_STREAM_INDEX = 0
+SCORE_STREAM_INDEX = 1
+
 
 ############################################################
 # Datetime formats used in the system

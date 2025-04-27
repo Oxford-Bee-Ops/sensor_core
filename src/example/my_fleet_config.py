@@ -1,11 +1,9 @@
 
-from sensor_core.config_objects import DeviceCfg, WifiClient
+from sensor_core.device_config_objects import DeviceCfg, WifiClient
+from sensor_core.dp_tree import DPtree
 
-from example import my_config_object_defs as my_config_object_defs
-from example.my_device_types import (
-    experiment1_double_camera_device,
-    experiment1_standard_camera_device,
-)
+from example.my_processor_example import EXAMPLE_FILE_PROCESSOR_CFG, ExampleProcessor
+from example.my_sensor_example import EXAMPLE_FILE_STREAM_INDEX, EXAMPLE_SENSOR_CFG, ExampleSensor
 
 ###############################################################################
 # SensorCore config model
@@ -57,7 +55,14 @@ WIFI_CLIENTS: list[WifiClient] = [
         WifiClient("bee-ops-zone2", 70, "abcdabcd"),
     ]
 
-    
+def create_example_device() -> list[DPtree]:
+    """Create a standard camera device."""
+    my_sensor = ExampleSensor(EXAMPLE_SENSOR_CFG)
+    my_dp = ExampleProcessor(EXAMPLE_FILE_PROCESSOR_CFG, my_sensor.sensor_index)
+    my_tree = DPtree(my_sensor)
+    my_tree.connect((my_sensor, EXAMPLE_FILE_STREAM_INDEX), my_dp)
+    return [my_tree]
+
 ###############################################################################
 # Define per-device configuration for the fleet of devices
 ###############################################################################
@@ -66,14 +71,7 @@ INVENTORY: list[DeviceCfg] = [
         name="Alex",
         device_id="d01111111111",
         notes="Using Alex as an all-defaults camera in Experiment A",
-        sensor_ds_list=experiment1_standard_camera_device,
-        wifi_clients=WIFI_CLIENTS,
-    ),
-    DeviceCfg(
-        name="Bob",
-        device_id="d01111111112",
-        notes="Using Bob as a close up camera in Experiment A",
-        sensor_ds_list=experiment1_double_camera_device,
+        dp_trees_create_method=create_example_device,
         wifi_clients=WIFI_CLIENTS,
     ),
 ]

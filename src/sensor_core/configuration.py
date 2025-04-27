@@ -9,8 +9,8 @@ from typing import Optional
 import psutil
 
 from sensor_core import api
-from sensor_core.config_objects import FAILED_TO_LOAD, DeviceCfg, Keys, SystemCfg
-from sensor_core.utils import dc
+from sensor_core.device_config_objects import FAILED_TO_LOAD, DeviceCfg, Keys, SystemCfg
+from sensor_core.utils import utils_clean
 
 
 ############################################################################################
@@ -105,7 +105,7 @@ elif running_on_rpi:
     SC_CODE_DIR = CODE_DIR / "sensor_core"
     CFG_DIR = HOME_DIR / ".sensor_core"  # In the base user directory on the RPi
     ROOT_WORKING_DIR = Path("/sensor_core")  # We always create a /sensor_core directory on the RPi
-    dc.create_root_working_dir(ROOT_WORKING_DIR)
+    utils_clean.create_root_working_dir(ROOT_WORKING_DIR)
 
 elif running_on_linux:
     # This is Docker on Linux
@@ -114,7 +114,7 @@ elif running_on_linux:
     SC_CODE_DIR = Path("/app")
     CFG_DIR = Path("/run/secrets")
     ROOT_WORKING_DIR = Path("/sensor_core")
-    dc.create_root_working_dir(ROOT_WORKING_DIR)
+    utils_clean.create_root_working_dir(ROOT_WORKING_DIR)
 else:
     raise Exception("Unknown platform: " + platform.platform())
 
@@ -190,11 +190,6 @@ TAKE_PICTURE_FLAG = FLAGS_DIR / "TAKE_PICTURE"
 # Used by BCLI to signal to AudioCapture and VideoCapture to pause recording
 PERMANENT_PAUSE_RECORDING_FLAG = FLAGS_DIR / "PAUSE_RECORDING_FLAG"
 
-# We use a dummy device for testing purposes and when no config is specified
-DUMMY_DEVICE = DeviceCfg(device_id=DUMMY_MAC, name="DUMMY")
-INVENTORY: dict[str, DeviceCfg] = {DUMMY_MAC: DUMMY_DEVICE}
-my_device: DeviceCfg = DUMMY_DEVICE
-
 ############################################################################################################
 # Set up logging
 #
@@ -217,7 +212,9 @@ def set_log_level(level: int) -> None:
     module_logger.debug("Debug logging enabled for sensor_core")
 
 
-def setup_logger(name: str, level: Optional[int]=None, filename: Optional[str|Path]=None) -> logging.Logger:
+def setup_logger(name: str, 
+                 level: Optional[int] = None, 
+                 filename: Optional[str | Path] = None) -> logging.Logger:
     global _DEFAULT_LOG
     if level is not None:
         set_log_level(level)
@@ -228,12 +225,14 @@ def setup_logger(name: str, level: Optional[int]=None, filename: Optional[str|Pa
         logger.setLevel(_LOG_LEVEL)
         if len(logger.handlers) == 0:
             handler = JournaldLogHandler()
-            handler.setFormatter(logging.Formatter("%(name)s %(levelname)-6s %(message)s"))
+            handler.setFormatter(logging.Formatter("%(name)s %(levelname)-6s [%(thread)d] %(message)s"))
             logger.addHandler(handler)
     else:  # elif root_cfg.running_on_windows
         logger = logging.getLogger(name)
         logger.setLevel(_LOG_LEVEL)
-        formatter = logging.Formatter("%(asctime)-15s %(name)-6s %(levelname)-6s - %(message)s")
+        formatter = logging.Formatter(
+            "%(asctime)-15s %(name)-6s %(levelname)-6s [%(thread)d] %(message)s"
+        )
 
         # Create a console handler and set the log level
         # Check if we've already added a console handler
@@ -353,6 +352,16 @@ system_cfg = _load_system_cfg()
 #############################################################################################
 # Store the provided inventory
 ##############################################################################################
+DUMMY_DEVICE = DeviceCfg(
+    name="DUMMY",
+    device_id=DUMMY_MAC,
+    notes="DUMMY MAC address for testing",
+    dp_trees_create_method=None,
+)
+INVENTORY: dict[str, DeviceCfg] = {}
+my_device: DeviceCfg = DUMMY_DEVICE
+
+
 def load_inventory() -> Optional[list[DeviceCfg] | None]:
     """Load the inventory using the my_fleet_config value defined in SystemCfg class."""
     inventory: list[DeviceCfg] = []
@@ -369,6 +378,7 @@ def load_inventory() -> Optional[list[DeviceCfg] | None]:
             logger.error(f"{RAISE_WARN()}Failed to load config from {system_cfg.my_fleet_config}: {e}")
 
     return inventory
+
 
 def set_inventory(inventory: list[DeviceCfg]) -> dict[str, DeviceCfg]:
     """Reload the inventory from the config file.
@@ -395,14 +405,11 @@ def check_inventory_loaded() -> bool:
     """Check if the inventory has been loaded.
     This is used in testing to check if the inventory has been loaded.
     """
-    global INVENTORY
-
     # If we have not loaded the inventory yet, it will still be set to the DUMMY_DEVICE
-    if my_device == DUMMY_DEVICE:
+    if (my_device is None) or len(INVENTORY) > 0:
         return False
-
-    # Check if the inventory is empty
-    return len(INVENTORY) > 0
+    else:
+        return True
 
 def update_my_device_id(new_device_id: str) -> None:
     """Function used in testing to change the device_id"""
