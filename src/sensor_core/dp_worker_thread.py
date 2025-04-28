@@ -84,7 +84,10 @@ class DPworker(Thread):
 
         # We always include the list of mac addresses for all devices in this experiment (fleet_config)
         # This enables the dashboard to check that all devices are present and working.
-        wrap["fleet"] = list(root_cfg.INVENTORY.keys())
+        fleet_macs = root_cfg.INVENTORY.keys()
+        fleet_names = [root_cfg.INVENTORY[mac].name for mac in fleet_macs]
+        fleet_dict = {mac: name for mac, name in zip(fleet_macs, fleet_names)}
+        wrap["fleet"] = fleet_dict
 
         # Save the FAIR record as a YAML file to the FAIR archive
         fair_fname = file_naming.get_FAIR_filename(sensor_type, self.sensor_index, suffix="yaml")
