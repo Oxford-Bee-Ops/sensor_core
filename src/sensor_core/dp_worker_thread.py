@@ -5,9 +5,11 @@ from pathlib import Path
 from threading import Thread
 from time import sleep
 from typing import Optional
+from enum import Enum
 
 import pandas as pd
 import yaml
+from yaml import Dumper
 
 from sensor_core import api, file_naming
 from sensor_core import configuration as root_cfg
@@ -66,7 +68,15 @@ class DPworker(Thread):
         """Save a FAIR record describing this Sensor and associated data processing to the FAIR archive.
         """
         logger.debug(f"Save FAIR record for {self}")
-        
+
+        # Custom representer for Enum
+        def enum_representer(dumper: Dumper, data: Enum) -> yaml.Node:
+            """Represent an Enum as a string in YAML"""
+            return dumper.represent_scalar('tag:yaml.org,2002:str', data.value)
+
+        # Register the custom representer
+        yaml.add_representer(Enum, enum_representer)
+
         # We don't save FAIR records for system datastreams
         if self.dp_tree.sensor.config.sensor_type == api.SENSOR_TYPE.SYS:
             return
