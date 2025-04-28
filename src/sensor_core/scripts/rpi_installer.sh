@@ -137,7 +137,7 @@ install_ssh_keys() {
 
 # Function to create a virtual environment if it doesn't already exist
 # The venv location is specified in the system.cfg (venv_dir)
-create_venv() {
+create_and_activate_venv() {
     if [ -z "$venv_dir" ]; then
         echo "Error: venv_dir is not set in system.cfg"
         exit 1
@@ -373,6 +373,18 @@ function enable_i2c() {
     fi
 }
 
+################################################
+# Autostart if requested in system.cfg
+################################################
+function auto_start_if_requested() {
+    if [ "$auto_start" == "Yes" ]; then
+        echo "Auto-starting SensorCore..."
+        
+        echo "Calling $my_start_script in $HOME/$venv_dir"
+        nohup python -m $my_start_script 2>&1 | /usr/bin/logger -t SENSOR_CORE &
+    fi
+}
+
 ###################################################################################################
 #
 # Main script execution to configure a RPi device suitable for long-running SensorCore operations
@@ -383,7 +395,7 @@ check_prerequisites
 cd "$HOME/.sensor_core" || { echo "Failed to change directory to $HOME/.sensor_core"; exit 1; }
 export_system_cfg
 install_ssh_keys
-create_venv
+create_and_activate_venv
 install_os_packages
 install_sensor_core
 install_user_code
@@ -392,6 +404,7 @@ set_log_storage_volatile
 create_mount
 set_predictable_network_interface_names
 enable_i2c
+auto_start_if_requested
 
 # Add a flag file in the .sensor_core directory to indicate that the installer has run
 mkdir -p "$HOME/.sensor_core/flags"
