@@ -65,17 +65,20 @@ class DPworker(Thread):
     #########################################################################################################
 
     def save_FAIR_record(self) -> None:
-        """Save a FAIR record describing this Sensor and associated data processing to the FAIR archive.
-        """
+        """Save a FAIR record describing this Sensor and associated data processing to the FAIR archive."""
         logger.debug(f"Save FAIR record for {self}")
 
         # Custom representer for Enum
         def enum_representer(dumper: Dumper, data: Enum) -> yaml.Node:
-            """Represent an Enum as a string in YAML"""
-            return dumper.represent_scalar('tag:yaml.org,2002:str', data.value)
+            """Represent an Enum as a plain string in YAML"""
+            return dumper.represent_scalar('tag:yaml.org,2002:str', str(data.value))
 
-        # Register the custom representer
-        yaml.add_representer(Enum, enum_representer)
+        # Create a custom Dumper class
+        class CustomDumper(Dumper):
+            pass
+
+        # Register the custom representer with the custom Dumper
+        CustomDumper.add_representer(Enum, enum_representer)
 
         # We don't save FAIR records for system datastreams
         if self.dp_tree.sensor.config.sensor_type == api.SENSOR_TYPE.SYS:
@@ -103,7 +106,7 @@ class DPworker(Thread):
         fair_fname = file_naming.get_FAIR_filename(sensor_type, self.sensor_index, suffix="yaml")
         Path(fair_fname).parent.mkdir(parents=True, exist_ok=True)
         with open(fair_fname, "w") as f:
-            yaml.dump(wrap, f)
+            yaml.dump(wrap, f, Dumper=CustomDumper)
         CloudConnector.get_instance().upload_to_container(root_cfg.my_device.cc_for_fair,
                                                           [fair_fname], delete_src=True)
 

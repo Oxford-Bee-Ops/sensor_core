@@ -2,6 +2,7 @@ import importlib
 import logging
 import platform
 import sys
+import tempfile
 from enum import Enum
 from pathlib import Path
 from typing import Optional
@@ -94,7 +95,7 @@ if running_on_windows:
     CFG_DIR: Path = HOME_DIR / ".sensor_core"
     # We use a time string in the root_working_dir to avoid clashes when running multiple instances
     # of SensorCore on the same machine
-    ROOT_WORKING_DIR: Path = HOME_DIR / "sensor_core" / api.utc_to_fname_str()
+    ROOT_WORKING_DIR: Path = Path(tempfile.gettempdir()) / "sensor_core" / api.utc_to_fname_str()
     assert HOME_DIR is not None, f"No 'code' directory found in path {Path.cwd()}"
 
 elif running_on_rpi:
@@ -338,7 +339,6 @@ def _load_system_cfg() -> Optional[SystemCfg | None]:
         # Use the Keys class to load the configuration
         logger.info(f"Loading {SYSTEM_CFG_FILE}...")
         cfg = SystemCfg(_env_file=SYSTEM_CFG_FILE, _env_file_encoding="utf-8")  # type: ignore
-        logger.info(f"my_git_repo_url={cfg.my_git_repo_url}")
         return cfg
     except Exception as e:
         print("#################################################################")
