@@ -385,6 +385,20 @@ function auto_start_if_requested() {
     fi
 }
 
+##############################################
+# Create an alias for the bcli command
+##############################################
+function alias_bcli() {
+    # Create an alias for the bcli command
+    if ! grep -qs "alias bcli=" "$HOME/.bashrc"; then
+        echo "alias bcli='source ~/$venv_dir/bin/activate && bcli'" >> ~/.bashrc
+        echo "Alias for bcli created in .bashrc."
+    else
+        echo "Alias for bcli already exists in .bashrc."
+    fi
+    source ~/.bashrc
+}
+
 ###################################################################################################
 #
 # Main script execution to configure a RPi device suitable for long-running SensorCore operations
@@ -405,8 +419,10 @@ create_mount
 set_predictable_network_interface_names
 enable_i2c
 auto_start_if_requested
+alias_bcli
 
 # Add a flag file in the .sensor_core directory to indicate that the installer has run
+# We use the timestamp on this flag to determine the last update time
 mkdir -p "$HOME/.sensor_core/flags"
 touch "$HOME/.sensor_core/flags/rpi_installer_ran"
 echo "RPi installer completed successfully."
