@@ -248,6 +248,7 @@ class CloudConnector:
         CSV data are consistent between local and remote files"""
 
         try:
+            logger.debug(f"CloudConnector.append_to_cloud() with delete_src={delete_src} for {src_file}")
             target_container = self._validate_container(dst_container)
 
             # Read the local file data ready to append
@@ -572,6 +573,8 @@ class LocalCloudConnector(CloudConnector):
         CSV data are consistent between local and remote files"""
 
         try:
+            logger.debug(f"LocalCC.append_to_cloud() with delete_src={delete_src} for {src_file}")
+
             # Read the local file data ready to append
             with src_file.open("r") as file:
                 local_lines = file.readlines()
@@ -727,6 +730,7 @@ class AsyncCloudConnector(Thread, CloudConnector):
         """
         Async version of append_to_cloud.
         """
+        logger.debug(f"AyncCC.append_to_cloud() with delete_src={delete_src} for {src_file}")
         if isinstance(src_file, str):
             src_file = Path(src_file)
         
@@ -737,7 +741,7 @@ class AsyncCloudConnector(Thread, CloudConnector):
         self._upload_queue.put((AsyncCloudConnector.METHOD.APPEND, 
                                 dst_container, 
                                 [src_file], 
-                                False, 
+                                delete_src, 
                                 BlobTier.HOT,
                                 0))
 
@@ -761,7 +765,7 @@ class AsyncCloudConnector(Thread, CloudConnector):
         method: METHOD,
         dst_container: str,
         src_files: list[Path],
-        delete_src: Optional[bool] = True,
+        delete_src: bool,
         blob_tier: Enum = BlobTier.HOT,
         iteration: int = 0,
     ) -> None:
@@ -769,10 +773,12 @@ class AsyncCloudConnector(Thread, CloudConnector):
         We re-queue the upload if it fails if the src files still exist.
         This method is called on a thread from the ThreadPoolExecutor."""
         try:
+            logger.debug(f"_async {method} with delete_src={delete_src}, "
+                         f"iteration {iteration} for {src_files}")
             if method == AsyncCloudConnector.METHOD.UPLOAD:
                 super().upload_to_container(dst_container, src_files, delete_src, blob_tier)
             elif method == AsyncCloudConnector.METHOD.APPEND:
-                super().append_to_cloud(dst_container, src_files[0], delete_src=True)
+                super().append_to_cloud(dst_container, src_files[0], delete_src)
         except Exception as e:
             # Check all the src_files still exist and drop any that don't
             logger.warning(f"Upload failed for {src_files} on iter {iteration}: {e!s}")
@@ -801,7 +807,7 @@ class AsyncCloudConnector(Thread, CloudConnector):
                                 method, 
                                 dst_container, 
                                 files, 
-                                delete_src, 
+                                delete_src,
                                 blob_tier,
                                 iteration)
                 self._upload_queue.task_done()

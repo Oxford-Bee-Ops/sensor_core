@@ -110,9 +110,10 @@ class TestCloudConnector:
         df = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})
         df.to_csv(append_file, index=False)
         assert append_file.exists(), "Append file does not exist"
-        cc.append_to_cloud(dst_container, append_file, delete_src=True)
+        cc.append_to_cloud(dst_container, append_file, delete_src=False)
         sleep(1)
         assert cc.exists(dst_container, append_file.name), "Appended file does not exist in cloud container"
+        assert append_file.exists(), "Append file does not exist after append"
 
         # Test get_blob_modified_time
         modified_time = cc.get_blob_modified_time(dst_container, append_file.name)
@@ -136,7 +137,7 @@ class TestCloudConnector:
         # Read the downloaded file and check its contents
         downloaded_df = pd.read_csv(downloaded_file)
         assert not downloaded_df.empty, "Downloaded appended file is empty"
-        assert len(downloaded_df) == 4, "Downloaded appended file has no rows"
+        assert len(downloaded_df) == 4, f"Downloaded appended file has insufficient rows {len(downloaded_df)}"
 
         # Delete the test file in the cloud and check it is gone
         cc.delete(dst_container, src_file.name)

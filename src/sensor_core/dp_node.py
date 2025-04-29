@@ -5,6 +5,7 @@ from pathlib import Path
 from random import random
 from typing import Optional
 from zoneinfo import ZoneInfo
+from threading import RLock
 
 import pandas as pd
 
@@ -46,6 +47,8 @@ class DPnode():
         # Record the number of datapoints recorded by this Datastream (by type_id).
         self._dpnode_score_stats: dict[str, list[DPnodeStats]] = {}
         self._dpnode_scorp_stats: dict[str, list[DPnodeStats]] = {}
+        self._dpnode_score_stats_lock: RLock = RLock()
+        self._dpnode_scorp_stats_lock: RLock = RLock()
 
         # Create the Journals that we will use to store this DPtree's output.
         self.journal_pool: JournalPool = JournalPool.get(mode=root_cfg.get_mode())
@@ -153,8 +156,9 @@ class DPnode():
 
         # Track the number of measurements recorded
         # These data points don't have a duration - that only applies to recordings.
-        stats_list: list[DPnodeStats] = self._dpnode_score_stats.setdefault(stream.type_id, [])
-        stats_list.append(DPnodeStats(api.utc_now(), 1))
+        with self._dpnode_score_stats_lock:
+            stats_list: list[DPnodeStats] = self._dpnode_score_stats.setdefault(stream.type_id, [])
+            stats_list.append(DPnodeStats(api.utc_now(), 1))
 
         # We also spam the data to the logger for easy debugging and display in the bcli
         if stream.type_id not in api.SYSTEM_DS_TYPES:
@@ -179,8 +183,9 @@ class DPnode():
 
         # Track the number of measurements recorded
         # These data points don't have a duration - that only applies to recordings.
-        stats_list = self._dpnode_score_stats.setdefault(stream.type_id, [])
-        stats_list.append(DPnodeStats(api.utc_now(), len(sensor_data)))
+        with self._dpnode_score_stats_lock:
+            stats_list = self._dpnode_score_stats.setdefault(stream.type_id, [])
+            stats_list.append(DPnodeStats(api.utc_now(), len(sensor_data)))
 
 
     def save_recording(
@@ -305,45 +310,50 @@ class DPnode():
             return
         
         stats_list: list[DPnodeStats]
-        for type_id, stats_list in self._dpnode_score_stats.items():
-            count = sum(x.count for x in stats_list)
-            duration = sum(x.duration for x in stats_list)
+        # We need to lock the _dpnode_score_stats and _dpnode_scorp_stats dicts to avoid
+        # changing them while we're iterating over them.
+        with self._dpnode_score_stats_lock:
 
-            # Reset the datastream stats for the next period
-            self._dpnode_score_stats[type_id] = []
+            for type_id, stats_list in self._dpnode_score_stats.items():
+                count = sum(x.count for x in stats_list)
+                duration = sum(x.duration for x in stats_list)
 
-            # Log SCORE data
-            DPnode._selftracker.log(
-                stream_index=api.SCORE_STREAM_INDEX,
-                sensor_data={
-                    "observed_type_id": type_id,
-                    "observed_sensor_index": self.sensor_index,
-                    "sample_period": api.utc_to_iso_str(sample_period_start_time),
-                    "count": str(count),
-                    "duration": str(duration),
-                }
-            )
+                # Reset the datastream stats for the next period
+                self._dpnode_score_stats[type_id] = []
 
-        for type_id, stats_list in self._dpnode_scorp_stats.items():
-            count = sum(x.count for x in stats_list)
-            duration = sum(x.duration for x in stats_list)
+                # Log SCORE data
+                DPnode._selftracker.log(
+                    stream_index=api.SCORE_STREAM_INDEX,
+                    sensor_data={
+                        "observed_type_id": type_id,
+                        "observed_sensor_index": self.sensor_index,
+                        "sample_period": api.utc_to_iso_str(sample_period_start_time),
+                        "count": str(count),
+                        "duration": str(duration),
+                    }
+                )
 
-            # Reset the datastream stats for the next period
-            self._dpnode_scorp_stats[type_id] = []
+        with self._dpnode_scorp_stats_lock:
+            for type_id, stats_list in self._dpnode_scorp_stats.items():
+                count = sum(x.count for x in stats_list)
+                duration = sum(x.duration for x in stats_list)
 
-            # Log SCORP data
-            DPnode._selftracker.log(
-                stream_index=api.SCORP_STREAM_INDEX,
-                sensor_data={
-                    # The data_processor_id is the subclass name of this object
-                    "data_processor_id": self.__class__.__name__,
-                    "observed_type_id": type_id,
-                    "observed_sensor_index": self.sensor_index,
-                    "sample_period": api.utc_to_iso_str(sample_period_start_time),
-                    "count": str(count),
-                    "duration": str(duration),
-                }
-            )
+                # Reset the datastream stats for the next period
+                self._dpnode_scorp_stats[type_id] = []
+
+                # Log SCORP data
+                DPnode._selftracker.log(
+                    stream_index=api.SCORP_STREAM_INDEX,
+                    sensor_data={
+                        # The data_processor_id is the subclass name of this object
+                        "data_processor_id": self.__class__.__name__,
+                        "observed_type_id": type_id,
+                        "observed_sensor_index": self.sensor_index,
+                        "sample_period": api.utc_to_iso_str(sample_period_start_time),
+                        "count": str(count),
+                        "duration": str(duration),
+                    }
+                )
 
     
     def save_sample(self, sample_probability: str | None) -> bool:
@@ -373,8 +383,9 @@ class DPnode():
     def _scorp_stat(self, stream_index: int, duration: float) -> None:
         """Record the duration of a DataProcessor cycle in the SCORP stream."""
         stream = self.get_stream(stream_index)
-        stats_list = self._dpnode_scorp_stats.setdefault(stream.type_id, [])
-        stats_list.append(DPnodeStats(api.utc_now(), 1, duration))
+        with self._dpnode_scorp_stats_lock:
+            stats_list = self._dpnode_scorp_stats.setdefault(stream.type_id, [])
+            stats_list.append(DPnodeStats(api.utc_now(), 1, duration))
 
         logger.debug(f"Recorded SCORP stat for {stream.type_id} duration {duration}")
 
@@ -492,13 +503,14 @@ class DPnode():
                                                               [new_fname], delete_src=True)
 
         # Track the number of measurements recorded
-        if end_time is None:
-            self._dpnode_score_stats.setdefault(stream.type_id, []).append(DPnodeStats(api.utc_now(), 1))
-        else:
-            # Track duration if this file represents a period
-            self._dpnode_score_stats.setdefault(stream.type_id, []).append(
-                DPnodeStats(api.utc_now(), 1, (end_time - start_time).total_seconds())
-            )
+        with self._dpnode_score_stats_lock:
+            if end_time is None:
+                self._dpnode_score_stats.setdefault(stream.type_id, []).append(DPnodeStats(api.utc_now(), 1))
+            else:
+                # Track duration if this file represents a period
+                self._dpnode_score_stats.setdefault(stream.type_id, []).append(
+                    DPnodeStats(api.utc_now(), 1, (end_time - start_time).total_seconds())
+                )
 
         logger.debug(f"Saved recording {src_file.name} as {new_fname.name}")
 
