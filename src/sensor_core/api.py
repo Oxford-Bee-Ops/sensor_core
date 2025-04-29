@@ -18,14 +18,13 @@ class RECORD_ID(Enum):
     DEVICE_ID = "device_id"
     SENSOR_INDEX = "sensor_index"
     STREAM_INDEX = "stream_index"
-    TIMESTAMP = "logged_time"
+    TIMESTAMP = "timestamp"
     END_TIME = "end_time"
     OFFSET = "primary_offset_index"
     SECONDARY_OFFSET = "secondary_offset_index"
     SUFFIX = "file_suffix"
     INCREMENT = "increment"
     NAME = "device_name"  # Not used programmatically, but helpful for users
-
 
 REQD_RECORD_ID_FIELDS = [
     RECORD_ID.VERSION.value,
@@ -35,6 +34,7 @@ REQD_RECORD_ID_FIELDS = [
     RECORD_ID.STREAM_INDEX.value,
     RECORD_ID.TIMESTAMP.value,
 ]
+
 ALL_RECORD_ID_FIELDS = [*REQD_RECORD_ID_FIELDS, 
                         RECORD_ID.END_TIME.value, 
                         RECORD_ID.OFFSET.value, 
@@ -42,7 +42,6 @@ ALL_RECORD_ID_FIELDS = [*REQD_RECORD_ID_FIELDS,
                         RECORD_ID.SUFFIX.value,
                         RECORD_ID.INCREMENT.value,
                         RECORD_ID.NAME.value]
-
 
 ############################################################
 # Installation types
@@ -53,7 +52,6 @@ class INSTALL_TYPE(Enum):
     RPI_SENSOR = "rpi_sensor"  # Sensor installation
     ETL = "etl"  # ETL installation
     NOT_SET = "NOT_SET"  # Invalid but used to declare the SensorCfg object
-
 
 ############################################################
 # Sensor interface type
@@ -88,7 +86,6 @@ DATA_FORMATS = [FORMAT.DF, FORMAT.CSV, FORMAT.LOG]
 RAISE_WARN_TAG = "RAISE_WARNING#V1"
 TELEM_TAG = "TELEM#V1: "
 
-
 #############################################################
 # System Datastream types
 #############################################################
@@ -106,7 +103,6 @@ SYSTEM_DS_TYPES = [
 SCORP_STREAM_INDEX = 0
 SCORE_STREAM_INDEX = 1
 
-
 ############################################################
 # Datetime formats used in the system
 #
@@ -118,6 +114,7 @@ SCORE_STREAM_INDEX = 1
 ############################################################
 STRFTIME = "%Y%m%dT%H%M%S%f"
 PADDED_TIME_LEN = len("20210101T010101000000")
+
 
 def utc_now() -> datetime:
     """Return the current time in UTC."""

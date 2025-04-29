@@ -48,7 +48,8 @@ if root_cfg.running_on_rpi:
         # Iterate through the logs
         for i, entry in enumerate(reader):
             priority = int(entry.get("PRIORITY", 0))
-            if ((min_priority is None or priority <= min_priority) and
+            if (((api.RAISE_WARN_TAG in entry.get("MESSAGE", "")) or
+                 (min_priority is None or priority <= min_priority)) and
                 (grep_str is None or grep_str in entry.get("MESSAGE", ""))):
                 if i >= max_logs:
                     break

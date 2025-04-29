@@ -149,6 +149,7 @@ class DPnode():
         log_data[api.RECORD_ID.DATA_TYPE_ID.value] = stream.type_id
         log_data[api.RECORD_ID.DEVICE_ID.value] = root_cfg.my_device_id
         log_data[api.RECORD_ID.SENSOR_INDEX.value] = self.sensor_index
+        log_data[api.RECORD_ID.STREAM_INDEX.value] = stream.index
         log_data[api.RECORD_ID.TIMESTAMP.value] = api.utc_to_iso_str()
         log_data[api.RECORD_ID.NAME.value] = root_cfg.my_device.name
 
