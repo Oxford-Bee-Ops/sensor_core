@@ -56,9 +56,10 @@ class ScEmulator():
         self.cc = cc
         self.local_cloud = cc.get_local_cloud() # Newly created local cloud
 
-        # Mock system timers so we tests run faster
+        # Mock system timers so tests run faster
         root_cfg.DP_FREQUENCY = 1
-        root_cfg.WATCHDOG_FREQUENCY = 0.5
+        root_cfg.JOURNAL_SYNC_FREQUENCY = 1
+        root_cfg.WATCHDOG_FREQUENCY = 1
 
         return self
 

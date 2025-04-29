@@ -27,7 +27,7 @@ class _CloudJournalManager:
         self.cloud_connector = CloudConnector.get_instance()
         self.cloud_container = cloud_container
         self._stop_requested = Event()
-        self.sleep_time = 3 * 60
+        self.sleep_time = root_cfg.JOURNAL_SYNC_FREQUENCY
         self._sync_timer = Timer(self.sleep_time, self.sync_run)
         self._sync_timer.start()
 

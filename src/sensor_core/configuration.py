@@ -32,8 +32,10 @@ TEST_MODE: MODE = MODE.PRODUCTION
 #
 # Collected here for easy review and mocking in tests
 ############################################################################################
-# Run frequency of the DP worker thread
+# Frequency in seconds on which the DP worker thread is run
 DP_FREQUENCY: float = 60
+# Frequency in seconds on which the Journal sync thread is run
+JOURNAL_SYNC_FREQUENCY: float = 60 * 3  
 # Seconds between polls of is_stop_requested / touch is_running flag in EdgeOrchestrator
 WATCHDOG_FREQUENCY: float = 1  
 # See also DeviceCfg class for:
