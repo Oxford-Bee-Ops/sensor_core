@@ -20,13 +20,13 @@ SCORE_FIELDS = [
     "observed_sensor_index",
     "sample_period",
     "count",
-    "duration",
 ]
 # SCORP - special DatastreamType for recording performance of the data pipeline
 SCORP_FIELDS = [
     "data_processor_id", 
     "observed_type_id",
     "observed_sensor_index", 
+    "count",
     "duration"
 ]
 
