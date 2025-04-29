@@ -234,6 +234,9 @@ class EdgeOrchestrator:
                 if (sensor.ident != our_thread) and sensor.is_alive():
                     logger.info(f"Waiting for sensor thread {sensor}")
                     sensor.join()
+                    logger.info(f"Waiting over. Sensor thread {sensor} stopped")
+                else:
+                    logger.info(f"Sensor thread {sensor} already stopped")
 
             # Stop all the dataprocessor threads
             for dpe in self._dpworkers:
@@ -244,6 +247,7 @@ class EdgeOrchestrator:
                 if dpe.is_alive():
                     logger.info(f"Waiting for datastream thread {dpe}")
                     dpe.join()
+                    logger.info(f"Waiting over. Datastream thread {dpe} stopped")
                 else:
                     logger.info(f"Datastream thread {dpe} already stopped")
 

@@ -1,4 +1,3 @@
-import logging
 from dataclasses import dataclass
 from time import sleep
 from typing import ClassVar
@@ -111,6 +110,6 @@ class SHT31(Sensor):
             except Exception as e:
                 logger.error(f"{root_cfg.RAISE_WARN()}Error in SHT31 sensor run: {e}", exc_info=True)
             finally:
-                logger.debug(f"SHT31 sensor {self.sensor_index} run() completed")
+                logger.debug(f"SHT31 sensor {self.sensor_index} sleeping for {root_cfg.my_device.env_sensor_frequency} seconds")
                 sleep(root_cfg.my_device.env_sensor_frequency)
 
