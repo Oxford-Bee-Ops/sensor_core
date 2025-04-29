@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from threading import Lock
+from threading import RLock
 from typing import Optional
 
 import pandas as pd
@@ -88,7 +88,7 @@ class CloudJournalPool(JournalPool):
 
     def __init__(self) -> None:
         self._cj_pool: dict[str, CloudJournal] = {}
-        self.jlock = Lock()
+        self.jlock = RLock()
 
     def add_rows(self, 
                  stream: Stream, 
@@ -164,7 +164,7 @@ class LocalJournalPool(JournalPool):
 
     def __init__(self) -> None:
         self._jpool: dict[str, Journal] = {}
-        self.jlock = Lock()
+        self.jlock = RLock()
 
     def add_rows(self, 
                  stream: Stream, 
