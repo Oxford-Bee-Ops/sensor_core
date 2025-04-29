@@ -95,9 +95,9 @@ class _CloudJournalManager:
                 lj.save()
 
                 # Append the contents of lj to the cloud blob
-                success = self.cloud_connector.append_to_cloud(journal.cloud_container, 
-                                                               journal.local_fname,
-                                                               delete_src=True)
+                self.cloud_connector.append_to_cloud(journal.cloud_container, 
+                                                    journal.local_fname,
+                                                    delete_src=True)
 
         time_diff = (api.utc_now() - start_time).total_seconds()
         logger.debug(f"Completed flush_all started at {start_time} after {time_diff} seconds")

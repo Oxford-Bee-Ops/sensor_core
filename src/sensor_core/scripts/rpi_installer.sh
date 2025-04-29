@@ -173,7 +173,8 @@ install_os_packages() {
     sudo apt-get install -y libcamera-dev python3-picamera2 python3-smbus || { echo "Failed to install sensor packages"; exit 1; }
     # If we install the lite version (no desktop), we need to install the full version of rpicam-apps
     # Otherwise we get ERROR: *** Unable to find an appropriate H.264 codec ***
-    sudo apt purge -y rpicam-apps-lite
+    sudo apt purge -y rpicam-apps-lite || { echo "Failed to remove rpicam-apps-lite"; exit 1; }
+    sudo apt install -y rpi-connect-lite || { echo "Failed to install rpi-connect-lite"; exit 1; }
     sudo apt-get install -y rpicam-apps || { echo "Failed to install rpicam-apps"; exit 1; }
     sudo apt autoremove -y || { echo "Failed to remove unnecessary packages"; }
     echo "OS packages installed successfully."

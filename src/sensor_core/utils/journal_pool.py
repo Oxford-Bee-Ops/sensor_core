@@ -149,7 +149,7 @@ class CloudJournalPool(JournalPool):
             cloud_container = stream.cloud_container
             if cloud_container is None:
                 cloud_container = root_cfg.my_device.cc_for_journals
-            cj = CloudJournal(fname, cloud_container, stream.fields)
+            cj = CloudJournal(fname, cloud_container, [*api.ALL_RECORD_ID_FIELDS, *stream.fields])
             self._cj_pool[fname.name] = cj
         else:
             cj = self._cj_pool[fname.name]
@@ -229,7 +229,10 @@ class LocalJournalPool(JournalPool):
 
         fname = file_naming.get_journal_filename(stream.type_id)
         if fname.name not in self._jpool:
-            j = Journal(fname, cached=True, reqd_columns=stream.fields)
+            reqd_cols: list[str] = api.ALL_RECORD_ID_FIELDS 
+            if stream.fields:
+                reqd_cols.extend(stream.fields)
+            j = Journal(fname, cached=True, reqd_columns=reqd_cols)
             self._jpool[fname.name] = j
         else:
             j = self._jpool[fname.name]

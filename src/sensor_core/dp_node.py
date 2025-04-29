@@ -3,9 +3,9 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from random import random
+from threading import RLock
 from typing import Optional
 from zoneinfo import ZoneInfo
-from threading import RLock
 
 import pandas as pd
 
