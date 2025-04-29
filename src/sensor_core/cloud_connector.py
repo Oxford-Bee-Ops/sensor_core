@@ -10,9 +10,8 @@ from typing import Optional
 
 from azure.storage.blob import BlobClient, BlobLeaseClient, ContainerClient, StandardBlobTier
 
-from sensor_core import api
+from sensor_core import api, file_naming
 from sensor_core import configuration as root_cfg
-from sensor_core import file_naming as fn
 
 logger = root_cfg.setup_logger(name="sensor_core")
 
@@ -225,8 +224,12 @@ class CloudConnector:
                 f" and {'deleted' if delete_src else 'did not delete'} the source"
             )
 
-    def append_to_cloud(
-        self, dst_container: str, src_file: Path, delete_src: bool, safe_mode: Optional[bool] = False
+    def append_to_cloud(self, 
+                        dst_container: str, 
+                        src_file: Path, 
+                        delete_src: bool, 
+                        safe_mode: Optional[bool] = False,
+                        orig_name: Optional[str] = None,
     ) -> bool:
         """Append a block of CSV data to an existing CSV file in the cloud
 
@@ -258,7 +261,10 @@ class CloudConnector:
                     return False  # No data beyond headers
 
             # Get the blob client
-            blob_client = target_container.get_blob_client(src_file.name)
+            if orig_name is not None:
+                blob_client = target_container.get_blob_client(orig_name)
+            else:
+                blob_client = target_container.get_blob_client(src_file.name)
 
             if not blob_client.exists():
                 blob_client.create_append_blob()
@@ -335,7 +341,7 @@ class CloudConnector:
 
         if more_recent_than is not None:
             files = [
-                f for f in files if fn.get_file_datetime(f) > more_recent_than
+                f for f in files if file_naming.get_file_datetime(f) > more_recent_than
             ]
         logger.debug(f"list_cloud_files returning {len(files)!s} files")
 
@@ -550,8 +556,12 @@ class LocalCloudConnector(CloudConnector):
                 f" and {'deleted' if delete_src else 'did not delete'} the source"
             )
 
-    def append_to_cloud(
-        self, dst_container: str, src_file: Path, delete_src: bool, safe_mode: Optional[bool] = False
+    def append_to_cloud(self, 
+                        dst_container: str, 
+                        src_file: Path, 
+                        delete_src: bool, 
+                        safe_mode: Optional[bool] = False,
+                        orig_name: Optional[str] = None,
     ) -> bool:
         """Append a block of CSV data to an existing CSV file in the cloud
 
@@ -659,7 +669,7 @@ class LocalCloudConnector(CloudConnector):
 
         if more_recent_than is not None:
             files = [
-                f for f in files if fn.get_file_datetime(f) > more_recent_than
+                f for f in files if file_naming.get_file_datetime(f) > more_recent_than
             ]
         logger.debug(f"list_cloud_files returning {len(files)!s} files")
 
@@ -718,14 +728,19 @@ class AsyncCloudConnector(Thread, CloudConnector):
         
         if src_files:
             self._upload_queue.put((AsyncCloudConnector.METHOD.UPLOAD, 
-                                    dst_container, 
+                                    dst_container,
                                     src_files, 
                                     delete_src, 
                                     blob_tier,
-                                    0))
+                                    0,
+                                    None))
 
-    def append_to_cloud(
-        self, dst_container: str, src_file: Path, delete_src: bool, safe_mode: Optional[bool] = False
+    def append_to_cloud(self, 
+                        dst_container: str, 
+                        src_file: Path, 
+                        delete_src: bool, 
+                        safe_mode: Optional[bool] = False,
+                        orig_name: Optional[str] = None,
     ) -> bool:
         """
         Async version of append_to_cloud.
@@ -737,13 +752,27 @@ class AsyncCloudConnector(Thread, CloudConnector):
         if not src_file.exists():
             logger.error(f"{root_cfg.RAISE_WARN()}Upload failed because file {src_file} does not exist")
             return False
+        
+        # Although this is asynchronous, we need to appear to delete the src_files synchronously to 
+        # avoid issues with fixed-name journals.  However we need the original name in order to append
+        # it to the correct cloud file.  We therefore create a mapping from temporary filename to 
+        # cloud file name.
+        # We change the file name to this temporary name and then delete it after the upload.
+        
+        # Create a temporary file name for each src_file
+        if delete_src:
+            tmp_file = file_naming.get_temporary_filename(api.FORMAT.CSV)
+            src_file.rename(tmp_file)
+        else:
+            tmp_file = src_file
 
         self._upload_queue.put((AsyncCloudConnector.METHOD.APPEND, 
-                                dst_container, 
-                                [src_file], 
+                                dst_container,
+                                [tmp_file],
                                 delete_src, 
                                 BlobTier.HOT,
-                                0))
+                                0,
+                                [src_file.name]))
 
         return True
 
@@ -753,7 +782,7 @@ class AsyncCloudConnector(Thread, CloudConnector):
         self._stop_requested = True
 
         # Trigger the ThreadPoolExecutor to stop
-        self._upload_queue.put((None, None, None, None, None, None))
+        self._upload_queue.put((None, None, None, None, None, None, None))
         self.join()
 
 
@@ -768,6 +797,7 @@ class AsyncCloudConnector(Thread, CloudConnector):
         delete_src: bool,
         blob_tier: Enum = BlobTier.HOT,
         iteration: int = 0,
+        orig_names: Optional[list[str]] = None,
     ) -> None:
         """A wrapper to handle failure when uploading a file to the cloud asynchronously.
         We re-queue the upload if it fails if the src files still exist.
@@ -778,7 +808,11 @@ class AsyncCloudConnector(Thread, CloudConnector):
             if method == AsyncCloudConnector.METHOD.UPLOAD:
                 super().upload_to_container(dst_container, src_files, delete_src, blob_tier)
             elif method == AsyncCloudConnector.METHOD.APPEND:
-                super().append_to_cloud(dst_container, src_files[0], delete_src)
+                orig_name = orig_names[0] if orig_names is not None else None
+                super().append_to_cloud(dst_container, 
+                                        src_files[0], 
+                                        delete_src=delete_src, 
+                                        orig_name=orig_name)
         except Exception as e:
             # Check all the src_files still exist and drop any that don't
             logger.warning(f"Upload failed for {src_files} on iter {iteration}: {e!s}")
@@ -789,11 +823,12 @@ class AsyncCloudConnector(Thread, CloudConnector):
             if src_files:
                 # Re-queue the upload if any src_files still exist
                 self._upload_queue.put((method, 
-                                        dst_container, 
+                                        dst_container,
                                         src_files, 
                                         delete_src, 
                                         blob_tier,
-                                        iteration + 1))
+                                        iteration + 1,
+                                        orig_names))
                 # Back off for a bit before re-trying the upload
                 sleep(2 * iteration)
 
@@ -802,14 +837,16 @@ class AsyncCloudConnector(Thread, CloudConnector):
 
         with ThreadPoolExecutor(max_workers=8) as executor:
             while not self._stop_requested:
-                method, dst_container, files, delete_src, blob_tier, iteration = self._upload_queue.get()
+                method, dst_container, files, delete_src, blob_tier, iteration, orig_names = \
+                    self._upload_queue.get()
                 executor.submit(self._async_upload_method,
                                 method, 
                                 dst_container, 
                                 files, 
                                 delete_src,
                                 blob_tier,
-                                iteration)
+                                iteration,
+                                orig_names)
                 self._upload_queue.task_done()
 
         logger.info("Upload queue processing stopped")

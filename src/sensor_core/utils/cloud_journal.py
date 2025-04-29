@@ -1,8 +1,7 @@
 from pathlib import Path
 from queue import Queue
-from threading import Event, Timer
+from threading import Event, Lock, Timer
 from typing import Optional
-from threading import Lock
 
 import pandas as pd
 
@@ -25,13 +24,13 @@ class _CloudJournalManager:
     def __init__(self, cloud_container: str) -> None:
         super().__init__()
         self._journals: dict[CloudJournal, Queue] = {}
+        self._journals_dict_lock = Lock() # grab this lock when modifying the _journals dict
         self.cloud_connector = CloudConnector.get_instance()
         self.cloud_container = cloud_container
         self._stop_requested = Event()
         self.sleep_time = root_cfg.JOURNAL_SYNC_FREQUENCY
         self._sync_timer = Timer(self.sleep_time, self.sync_run)
         self._sync_timer.start()
-        self.flush_all_lock = Lock()
 
     @staticmethod
     def get(cloud_container: str)-> "_CloudJournalManager":
@@ -68,7 +67,8 @@ class _CloudJournalManager:
         jqueue: Queue
         if journal not in self._journals:
             jqueue = Queue()
-            self._journals[journal] = jqueue
+            with self._journals_dict_lock:
+                self._journals[journal] = jqueue
         else:
             jqueue = self._journals[journal]
         jqueue.put(data)
@@ -80,7 +80,7 @@ class _CloudJournalManager:
 
         # We use a lock to ensure that only one thread can flush at a time
         # Otherwise we end up with a RuntimeError: dictionary changed size during iteration
-        with self.flush_all_lock:
+        with self._journals_dict_lock:
             start_time = api.utc_now()
             logger.debug(f"Starting flush at {start_time}")
             for journal, jqueue in self._journals.items():
