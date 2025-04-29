@@ -157,29 +157,31 @@ class EdgeOrchestrator:
     def start_all(self) -> None:
         """Start all Sensor & DPworker threads"""
 
-        if self._orchestrator_is_running:
-            logger.warning(f"Sensor_manager is already running; {self}")
-            logger.info(self.status())
-            return
+        with EdgeOrchestrator.orchestrator_lock:
 
-        # Check the "stop" file has been cleared
-        root_cfg.STOP_SENSOR_CORE_FLAG.unlink(missing_ok=True)
-        self.orchestrator_is_stopping = False
+            if self._orchestrator_is_running:
+                logger.warning(f"Sensor_manager is already running; {self}")
+                logger.info(self.status())
+                return
 
-        # Set the flag monitored by the SensorFactory
-        self._orchestrator_is_running = True
+            # Check the "stop" file has been cleared
+            root_cfg.STOP_SENSOR_CORE_FLAG.unlink(missing_ok=True)
+            self.orchestrator_is_stopping = False
 
-        # Start the DPworker threads
-        for dpe in self._dpworkers:
-            dpe.start()
+            # Set the flag monitored by the SensorFactory
+            self._orchestrator_is_running = True
 
-        # Only once we've started the datastreams, do we start the Sensor threads
-        # otherwise we get a "Datastream not started" error.
-        for sensor in self._sensorThreads:
-            sensor.start()
+            # Start the DPworker threads
+            for dpe in self._dpworkers:
+                dpe.start()
 
-        # Dump status to log
-        logger.info(f"EdgeOrchestrator started: {self.status()}")
+            # Only once we've started the datastreams, do we start the Sensor threads
+            # otherwise we get a "Datastream not started" error.
+            for sensor in self._sensorThreads:
+                sensor.start()
+
+            # Dump status to log
+            logger.info(f"EdgeOrchestrator started: {self.status()}")
 
     @staticmethod
     def start_all_with_watchdog() -> None:
@@ -201,59 +203,60 @@ class EdgeOrchestrator:
 
         logger.info(f"stop_all on {self!r} called by {threading.current_thread().name}")
 
-        self.orchestrator_is_stopping = True
+        with EdgeOrchestrator.orchestrator_lock:
+            self.orchestrator_is_stopping = True
 
-        # Set the STOP_SENSOR_CORE_FLAG file; this is polled by the main() method in 
-        # the EdgeOrchestrator which will continue to restart the SensorCore until the flag is removed.
-        # This is also important when we are not the running instance of the orchestrator,
-        # as the running instance will check the file and stop itself.
-        if not restart:
-            root_cfg.STOP_SENSOR_CORE_FLAG.touch()
-        else:
-            # We use stop_all to restart the orchestrator cleanly in the event of a sensor failure.
-            logger.info("Restart requested; not touching stop file")
-
-        if not self._orchestrator_is_running:
-            logger.warning(f"EdgeOrchestrator not started when stop called; {self}")
-            logger.info(self.status())
-            self.reset_orchestrator_state()
-            return
-
-        # Stop all the sensor threads
-        for sensor in self._sensorThreads:
-            sensor.stop()
-
-        # Block until all Sensor threads have exited
-        for sensor in self._sensorThreads:
-            # We need the check that the thread we're waiting on is not our own thread,
-            # because that will cause a RuntimeError
-            our_thread = threading.current_thread().ident
-            if (sensor.ident != our_thread) and sensor.is_alive():
-                logger.info(f"Waiting for sensor thread {sensor}")
-                sensor.join()
-
-        # Stop all the dataprocessor threads
-        for dpe in self._dpworkers:
-            dpe.stop()
-
-        # Block until all Datastreams have exited
-        for dpe in self._dpworkers:
-            if dpe.is_alive():
-                logger.info(f"Waiting for datastream thread {dpe}")
-                dpe.join()
+            # Set the STOP_SENSOR_CORE_FLAG file; this is polled by the main() method in 
+            # the EdgeOrchestrator which will continue to restart the SensorCore until the flag is removed.
+            # This is also important when we are not the running instance of the orchestrator,
+            # as the running instance will check the file and stop itself.
+            if not restart:
+                root_cfg.STOP_SENSOR_CORE_FLAG.touch()
             else:
-                logger.info(f"Datastream thread {dpe} already stopped")
+                # We use stop_all to restart the orchestrator cleanly in the event of a sensor failure.
+                logger.info("Restart requested; not touching stop file")
 
-        # Trigger a flush_all on the CloudJournals so we save collected information 
-        # before we kill everything
-        jp = JournalPool.get(root_cfg.Mode.EDGE)
-        jp.flush_journals()
-        jp.stop()
-        
-        # Clear our thread lists
-        self.reset_orchestrator_state()
-        self._orchestrator_is_running = False
-        logger.info("Stopped all sensors and datastreams")
+            if not self._orchestrator_is_running:
+                logger.warning(f"EdgeOrchestrator not started when stop called; {self}")
+                logger.info(self.status())
+                self.reset_orchestrator_state()
+                return
+
+            # Stop all the sensor threads
+            for sensor in self._sensorThreads:
+                sensor.stop()
+
+            # Block until all Sensor threads have exited
+            for sensor in self._sensorThreads:
+                # We need the check that the thread we're waiting on is not our own thread,
+                # because that will cause a RuntimeError
+                our_thread = threading.current_thread().ident
+                if (sensor.ident != our_thread) and sensor.is_alive():
+                    logger.info(f"Waiting for sensor thread {sensor}")
+                    sensor.join()
+
+            # Stop all the dataprocessor threads
+            for dpe in self._dpworkers:
+                dpe.stop()
+
+            # Block until all Datastreams have exited
+            for dpe in self._dpworkers:
+                if dpe.is_alive():
+                    logger.info(f"Waiting for datastream thread {dpe}")
+                    dpe.join()
+                else:
+                    logger.info(f"Datastream thread {dpe} already stopped")
+
+            # Trigger a flush_all on the CloudJournals so we save collected information 
+            # before we kill everything
+            jp = JournalPool.get(root_cfg.Mode.EDGE)
+            jp.flush_journals()
+            jp.stop()
+            
+            # Clear our thread lists
+            self.reset_orchestrator_state()
+            self._orchestrator_is_running = False
+            logger.info("Stopped all sensors and datastreams")
 
     def is_stop_requested(self) -> bool:
         """Check if a stop has been manually requested by the user.
