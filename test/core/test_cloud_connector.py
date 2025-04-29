@@ -110,7 +110,7 @@ class TestCloudConnector:
         df = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})
         df.to_csv(append_file, index=False)
         assert append_file.exists(), "Append file does not exist"
-        cc.append_to_cloud(dst_container, append_file)
+        cc.append_to_cloud(dst_container, append_file, delete_src=True)
         sleep(1)
         assert cc.exists(dst_container, append_file.name), "Appended file does not exist in cloud container"
 
@@ -119,7 +119,7 @@ class TestCloudConnector:
         assert modified_time is not None, "Modified time is None"
 
         # Append to the same file again
-        cc.append_to_cloud(dst_container, append_file, safe_mode=True)
+        cc.append_to_cloud(dst_container, append_file, delete_src=True, safe_mode=True)
         assert cc.exists(dst_container, append_file.name), "Appended file does not exist in cloud container"
 
         # Check the modified time again

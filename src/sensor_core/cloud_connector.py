@@ -226,7 +226,7 @@ class CloudConnector:
             )
 
     def append_to_cloud(
-        self, dst_container: str, src_file: Path, safe_mode: Optional[bool] = False
+        self, dst_container: str, src_file: Path, delete_src: bool, safe_mode: Optional[bool] = False
     ) -> bool:
         """Append a block of CSV data to an existing CSV file in the cloud
 
@@ -275,6 +275,10 @@ class CloudConnector:
 
             # Append the data
             blob_client.append_block(data_to_append)
+            if delete_src:
+                logger.debug(f"Deleting append file: {src_file}")
+                src_file.unlink()
+
             return True
         except Exception as e:
             logger.error(f"{root_cfg.RAISE_WARN()}Failed to append data to {blob_client.blob_name}: {e!s}")
@@ -546,7 +550,7 @@ class LocalCloudConnector(CloudConnector):
             )
 
     def append_to_cloud(
-        self, dst_container: str, src_file: Path, safe_mode: Optional[bool] = False
+        self, dst_container: str, src_file: Path, delete_src: bool, safe_mode: Optional[bool] = False
     ) -> bool:
         """Append a block of CSV data to an existing CSV file in the cloud
 
@@ -590,6 +594,11 @@ class LocalCloudConnector(CloudConnector):
             # Append the data to the local file
             with blob_client.open("a") as blob_file:
                 blob_file.write(data_to_append)
+
+            if delete_src:
+                logger.debug(f"Deleting append file: {src_file}")
+                src_file.unlink()
+
             return True
         except Exception as e:
             logger.error(f"{root_cfg.RAISE_WARN()}Failed to append data to {blob_client}: {e!s}")
@@ -713,7 +722,7 @@ class AsyncCloudConnector(Thread, CloudConnector):
                                     0))
 
     def append_to_cloud(
-        self, dst_container: str, src_file: Path, safe_mode: Optional[bool] = False
+        self, dst_container: str, src_file: Path, delete_src: bool, safe_mode: Optional[bool] = False
     ) -> bool:
         """
         Async version of append_to_cloud.
@@ -763,7 +772,7 @@ class AsyncCloudConnector(Thread, CloudConnector):
             if method == AsyncCloudConnector.METHOD.UPLOAD:
                 super().upload_to_container(dst_container, src_files, delete_src, blob_tier)
             elif method == AsyncCloudConnector.METHOD.APPEND:
-                super().append_to_cloud(dst_container, src_files[0], False)
+                super().append_to_cloud(dst_container, src_files[0], delete_src=True)
         except Exception as e:
             # Check all the src_files still exist and drop any that don't
             logger.warning(f"Upload failed for {src_files} on iter {iteration}: {e!s}")
