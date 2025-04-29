@@ -2,6 +2,7 @@ from pathlib import Path
 from queue import Queue
 from threading import Event, Timer
 from typing import Optional
+from threading import Lock
 
 import pandas as pd
 
@@ -30,6 +31,7 @@ class _CloudJournalManager:
         self.sleep_time = root_cfg.JOURNAL_SYNC_FREQUENCY
         self._sync_timer = Timer(self.sleep_time, self.sync_run)
         self._sync_timer.start()
+        self.flush_all_lock = Lock()
 
     @staticmethod
     def get(cloud_container: str)-> "_CloudJournalManager":
@@ -76,31 +78,34 @@ class _CloudJournalManager:
 
         Blocks until uploads are complete or fail."""
 
-        start_time = api.utc_now()
-        logger.debug(f"Starting flush at {start_time}")
-        for journal, jqueue in self._journals.items():
-            assert isinstance(journal, CloudJournal)
-            assert isinstance(jqueue, Queue)
-            # Add the items in the queue to a local file that we can then append to the cloud file
-            lj = Journal(journal.local_fname,
-                         reqd_columns=journal.reqd_columns)
-            empty = True
-            while not jqueue.empty():
-                data_list_dict: list[dict] = jqueue.get()
-                lj.add_rows(data_list_dict)
-                empty = False
- 
-            if not empty:
-                # The Journal.save() function ignores any columns that are not in the reqd_columns list
-                lj.save()
+        # We use a lock to ensure that only one thread can flush at a time
+        # Otherwise we end up with a RuntimeError: dictionary changed size during iteration
+        with self.flush_all_lock:
+            start_time = api.utc_now()
+            logger.debug(f"Starting flush at {start_time}")
+            for journal, jqueue in self._journals.items():
+                assert isinstance(journal, CloudJournal)
+                assert isinstance(jqueue, Queue)
+                # Add the items in the queue to a local file that we can then append to the cloud file
+                lj = Journal(journal.local_fname,
+                            reqd_columns=journal.reqd_columns)
+                empty = True
+                while not jqueue.empty():
+                    data_list_dict: list[dict] = jqueue.get()
+                    lj.add_rows(data_list_dict)
+                    empty = False
+    
+                if not empty:
+                    # The Journal.save() function ignores any columns that are not in the reqd_columns list
+                    lj.save()
 
-                # Append the contents of lj to the cloud blob
-                self.cloud_connector.append_to_cloud(journal.cloud_container, 
-                                                    journal.local_fname,
-                                                    delete_src=True)
+                    # Append the contents of lj to the cloud blob
+                    self.cloud_connector.append_to_cloud(journal.cloud_container, 
+                                                        journal.local_fname,
+                                                        delete_src=True)
 
-        time_diff = (api.utc_now() - start_time).total_seconds()
-        logger.debug(f"Completed flush_all started at {start_time} after {time_diff} seconds")
+            time_diff = (api.utc_now() - start_time).total_seconds()
+            logger.debug(f"Completed flush_all started at {start_time} after {time_diff} seconds")
 
 
 class CloudJournal:
