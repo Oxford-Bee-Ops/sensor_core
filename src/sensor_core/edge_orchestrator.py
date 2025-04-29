@@ -7,7 +7,7 @@ from datetime import timedelta
 from time import sleep
 from typing import Callable, Optional
 
-from sensor_core import api, dp_worker_thread, file_naming
+from sensor_core import api, file_naming
 from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import CloudConnector
 from sensor_core.device_health import DeviceHealth
@@ -20,8 +20,6 @@ from sensor_core.utils.journal_pool import JournalPool
 
 logger = root_cfg.setup_logger("sensor_core")
 
-# Seconds between polls of is_stop_requested / touch is_running flag
-WATCHDOG_FREQUENCY = 1  
 
 class EdgeOrchestrator:
     """The EdgeOrchestrator manages the state of the sensors and their associated Datastreams.
@@ -47,9 +45,6 @@ class EdgeOrchestrator:
         logger.info(f"Initialising EdgeOrchestrator {self!r}")
 
         self.reset_orchestrator_state()
-        if root_cfg.TEST_MODE == root_cfg.MODE.TEST:
-            # Override the RUN_FREQUENCY_SECS so that tests exit faster; default is 60s
-            dp_worker_thread.RUN_FREQUENCY_SECS = 1
         logger.info(f"Initialised EdgeOrchestrator {self!r}")
 
     @staticmethod
@@ -302,7 +297,7 @@ class EdgeOrchestrator:
              root_cfg.SENSOR_CORE_IS_RUNNING_FLAG.stat().st_mtime)):
                 return False
         
-        time_threshold = api.utc_now() - timedelta(seconds=2 * WATCHDOG_FREQUENCY)
+        time_threshold = api.utc_now() - timedelta(seconds=2 * root_cfg.WATCHDOG_FREQUENCY)
         if root_cfg.SENSOR_CORE_IS_RUNNING_FLAG.stat().st_mtime < time_threshold.timestamp():
             return False
         
@@ -414,7 +409,7 @@ def main() -> None:
 
         # Keep the main thread alive
         while not orchestrator.is_stop_requested():
-            sleep(WATCHDOG_FREQUENCY)
+            sleep(root_cfg.WATCHDOG_FREQUENCY)
             _touch_running_file()
 
             # Restart the re-load and re-start the EdgeOrchestrator if it fails.

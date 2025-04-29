@@ -20,6 +20,7 @@ from typing import Optional
 import cv2
 import numpy as np
 
+from sensor_core import DeviceCfg
 from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import CloudConnector, LocalCloudConnector
 
@@ -54,6 +55,11 @@ class ScEmulator():
             raise TypeError("Expected LocalCloudConnector, but got a different type.")
         self.cc = cc
         self.local_cloud = cc.get_local_cloud() # Newly created local cloud
+
+        # Mock system timers so we tests run faster
+        root_cfg.DP_FREQUENCY = 1
+        root_cfg.WATCHDOG_FREQUENCY = 0.5
+
         return self
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
@@ -61,6 +67,14 @@ class ScEmulator():
         logger.info("Exiting ScEmulator context.")
         self.cc.clear_local_cloud()
         sleep(1)
+
+    def mock_timers(self, inventory: list[DeviceCfg]) -> list[DeviceCfg]:
+        for device in inventory:
+            # Mock the timers for each device
+            device.env_sensor_frequency = 1
+            device.heart_beat_frequency = 1
+            device.max_recording_timer = 5
+        return inventory
 
     ##################################################################################################
     # Test harness functions
@@ -198,8 +212,8 @@ class ScEmulator():
         suffix = filename.split(".")[-1]
         duration = int(args[args.index("-t") + 1]) / 1000  # Convert to seconds
 
-        # We divide duration by 10 to get a 10x speedup for testing purposes
-        duration = int(duration / 10)
+        # We divide duration to get a 25x speedup for testing purposes
+        duration = int(duration / 25)
 
         if "--framerate" not in args:
             framerate = 30  # Default framerate

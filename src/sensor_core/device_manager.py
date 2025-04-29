@@ -49,7 +49,7 @@ class DeviceManager:
         self.ping_success_count_run = 0
         self.last_ping_was_ok = False
         self.log_counter = 0
-        self.log_frequency = 60 * 10
+        self.wifi_log_frequency = 60 * 10
         self.client_wlan = "wlan0"
         self.use_cloned_mac = False
 
@@ -406,7 +406,7 @@ class DeviceManager:
 
         # Log useful info and status periodically
         self.log_counter += 1
-        if self.log_counter % self.log_frequency == 0:
+        if self.log_counter % self.wifi_log_frequency == 0:
             self.log_wifi_info()
 
 

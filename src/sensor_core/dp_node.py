@@ -467,7 +467,7 @@ class DPnode():
                 new_fname = file_naming.increment_filename(new_fname)
             new_fname = src_file.rename(new_fname)
 
-        if self.save_sample(stream.sample_probability) and stream.sample_container is not None:
+        if self.save_sample(stream.sample_probability) and stream.cloud_container is not None:
             # Generate a *copy* of the raw sample file because the original is in the Processing directory
             # and may soon by picked up by a DataProcessor.
             # The filename is the same as the recording, but saved to the upload directory
@@ -477,10 +477,10 @@ class DPnode():
                 
             sample_fname = file_naming.increment_filename(root_cfg.EDGE_UPLOAD_DIR / new_fname.name)
             shutil.copy(new_fname, sample_fname)
-            CloudConnector.get_instance().upload_to_container(stream.sample_container,
+            CloudConnector.get_instance().upload_to_container(stream.cloud_container,
                                                 [sample_fname], 
                                                 delete_src=True)
-            logger.info(f"Raw sample saved to {stream.sample_container}; "
+            logger.info(f"Raw sample saved to {stream.cloud_container}; "
                         f"sample_prob={stream.sample_probability}")
 
 

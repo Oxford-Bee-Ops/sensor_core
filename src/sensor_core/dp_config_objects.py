@@ -31,8 +31,6 @@ class Stream:
     # raw data sampling. The format of this string is specific to the Sensor or DataProcessor.
     # The default implementation interprets this string as a float sampling probability (0.0-1.0)
     sample_probability: Optional[str] = None
-    # If sampling is enabled, a sample_container must be specified and exist in the cloud storage.
-    sample_container: Optional[str] = None
 
 
     def get_data_id(self, sensor_index: int) -> str:

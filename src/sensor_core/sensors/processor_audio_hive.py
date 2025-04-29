@@ -74,7 +74,6 @@ DEFAULT_AUDIO_PROCESSOR_CFG = AudioProcessorCfg(
             format=api.FORMAT.PNG,
             cloud_container="sensor-core-upload",
             sample_probability = "0.02",
-            sample_container = "sensor-core-upload",
         ),
         Stream(
             description="Meta data on the hive entrance audio recordings",

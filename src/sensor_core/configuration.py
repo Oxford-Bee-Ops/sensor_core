@@ -28,6 +28,26 @@ class MODE(Enum):
 TEST_MODE: MODE = MODE.PRODUCTION
 
 ############################################################################################
+# System timers
+#
+# Collected here for easy review and mocking in tests
+############################################################################################
+# Run frequency of the DP worker thread
+DP_FREQUENCY: float = 60
+# Seconds between polls of is_stop_requested / touch is_running flag in EdgeOrchestrator
+WATCHDOG_FREQUENCY: float = 1  
+# See also DeviceCfg class for:
+# Frequency of health monitor heart beat logs
+#   - heart_beat_frequency: int = 60 * 10
+# Default environmental sensor logging frequency in seconds
+#   - env_sensor_frequency: int = 60 * 10
+# Max recording timer in seconds
+# This limits how quickly the system will cleanly shutdown as we wait for all recording 
+# threads to complete. It also limits the duration of any recordings
+#   - max_recording_timer
+
+
+############################################################################################
 #
 # Platform discovery
 #

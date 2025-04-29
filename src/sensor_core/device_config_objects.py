@@ -79,6 +79,9 @@ class DeviceCfg(Configuration):
     # Frequency of sending device health heart beat
     heart_beat_frequency: int = 60 * 10
 
+    # Default environmental sensor logging frequency in seconds
+    env_sensor_frequency: int = 60 * 10
+
     # Max recording timer in seconds
     # This limits how quickly the system will cleanly shutdown as we wait for all recording 
     # threads to complete. It also limits the duration of any recordings

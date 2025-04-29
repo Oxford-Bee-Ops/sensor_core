@@ -31,6 +31,7 @@ from sensor_core.sensors.sensor_rpicam_vid import (
     RpicamSensor,
     RpicamSensorCfg,
 )
+from sensor_core.sensors.sensor_sht31 import DEFAULT_SHT31_SENSOR_CFG, SHT31
 
 logger = root_cfg.setup_logger("sensor_core")
 
@@ -71,18 +72,27 @@ def create_trapcam_device(sensor_index: Optional[int] = 0) -> list[DPtree]:
     """Create a standard camera device."""
 
     # Define the sensor
-    cfg = DEFAULT_RPICAM_SENSOR_CFG
-
-    # Update the sensor index if provided
-    if sensor_index is None:
-        cfg.sensor_index = 0
-    else:
-        cfg.sensor_index = sensor_index
-        
-    my_sensor = RpicamSensor(cfg)
+    my_sensor = RpicamSensor(
+        RpicamSensorCfg(
+            sensor_type=api.SENSOR_TYPE.CAMERA,
+            sensor_index=sensor_index,
+            sensor_model="PiCameraModule3",
+            description="Video sensor that uses rpicam-vid",
+            outputs=[
+                Stream(
+                    description="Basic continuous video recording.",
+                    type_id=RPICAM_DATA_TYPE_ID,
+                    index=RPICAM_STREAM_INDEX,
+                    format=api.FORMAT.MP4,
+                    cloud_container="sensor-core-upload",
+                )
+            ],
+            rpicam_cmd = "rpicam-vid --framerate 15 --width 640 --height 480 -o FILENAME -t 180000",
+        )
+    )
 
     # Define the DataProcessor
-    my_dp = ProcessorVideoTrapCam(DEFAULT_TRAPCAM_PROCESSOR_CFG, sensor_index=cfg.sensor_index)
+    my_dp = ProcessorVideoTrapCam(DEFAULT_TRAPCAM_PROCESSOR_CFG, sensor_index=sensor_index)
 
     # Connect the DataProcessor to the Sensor
     my_tree = DPtree(my_sensor)
@@ -120,3 +130,13 @@ def create_aruco_camera_device(sensor_index: int) -> list[DPtree]:
         sink=my_dp,
     )
     return [my_tree]
+
+######################################################################################################
+# Create SHT31 temp and humidity sensor device
+######################################################################################################
+def create_sht31_device() -> list[DPtree]:
+    cfg = DEFAULT_SHT31_SENSOR_CFG
+    my_sensor = SHT31(cfg)
+    my_tree = DPtree(my_sensor)
+    return [my_tree]
+    

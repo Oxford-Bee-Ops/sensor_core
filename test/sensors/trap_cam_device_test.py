@@ -45,6 +45,7 @@ class Test_trap_cam_device:
             sc.start()
             sleep(10)
             sc.stop()
+            sleep(2)
 
             # We should have identified bees in the video and save the info to the EXITCAM datastream
             th.assert_records("sensor-core-fair", 

@@ -34,7 +34,6 @@ DEFAULT_TRAPCAM_PROCESSOR_CFG = TrapCamProcessorCfg(
             format=api.FORMAT.MP4,
             cloud_container="sensor-core-upload",
             sample_probability="0.1",
-            sample_container="sensor-core-upload",
         )
     ],
     min_blob_size=1000,

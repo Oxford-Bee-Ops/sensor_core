@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from threading import Thread
 from time import sleep
 from typing import Optional
-from enum import Enum
 
 import pandas as pd
 import yaml
@@ -21,10 +21,6 @@ from sensor_core.dp_node import DPnode
 from sensor_core.dp_tree import DPtree
 
 logger = root_cfg.setup_logger("sensor_core")
-
-# Run frequency of the Datastream worker thread
-# Normally 60 seconds, but overridden in tests
-RUN_FREQUENCY_SECS = 60
 
 
 class DPworker(Thread):
@@ -228,7 +224,7 @@ class DPworker(Thread):
                     )
 
             # We want to run this loop every minute, so see how long it took us since the start_time
-            sleep_time = RUN_FREQUENCY_SECS - (api.utc_now() - start_time).total_seconds()
+            sleep_time = root_cfg.DP_FREQUENCY - (api.utc_now() - start_time).total_seconds()
             logger.debug(f"DataProcessor ({dp}) sleeping for {sleep_time} seconds")
             if sleep_time > 0:
                 sleep(sleep_time)

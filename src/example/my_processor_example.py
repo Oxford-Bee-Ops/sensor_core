@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pandas as pd
-from sensor_core import DataProcessor, api, file_naming
+from sensor_core import DataProcessor, api
 from sensor_core import configuration as root_cfg
 from sensor_core.dp_config_objects import DataProcessorCfg, Stream
 
@@ -16,8 +16,6 @@ EXAMPLE_FILE_PROCESSOR_CFG = DataProcessorCfg(
                     index=EXAMPLE_DF_STREAM_INDEX, 
                     format=api.FORMAT.DF, 
                     fields=["pixel_count"],
-                    #sample_probability = str(1.0), # Always upload - we assert this in the UnitTest
-                    #sample_container = "sensor-core-upload"
                     ),
             ],
 )
@@ -44,7 +42,7 @@ class ExampleProcessor(DataProcessor):
         assert input_data is not None
         assert isinstance(input_data, list)
 
-        logger.debug(f"process_data:{input_data} for {__name__}")
+        logger.debug(f"ExampleProcessor process_data:{input_data} for {__name__}")
 
         output_data: list[dict] = []    
         if len(input_data) > 0:
