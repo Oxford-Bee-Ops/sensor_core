@@ -71,6 +71,9 @@ def create_continuous_video_4fps_device() -> list[DPtree]:
 def create_trapcam_device(sensor_index: Optional[int] = 0) -> list[DPtree]:
     """Create a standard camera device."""
 
+    if sensor_index is None:
+        sensor_index = 0
+        
     # Define the sensor
     my_sensor = RpicamSensor(
         RpicamSensorCfg(

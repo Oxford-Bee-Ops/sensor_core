@@ -2,14 +2,12 @@
 # EdgeOrchestrator: Manages the state of the sensor threads
 ####################################################################################################
 import threading
-import zipfile
 from datetime import timedelta
 from time import sleep
 from typing import Callable, Optional
 
-from sensor_core import api, file_naming
+from sensor_core import api
 from sensor_core import configuration as root_cfg
-from sensor_core.cloud_connector import CloudConnector
 from sensor_core.device_health import DeviceHealth
 from sensor_core.dp_node import DPnode
 from sensor_core.dp_tree import DPtree
@@ -33,7 +31,6 @@ class EdgeOrchestrator:
 
     _instance = None
     orchestrator_lock = threading.RLock()  # Re-entrant lock to ensure thread-safety
-    upload_lock = threading.RLock()
     root_cfg.set_mode(root_cfg.Mode.EDGE)
 
     def __new__(cls, *args, **kwargs): # type: ignore
@@ -63,9 +60,6 @@ class EdgeOrchestrator:
             self._dpworkers: list[DPworker] = []
             self.dp_trees: list[DPtree] = []
 
-            self._stop_upload_requested = threading.Event()
-            self._upload_timer: Optional[threading.Timer] = None
-
             # We create a series of special Datastreams for recording:
             # HEART - device health
             # WARNING - captures error & warning logs
@@ -93,7 +87,6 @@ class EdgeOrchestrator:
         status = {
             "SensorCore running": str(self.is_running()),
             "Sensor threads": str(self._sensorThreads),
-            "Upload timer": str(self._upload_timer),
             "DPtrees": str(self._dpworkers),
         }
         return status
@@ -185,9 +178,6 @@ class EdgeOrchestrator:
         for sensor in self._sensorThreads:
             sensor.start()
 
-        # Start the upload timer to sweep data to the cloud that isn't uploaded directly
-        self.start_upload_timer()
-
         # Dump status to log
         logger.info(f"EdgeOrchestrator started: {self.status()}")
 
@@ -226,12 +216,8 @@ class EdgeOrchestrator:
         if not self._orchestrator_is_running:
             logger.warning(f"EdgeOrchestrator not started when stop called; {self}")
             logger.info(self.status())
-            if self._upload_timer:  
-                self.stop_upload_timer()
             self.reset_orchestrator_state()
             return
-
-        self.stop_upload_timer()
 
         # Stop all the sensor threads
         for sensor in self._sensorThreads:
@@ -304,84 +290,6 @@ class EdgeOrchestrator:
         # If we get here, the file exists, was touched within the last 2x _FREQUENCY seconds,
         # and the timestamp is > than the timestamp on the STOP_SENSOR_CORE_FLAG file.
         return True
-
-    ########################################################################################################
-    #
-    # Data upload to cloud
-    #
-    ########################################################################################################
-    def start_upload_timer(self) -> None:
-        logger.debug("Start upload timer")
-        self.check_upload_status()
-
-    def stop_upload_timer(self) -> None:
-        logger.debug("Stop upload timer")
-        self._stop_upload_requested.set()
-        if self._upload_timer:
-            self._upload_timer.cancel()
-            self._upload_timer = None
-
-    def schedule_next_upload_run(self) -> None:
-        logger.debug("Schedule next upload timer")
-        if not self._stop_upload_requested.is_set():
-            if self._upload_timer:
-                self._upload_timer.cancel()
-            self._upload_timer = threading.Timer(30 * 60, self.check_upload_status)
-            self._upload_timer.name = "upload_timer"
-            self._upload_timer.start()
-
-    def check_upload_status(self) -> None:
-        """Method called by a timer to check storage capacity and call upload_to_cloud if required
-
-        We upload_to_cloud every 30mins or if storage space is running low"""
-
-        logger.debug("Check upload status")
-        self.upload_to_cloud()
-        self.schedule_next_upload_run()
-
-    def upload_to_cloud(self, dst_container: Optional[str] = None) -> None:
-        """Method to zip up sensor data and upload it to the cloud, if it's not been 
-        uploaded directly.
-
-        Looks for all files in the root_cfg.EDGE_UPLOAD_DIR except zip files.
-        """
-
-        logger.debug("Upload from edge device to cloud")
-
-        files_to_zip = list(root_cfg.EDGE_UPLOAD_DIR.glob("*"))
-
-        # We only want to zip files that have not been written in the last 60 seconds
-        # This is to avoid zipping files that are still being written to.
-        # We also don't want to zip zip files
-        for file in files_to_zip:
-            if not file.is_file() or file.suffix.endswith("zip"):
-                files_to_zip.remove(file)
-                continue
-            if file.stat().st_mtime > (api.utc_now() - timedelta(seconds=60)).timestamp():
-                files_to_zip.remove(file)
-                continue
-
-        if not files_to_zip:
-            logger.info("No files to zip in upload_to_cloud")
-            return
-        
-        zip_filename = file_naming.get_zip_filename()
-        with zipfile.ZipFile(zip_filename, "w", zipfile.ZIP_DEFLATED) as zipf:
-            for file in files_to_zip:
-                logger.debug(f"Add {file} to zip archive")
-                zipf.write(file, file.name)
-                # Delete the file after adding it to the zip archive
-                file.unlink()
-
-        logger.info(f"Created zip file: {zip_filename}")
-
-        # Now upload all zipfiles to cloud storage
-        # We explcitly get all zip files (rather than just the one we created) in case there are any left over
-        # from previous failed uploads.
-        if dst_container is None:
-            dst_container = root_cfg.my_device.cc_for_upload
-        zip_files = list(root_cfg.EDGE_UPLOAD_DIR.glob("*.zip"))
-        CloudConnector.get_instance().upload_to_container(dst_container, zip_files)
 
 #############################################################################################################
 # Orchestrator main loop
