@@ -160,8 +160,7 @@ class DeviceHealth(Sensor):
             # Set timer for next run
             self.last_ran = api.utc_now()
             self.log_counter += 1
-            next_hour = (self.last_ran + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-            sleep_time = (next_hour - self.last_ran).total_seconds()
+            sleep_time = root_cfg.my_device.heart_beat_frequency
             if root_cfg.TEST_MODE == root_cfg.MODE.TEST:
                 # In test mode, we want to run every 1 seconds
                 sleep_time = 1

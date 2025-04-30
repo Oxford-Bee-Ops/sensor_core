@@ -83,8 +83,7 @@ class StatTracker(Sensor):
 
             # Set timer for next run
             self.last_ran = api.utc_now()
-            next_hour = (self.last_ran + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-            sleep_time = (next_hour - self.last_ran).total_seconds()
+            sleep_time = root_cfg.my_device.heart_beat_frequency
             if root_cfg.TEST_MODE == root_cfg.MODE.TEST:
                 # In test mode, sleep for 1 second to speed up tests
                 sleep_time = 1
