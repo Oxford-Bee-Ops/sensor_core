@@ -1,7 +1,7 @@
 import os
 import socket
 import subprocess
-from datetime import datetime, timedelta
+from datetime import datetime
 from time import sleep
 from typing import Any, Optional
 
@@ -195,7 +195,7 @@ class DeviceHealth(Sensor):
         """Get the health of the device."""
         health: dict[str, Any] = {}
         try:
-            cpu_temp = 0
+            cpu_temp: str = ""
             bytes_written = 0
             bytes_sent = 0
             sc_mount_size = ""
@@ -203,7 +203,7 @@ class DeviceHealth(Sensor):
             process_list_str = ""
             ssid = ""
             if root_cfg.running_on_rpi:
-                cpu_temp = str(psutil.sensors_temperatures()["cpu_thermal"][0].current),  # type: ignore
+                cpu_temp = str(psutil.sensors_temperatures()["cpu_thermal"][0].current) # type: ignore
 
                 # Get the connected SSID
                 ssid = DeviceHealth.get_wifi_ssid()
@@ -240,13 +240,12 @@ class DeviceHealth(Sensor):
                 # And convert the process list to a simple comma-seperated string with no {} or ' or " 
                 # characters                
                 process_set = (
-                    utils.check_running_processes(search_string="root_cfg.system_cfg.my_start_script").union( 
-                    utils.check_running_processes(search_string="python "))
+                    utils.check_running_processes(
+                        search_string=f"{root_cfg.system_cfg.my_start_script}").union(
+                            utils.check_running_processes(search_string="python "))
                 )
-                process_list_str = (
-                    str(process_set).replace("{", 
-                                              "").replace("}", "").replace("'", "").replace('"', "").strip()
-                )
+                process_list_str = str(process_set).replace("{", "").replace("}", "")
+                process_list_str = process_list_str.replace("'", "").replace('"', "").strip()
 
             # Check update status by getting the last modified time of the rpi_installer_ran file
             # This file is created when the rpi_installer.sh script is run
@@ -355,10 +354,11 @@ class DeviceHealth(Sensor):
         """
         if root_cfg.running_on_rpi:
             try:
-                output = subprocess.check_output(["iw", "dev", "wlan0", "link"], 
-                                                 universal_newlines=True).strip()
+                output = utils.run_cmd(cmd="iw dev wlan0 link", ignore_errors=True).strip()
+                logger.debug(f"iw output: {output}")
                 for line in output.split("\n"):
                     if "SSID:" in line:
+                        logger.debug(f"Found SSID line: {line}")
                         return line.split("SSID:")[1].strip()
                 return "Not connected"
             except Exception as e:
