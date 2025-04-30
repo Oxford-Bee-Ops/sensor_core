@@ -1,7 +1,9 @@
 
+from time import sleep
+
 import pytest
 from sensor_core import configuration as root_cfg
-from sensor_core.cloud_connector import CloudConnector
+from sensor_core.cloud_connector import AsyncCloudConnector, CloudConnector
 from sensor_core.utils.cloud_journal import CloudJournal
 from sensor_core.utils.journal import Journal
 
@@ -17,6 +19,10 @@ root_cfg.TEST_MODE = root_cfg.MODE.TEST
 class Test_CloudJournal:
     @pytest.mark.quick
     def test_CloudJournal(self) -> None:
+
+        cc = CloudConnector.get_instance(root_cfg.CloudType.AZURE)
+        assert isinstance(cc, AsyncCloudConnector)
+
         # Create test data
         reqd_columns = ["field1", "field2", "field3"]
         test_data = {"field1": 1, "field2": 2, "field3": 3}
@@ -28,17 +34,21 @@ class Test_CloudJournal:
         test_journal.add_row(test_data)
         test_journal.save()
 
+        if cc.exists(root_cfg.my_device.cc_for_upload, test_journal_path.name):
+            cc.delete(root_cfg.my_device.cc_for_upload, test_journal_path.name)
+
+        # Create the CloudJournal and add the test data
         cj = CloudJournal(
             test_journal_path,
             root_cfg.my_device.cc_for_upload,
             reqd_columns=reqd_columns,
         )
-        if CloudConnector.get_instance().exists(root_cfg.my_device.cc_for_upload, test_journal_path.name):
-            CloudConnector.get_instance().delete(root_cfg.my_device.cc_for_upload, test_journal_path.name)
 
         cj.add_rows_from_df(test_journal.as_df())
         cj.flush_all()
+        sleep(1)
 
+        # Check that the file exists in the cloud
         cj.download()
         cj.add_rows(test_journal.get_data())
         cj.flush_all()
@@ -64,3 +74,5 @@ class Test_CloudJournal:
 
         # Stop the worker thread so we exit
         cj.manager.stop()
+        # Stop the cloudconnector
+        cc.shutdown()

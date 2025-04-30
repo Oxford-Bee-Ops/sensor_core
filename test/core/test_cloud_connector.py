@@ -53,21 +53,21 @@ class TestCloudConnector:
         """Test the AsyncCloudConnector."""
         logger.info("Testing AsyncCloudConnector")
         # Get instance uses the test mode to decide which subclass to return
-        root_cfg.TEST_MODE = root_cfg.MODE.PRODUCTION
-        cc = CloudConnector.get_instance()
+        cc = CloudConnector.get_instance(root_cfg.CloudType.AZURE)
         root_cfg.TEST_MODE = root_cfg.MODE.TEST  # Reset to test mode
         assert cc is not None, "CloudConnector instance is None"
         assert isinstance(cc, AsyncCloudConnector)
 
         # Run the standard set of tests for the CloudConnector
         self.set_of_cc_tests(cc)
+        cc.shutdown()
+
 
     def test_local_cloud_connector(self) -> None:
         """Test the LocalCloudConnector."""
         logger.info("Testing LocalCloudConnector")
         # Get instance uses the test mode to decide which subclass to return
-        root_cfg.TEST_MODE = root_cfg.MODE.TEST
-        cc = CloudConnector.get_instance()
+        cc = CloudConnector.get_instance(root_cfg.CloudType.LOCAL_EMULATOR)
         assert cc is not None, "CloudConnector instance is None"
         assert isinstance(cc, LocalCloudConnector)
 
@@ -121,7 +121,9 @@ class TestCloudConnector:
 
         # Append to the same file again
         cc.append_to_cloud(dst_container, append_file, delete_src=True, safe_mode=True)
+        sleep(1)
         assert cc.exists(dst_container, append_file.name), "Appended file does not exist in cloud container"
+        assert not append_file.exists(), "Append file exists after second append despre delete_src=True"
 
         # Check the modified time again
         modified_time2 = cc.get_blob_modified_time(dst_container, append_file.name)
@@ -130,7 +132,6 @@ class TestCloudConnector:
 
         # Download the appended file to verify its contents
         downloaded_file = file_naming.get_temporary_filename(api.FORMAT.CSV)
-        sleep(1)
         cc.download_from_container(dst_container, append_file.name, downloaded_file)    
         assert downloaded_file.exists(), "Downloaded appended file does not exist"
 
@@ -143,4 +144,4 @@ class TestCloudConnector:
         cc.delete(dst_container, src_file.name)
         assert not cc.exists(dst_container, src_file.name), "File still exists after delete"
 
-        cc.stop()
+
