@@ -393,7 +393,7 @@ class InteractiveMenu():
             click.echo("Exiting...")
 
 
-    def enable_rpi_connect() -> None:
+    def enable_rpi_connect(self) -> None:
         """Enable the RPi Connect service."""
         click.echo("Enabling RPi Connect service...")
         if not root_cfg.running_on_rpi:
