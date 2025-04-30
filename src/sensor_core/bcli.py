@@ -393,6 +393,22 @@ class InteractiveMenu():
             click.echo("Exiting...")
 
 
+    def enable_rpi_connect() -> None:
+        """Enable the RPi Connect service."""
+        click.echo("Enabling RPi Connect service...")
+        if not root_cfg.running_on_rpi:
+            click.echo("This command only works on a Raspberry Pi")
+            return
+        click.echo("Copy the URL returned by this command to a browser ")
+        click.echo("and authenticate the request to your Raspberry Pi connect account.")
+        run_cmd_live_echo("rpi-connect signin")
+        click.echo("\nHit any key to continue once you've signed in.")
+        click.getchar()
+        run_cmd_live_echo("rpi-connect on")
+        run_cmd("loginctl enable-linger")
+        click.echo("RPi Connect service enabled.")
+
+
     def show_crontab_entries(self) -> None:
         """Display the crontab entries for the user."""
         click.echo(f"{dash_line}")
@@ -641,8 +657,9 @@ class InteractiveMenu():
             click.echo("3. Stop SensorCore (graceful stop)")
             click.echo("4. Hard stop SensorCore (pkill)")
             click.echo("5. Set Hostname")
-            click.echo("6. Restart the Device") 
-            click.echo("7. Back to Main Menu")  
+            click.echo("6. Enable rpi-connect")
+            click.echo("7. Restart the Device") 
+            click.echo("8. Back to Main Menu")  
             try:
                 choice = click.prompt("\nEnter your choice", type=int)
                 click.echo("\n")
@@ -660,9 +677,11 @@ class InteractiveMenu():
                 self.stop_sensor_core(pkill=True) 
             elif choice == 5:
                 self.set_hostname()
-            elif choice == 6: 
-                self.reboot_device()
+            elif choice == 6:
+                self.enable_rpi_connect()
             elif choice == 7: 
+                self.reboot_device()
+            elif choice == 8: 
                 break
             else:
                 click.echo("Invalid choice. Please try again.")
