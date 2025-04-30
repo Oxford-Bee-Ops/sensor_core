@@ -771,6 +771,7 @@ class AsyncCloudConnector(CloudConnector):
 
         if delete_src:
             # Rename the files so that they are effectively deleted from the callers perspective
+            # We delete this temporary directory in _async_upload() after the upload is complete
             tmp_dir = file_naming.get_temporary_dir()
             for i, file in enumerate(src_files):
                 # Move the files to the tmp_dir
@@ -835,6 +836,13 @@ class AsyncCloudConnector(CloudConnector):
                                         action.src_files, 
                                         action.delete_src, 
                                         action.blob_tier)
+            if action.delete_src:
+                # We created a temporary directory for the files in upload_to_cloud - delete it now
+                tmp_dir = action.src_files[0].parent
+                if tmp_dir.exists() and tmp_dir.is_dir():
+                    shutil.rmtree(tmp_dir)
+                else:
+                    logger.error(f"{root_cfg.RAISE_WARN()}Temporary directory {tmp_dir} does not exist")
         except Exception as e:
             # Check all the src_files still exist and drop any that don't
             logger.warning(f"Upload failed for {action.src_files} on iter {action.iteration}: {e!s}")
