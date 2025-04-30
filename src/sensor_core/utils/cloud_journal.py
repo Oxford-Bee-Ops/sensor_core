@@ -25,7 +25,6 @@ class _CloudJournalManager:
         super().__init__()
         self._journals: dict[CloudJournal, Queue] = {}
         self._journals_dict_lock = Lock() # grab this lock when modifying the _journals dict
-        self.cloud_connector = CloudConnector.get_instance()
         self.cloud_container = cloud_container
         self._stop_requested = Event()
         self.sleep_time = root_cfg.JOURNAL_SYNC_FREQUENCY
@@ -78,6 +77,10 @@ class _CloudJournalManager:
 
         Blocks until uploads are complete or fail."""
 
+        # We get the instance locally rather than storing it in self because it avoids issues
+        # when we change between cloud types during testing.
+        cc = CloudConnector.get_instance(root_cfg.CLOUD_TYPE)
+
         # We use a lock to ensure that only one thread can flush at a time
         # Otherwise we end up with a RuntimeError: dictionary changed size during iteration
         with self._journals_dict_lock:
@@ -96,13 +99,13 @@ class _CloudJournalManager:
                     empty = False
     
                 if not empty:
-                    # The Journal.save() function ignores any columns that are not in the reqd_columns list
+                    # The Journal.save() function drops any columns that are not in the reqd_columns list
                     lj.save()
 
                     # Append the contents of lj to the cloud blob
-                    self.cloud_connector.append_to_cloud(journal.cloud_container, 
-                                                        journal.local_fname,
-                                                        delete_src=True)
+                    cc.append_to_cloud(journal.cloud_container, 
+                                        journal.local_fname,
+                                        delete_src=True)
 
             time_diff = (api.utc_now() - start_time).total_seconds()
             logger.debug(f"Completed flush_all started at {start_time} after {time_diff} seconds")
@@ -138,7 +141,6 @@ class CloudJournal:
         assert len(reqd_columns) > 0
 
         self.manager = _CloudJournalManager.get(cloud_container)
-        self.cloud_connector = CloudConnector.get_instance()
         self.local_fname = local_fname
         self.cloud_filename = local_fname.name
         self.cloud_container = cloud_container
@@ -148,7 +150,10 @@ class CloudJournal:
     def download(self) -> list[dict]:
         # Originally implemented with DictReader, but switched to Pandas to get auto-detect of numeric types
         try:
-            self.cloud_connector.download_from_container(
+            # We get the instance locally rather than storing it in self because it avoids issues
+            # when we change between cloud types during testing.
+            cc = CloudConnector.get_instance(root_cfg.CLOUD_TYPE)
+            cc.download_from_container(
                 self.cloud_container, self.cloud_filename, self.local_fname
             )
             file_as_df = pd.read_csv(self.local_fname)

@@ -27,6 +27,13 @@ class MODE(Enum):
     TEST: str = "test"
 TEST_MODE: MODE = MODE.PRODUCTION
 
+class CloudType(Enum):
+    """Enum for the supported cloud types"""
+    AZURE = "azure"
+    LOCAL_EMULATOR = "local"
+
+CLOUD_TYPE: CloudType = CloudType.AZURE
+
 ############################################################################################
 # System timers
 #

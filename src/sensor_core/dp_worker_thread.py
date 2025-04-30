@@ -38,6 +38,7 @@ class DPworker(Thread):
         logger.debug(f"Initialising DPworker {self}")
 
         self._stop_requested = False
+        self.cc: CloudConnector = CloudConnector.get_instance(root_cfg.CLOUD_TYPE)
 
         # sensor_cfg is a SensorCfg object describing the sensor that produces this datastream.
         self.dp_tree: DPtree = dp_tree
@@ -103,8 +104,7 @@ class DPworker(Thread):
         Path(fair_fname).parent.mkdir(parents=True, exist_ok=True)
         with open(fair_fname, "w") as f:
             yaml.dump(wrap, f, Dumper=CustomDumper)
-        CloudConnector.get_instance().upload_to_container(root_cfg.my_device.cc_for_fair,
-                                                          [fair_fname], delete_src=True)
+        self.cc.upload_to_container(root_cfg.my_device.cc_for_fair, [fair_fname], delete_src=True)
 
     def log_sample_data(self, sample_period_start_time: datetime) -> None:
         """Provide the count & duration of data samples recorded (environmental, media, etc)

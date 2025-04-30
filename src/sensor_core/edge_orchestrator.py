@@ -256,6 +256,7 @@ class EdgeOrchestrator:
             jp = JournalPool.get(root_cfg.Mode.EDGE)
             jp.flush_journals()
             jp.stop()
+            # jp.stop will also stop the cloud connector threadpool
             
             # Clear our thread lists
             self.reset_orchestrator_state()

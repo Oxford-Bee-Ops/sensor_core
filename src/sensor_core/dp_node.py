@@ -43,6 +43,7 @@ class DPnode():
         """
         self._dpnode_config: DPtreeNodeCfg = config
         self.sensor_index: int = sensor_index
+        self.cc: CloudConnector = CloudConnector.get_instance(root_cfg.CLOUD_TYPE)
 
         self._dpnode_children: dict[int, DPnode] = {}  # Dictionary mapping output streams to child nodes.
 
@@ -467,7 +468,7 @@ class DPnode():
                 
             sample_fname = file_naming.increment_filename(root_cfg.EDGE_UPLOAD_DIR / new_fname.name)
             shutil.copy(new_fname, sample_fname)
-            CloudConnector.get_instance().upload_to_container(stream.cloud_container,
+            self.cc.upload_to_container(stream.cloud_container,
                                                 [sample_fname], 
                                                 delete_src=True)
             logger.info(f"Raw sample saved to {stream.cloud_container}; "
@@ -478,8 +479,7 @@ class DPnode():
         if dst_dir == root_cfg.EDGE_UPLOAD_DIR:
             cloud_container = self.get_stream(stream_index).cloud_container
             assert cloud_container is not None
-            CloudConnector.get_instance().upload_to_container(cloud_container, 
-                                                              [new_fname], delete_src=True)
+            self.cc.upload_to_container(cloud_container, [new_fname], delete_src=True)
 
         # Track the number of measurements recorded
         if end_time is None:

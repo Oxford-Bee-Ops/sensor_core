@@ -239,6 +239,13 @@ def get_temporary_filename(format: api.FORMAT) -> Path:
     return tmp_fname
 
 
+def get_temporary_dir() -> Path:
+    """Generate a temporary subdirectory in the TMP_DIR."""
+    tmp_dir = root_cfg.TMP_DIR.joinpath(f"tmp_{api.utc_to_fname_str()}_{random():.4g}")
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    return tmp_dir
+
+
 def get_zip_filename() -> Path:
     """Generate a filename for a zip file in the upload directory."""
     return root_cfg.EDGE_UPLOAD_DIR / f"V3_{root_cfg.my_device_id}_{api.utc_to_fname_str()}.zip"

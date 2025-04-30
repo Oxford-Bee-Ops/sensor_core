@@ -102,7 +102,7 @@ class Rule4_cloud_container_specified(ValidationRule):
 # Rule5: check that all cloud_containers exist in the blobstore using cloud_connector.container_exists()
 class Rule5_cloud_container_exists(ValidationRule):
     def validate(self, dpnode: DPnode) -> tuple[bool, str]:
-        cc = CloudConnector.get_instance()
+        cc = CloudConnector.get_instance(root_cfg.CLOUD_TYPE)
         outputs = dpnode.get_config().outputs
         if outputs:
             for stream in outputs:

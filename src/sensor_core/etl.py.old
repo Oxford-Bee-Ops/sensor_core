@@ -40,7 +40,7 @@ class ZipFileHandler(Thread):
 
     def __init__(self, max_zip_files_per_batch: int) -> None:
         self.max_zip_files_per_batch = max_zip_files_per_batch
-        self.cloud_connector = CloudConnector.get_instance()
+        self.cloud_connector = root_cfg.cloud_connector
 
     def run(self) -> None:
         """Download and unzip a batch of zip files from the CLOUD_UPLOAD_DATASTORE"""
@@ -158,7 +158,7 @@ class ETLOrchestrator(Thread):
     """The ETL orchestrator manages the ETL process flow."""
 
     def __init__(self) -> None:
-        self.cloud_connector = CloudConnector.get_instance()
+        self.cloud_connector = root_cfg.cloud_connector
 
     def zip_loop(self, max_zip_files_per_batch: int) -> bool:
         """The ETL loop fully processes a batch of zip files and then exits"""

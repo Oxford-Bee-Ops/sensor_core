@@ -50,11 +50,11 @@ class ScEmulator():
         self.recordings_saved: dict[str, int] = {}
         self.recording_cap: int = -1
         root_cfg.TEST_MODE = root_cfg.MODE.TEST
-        cc = CloudConnector.get_instance()
-        if not isinstance(cc, LocalCloudConnector):
-            raise TypeError("Expected LocalCloudConnector, but got a different type.")
-        self.cc = cc
-        self.local_cloud = cc.get_local_cloud() # Newly created local cloud
+        root_cfg.CLOUD_TYPE = root_cfg.CloudType.LOCAL_EMULATOR
+        cc = CloudConnector.get_instance(root_cfg.CLOUD_TYPE)
+        assert isinstance(cc, LocalCloudConnector)
+        self.cc: LocalCloudConnector = cc
+        self.local_cloud = self.cc.get_local_cloud() # Newly created local cloud
 
         # Mock system timers so tests run faster
         root_cfg.DP_FREQUENCY = 1

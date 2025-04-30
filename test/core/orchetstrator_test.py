@@ -12,6 +12,7 @@ from sensor_core.utils import sc_test_emulator
 
 logger = root_cfg.setup_logger("sensor_core", level=logging.DEBUG)
 
+root_cfg.TEST_MODE = root_cfg.MODE.TEST
 
 class Test_Orchestrator:
     @pytest.mark.quick
@@ -22,10 +23,11 @@ class Test_Orchestrator:
         logger.info(message)
         assert message is not None
 
+
     @pytest.mark.quick
     def test_Orchestrator(self) -> None:
         with sc_test_emulator.ScEmulator.get_instance() as th:
-        
+            logger.debug("sensor_test: # Test orchestrator")
             # Standard flow
             # We reset cfg.my_device_id to override the computers mac_address
             # This is a test device defined in BeeOps.cfg to have a DummySensor.
