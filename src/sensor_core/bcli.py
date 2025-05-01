@@ -355,6 +355,7 @@ class InteractiveMenu():
                     f"source ~/{root_cfg.system_cfg.venv_dir}/bin/activate && "
                     f"nohup python -m {my_start_script} 2>&1 | /usr/bin/logger -t SENSOR_CORE &"
                 )
+                click.echo(f"Running command: {cmd}")
                 run_cmd_live_echo(cmd)
 
         click.echo("SensorCore started.")
