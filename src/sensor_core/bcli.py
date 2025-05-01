@@ -381,7 +381,14 @@ class InteractiveMenu():
             click.echo("This command only works on a Raspberry Pi")
             return
         if char == "y":
-            run_cmd(" sudo nmcli general hostname " + new_hostname)
+            click.echo("Setting hostname... (ignore temporary error message)")
+            run_cmd_live_echo("sudo nmcli general hostname " + new_hostname)
+
+            # Also need to set hostname in /etc/hosts separately...
+            # Delete the line starting with '127.0.1.1' from /etc/hosts
+            run_cmd_live_echo("sudo sed -i '/^127.0.1.1/d' /etc/hosts")
+            # Add a new line with the new hostname
+            run_cmd_live_echo(f"echo '127.0.1.1 {new_hostname}' | sudo tee -a /etc/hosts")
             click.echo("\nHostname set to " + new_hostname + ".\n")
         else:
             click.echo("Exiting...")
