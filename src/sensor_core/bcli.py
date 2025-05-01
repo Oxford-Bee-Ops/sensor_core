@@ -584,9 +584,9 @@ class InteractiveMenu():
             click.echo("4. Debugging Commands")
             click.echo("5. Maintenance Commands")
             click.echo("6. Testing Commands")
-            click.echo("e. Exit")
+            click.echo("7. Exit")
             try:
-                choice = click.prompt("\nEnter your choice")
+                choice = click.prompt("\nEnter your choice", type=int)
                 click.echo("\n")
             except ValueError:
                 click.echo("Invalid input. Please enter a number.")
@@ -604,7 +604,7 @@ class InteractiveMenu():
                 self.maintenance_menu()
             elif choice == 6:
                 self.testing_menu()
-            elif choice == 'e':
+            elif choice == 7:
                 click.echo("Exiting...")
                 break
             else:
