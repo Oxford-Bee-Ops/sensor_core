@@ -70,15 +70,15 @@ class DeviceManager:
         self.led_flash_counter = 0
         self.red_led = False
         self.green_led = False
-        if root_cfg.system_cfg.install_type == api.INSTALL_TYPE.RPI_SENSOR:
-            self.red_led_obj: LED = None
-            self.green_led_obj: LED = None
-            # Start the LED management thread
-            if root_cfg.running_on_rpi and root_cfg.my_device.manage_leds:
-                self.set_led_objects()
-                self.led_timer = utils.RepeatTimer(interval=1, 
-                                                   function=self.led_timer_callback)
-                self.led_timer.start()
+        self.red_led_obj: LED = None
+        self.green_led_obj: LED = None
+        # Start the LED management thread
+        if root_cfg.running_on_rpi and root_cfg.my_device.manage_leds:
+            self.set_led_objects()
+            self.led_timer = utils.RepeatTimer(interval=1, 
+                                                function=self.led_timer_callback)
+            self.led_timer.start()
+            logger.info("DeviceManager LED timer started")
 
         return
 
@@ -258,6 +258,7 @@ class DeviceManager:
     # We only enable the AP wifi connection if the client wifi connection is UP
     def wifi_timer_callback(self) -> None:
         try:
+            logger.debug("Wifi timer callback")
             # Test that internet connectivity is UP and working by pinging google DNS servers
             # -c 1 means ping once, -W 1 means timeout after 1 second
             ping_rc = os.system("ping -c 1 -W 1 8.8.8.8 1>/dev/null")
@@ -362,9 +363,10 @@ class DeviceManager:
                 self.last_ping_was_ok = True
 
             # Log useful info and status periodically
-            self.log_counter += 1
             if self.log_counter % self.wifi_log_frequency == 0:
                 self.log_wifi_info()
+            self.log_counter += 1
+
         except Exception as e:
             logger.error(f"{root_cfg.RAISE_WARN()}Wifi timer callback threw an exception: " + str(e), 
                         exc_info=True)
@@ -384,4 +386,4 @@ if __name__ == "__main__":
     while True:
         # Sleep for 1 seconds
         time.sleep(1)
-        pass
+        
