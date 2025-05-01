@@ -24,15 +24,6 @@ def run_sensor_core():
         logger.info("Configuring SensorCore.")
         sc.configure(my_fleet_config.INVENTORY)
 
-        # If you want SensorCore to manage this device, uncomment the line below.
-        # This is advised for production RPi devices.
-        # Management is based on the configuration in system.cfg and the fleet config.
-        # See documentation for details.
-        # On Windows, the device health monitor will run but no other actions will be taken.
-        #
-        logger.info("Enabling device management...")
-        sc.enable_device_management()
-
         # If you want the sensor to restart automatically after reboot then uncomment the line below.
         # You will need to have installed a virtual environment and specified its location in system.cfg.
         # Default location is $HOME/venv.  This won't work on Windows.

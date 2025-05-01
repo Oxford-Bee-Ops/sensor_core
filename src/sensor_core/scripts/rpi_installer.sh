@@ -2,37 +2,31 @@
 
 # RPI installer
 #
-# This script installs SensorCore code according to the ~user/.sensor_core/system.cfg file
+# This script installs / updates SensorCore code according to the ~/.sensor_core/system.cfg file.
+# This script is also called from crontab on reboot to restart SensorCore (if auto-start is enabled).
 # It is safe to re-run this script multiple times.
 #
 # Pre-requisites:
-# - system.cfg file must exist in the $HOME/.sensor_core directory
-# - keys.env file must exist in the $HOME/.sensor_core directory
+# - system.cfg file must exist in the ~/.sensor_core directory
+# - keys.env file must exist in the ~/.sensor_core directory
 # - SSH enabled on the RPi
-# - SSH keys for the SensorCore repository must exist in the $HOME/.sensor_core directory
-#   if using the private repository
-# - SSH keys for the users code repository must exist in the $HOME/.sensor_core directory
+# - SSH keys for the user's code repository must exist in the ~/.sensor_core directory
 #   if using a private repository
 #
 # This script will:
-# - create a venv in $HOME/.sensor_core/venv if one doesn't already exist
-# - install the SensorCore code & dependencies in the venv
-# - start SensorCore if auto_start is set in the system.cfg file
-#
-# Starting SensorCore (either via this script, via code or via the CLI) will:
-# - make persistent changes to the RPi for long-running operations:
-#   - make the log storage volatile
-#   - set predictable network interface names
-#   - enable the I2C interface
-# - cause SensorCore to persist across reboots via crontab
-#   - invoking your custom code as defined in the fleet config.
-# - start DeviceManager, which will optionally manage (depending on the system.cfg file):
-#   - Wifi
-#   - LEDs for sensor status
-#   - auto-updates of the OS
-#   - auto-updates of the SensorCore code
-#   - auto-updates of the users code.
-# 		- including installing the users code if a git repo is specified in the system.cfg file
+# - install_ssh_keys for accessing the user's code repository
+# - create_and_activate_venv
+# - install_os_packages required for SensorCore
+# - install_sensor_core
+# - install_user_code
+# - install_ufw and configure the firewall rules
+# - set_log_storage_volatile so that logs are stored in RAM and don't wear out the SD card
+# - create_mount which is a RAM disk for the use by SensorCore
+# - set_predictable_network_interface_names
+# - enable_i2c
+# - alias_bcli so that you can run 'bcli' at any prompt
+# - auto_start_if_requested to start SensorCore & DeviceManager automatically if requested in system.cfg
+# - make_persistent by adding this script to crontab to run on reboot
 
 # Function to check pre-requisites
 check_prerequisites() {
@@ -68,6 +62,14 @@ check_prerequisites() {
         exit 1
     fi
     echo "All pre-requisites are met."
+
+    # Ensure the flags directory exists
+    mkdir -p "$HOME/.sensor_core/flags"
+    # Delete the reboot_required flag if it exists
+    if [ -f "$HOME/.sensor_core/flags/reboot_required" ]; then
+        rm "$HOME/.sensor_core/flags/reboot_required"
+    fi
+
 }
 
 # Function to get the Git project name from the URL
@@ -149,7 +151,7 @@ create_and_activate_venv() {
     else
         # Create the virtual environment
         echo "Creating virtual environment at $venv_dir..."
-        python3 -m venv "$HOME/$venv_dir" --system-site-packages || { echo "Failed to create virtual environment"; exit 1; }
+        python -m venv "$HOME/$venv_dir" --system-site-packages || { echo "Failed to create virtual environment"; exit 1; }
         echo "Virtual environment created successfully."
     fi
 
@@ -183,10 +185,19 @@ install_os_packages() {
 # Function to install SensorCore 
 install_sensor_core() {
     # Install SensorCore from GitHub
-    echo "Installing SensorCore..."
+    current_version=$(pip show sensor_core | grep Version)
+    echo "Installing SensorCore.  Current version: $current_version"
     source "$HOME/$venv_dir/bin/activate" || { echo "Failed to activate virtual environment"; exit 1; }
     pip install git+https://github.com/oxford-bee-ops/sensor_core.git@main || { echo "Failed to install SensorCore"; exit 1; }
-    echo "SensorCore installed successfully."
+    updated_version=$(pip show sensor_core | grep Version)
+    echo "SensorCore installed successfully.  Now version: $updated_version"
+
+    # If the version has changed, we need to set a flag so we reboot at the end of the script
+    if [ "$current_version" != "$updated_version" ]; then
+        echo "SensorCore version has changed from $current_version to $updated_version.  Reboot required."
+        # Set a flag to indicate that a reboot is required
+        touch "$HOME/.sensor_core/flags/reboot_required"
+    fi
 }
 
 # Function to install user's code
@@ -231,10 +242,21 @@ install_user_code() {
     # Do the Git clone
     ###############################################
     # [Re-]install the latest version of the user's code in the virtual environment
-    echo "Reinstalling user code..."
+    # Extract the project name from the URL
+    project_name=$(git_project_name "$my_git_repo_url")
+    current_version=$(pip show "$project_name" | grep Version)
+    echo "Reinstalling user code. Current version: $current_version"
     source "$HOME/$venv_dir/bin/activate" || { echo "Failed to activate virtual environment"; exit 1; }
     pip install "git+ssh://git@$my_git_repo_url@$my_git_branch" || { echo "Failed to install $my_git_repo_url@$my_git_branch"; exit 1; }    
-    echo "User's code installed successfully."
+    updated_version=$(pip show "$project_name" | grep Version)
+    echo "User's code installed successfully. Now version: $updated_version"
+    
+    # If the version has changed, we need to set a flag so we reboot at the end of the script
+    if [ "$current_version" != "$updated_version" ]; then
+        echo "User's code version has changed from $current_version to $updated_version.  Reboot required."
+        # Set a flag to indicate that a reboot is required
+        touch "$HOME/.sensor_core/flags/reboot_required"
+    fi
 }
 
 # Install the Uncomplicated Firewall and set appropriate rules.
@@ -279,11 +301,12 @@ function set_log_storage_volatile() {
         return
     fi
     journal_mode="volatile"
+    changes_made=0
     if ! grep -q "Storage=$journal_mode" /etc/systemd/journald.conf; then
         echo "Storage=$journal_mode not set in /etc/systemd/journald.conf; setting it."
         sudo sed -i 's/#Storage=.*/Storage='$journal_mode'/' /etc/systemd/journald.conf
         sudo sed -i 's/Storage=.*/Storage='$journal_mode'/' /etc/systemd/journald.conf
-        sudo systemctl restart systemd-journald
+        changes_made=1
     fi
     # Set #SystemMaxUse= to 50M
     journal_size="50M"
@@ -291,13 +314,18 @@ function set_log_storage_volatile() {
         echo "SystemMaxUse=$journal_size not set in /etc/systemd/journald.conf; setting it."
         sudo sed -i 's/#SystemMaxUse=.*/SystemMaxUse='$journal_size'/' /etc/systemd/journald.conf
         sudo sed -i 's/SystemMaxUse=.*/SystemMaxUse='$journal_size'/' /etc/systemd/journald.conf
-        sudo systemctl restart systemd-journald
+        changes_made=1
     fi
     # Set #MaxLevelConsole= to debug
     if ! grep -q "MaxLevelConsole=debug" "/etc/systemd/journald.conf"; then
         echo "MaxLevelConsole=debug not set in /etc/systemd/journald.conf; setting it."
         sudo sed -i 's/#MaxLevelConsole=.*/MaxLevelConsole=debug/' /etc/systemd/journald.conf
         sudo sed -i 's/MaxLevelConsole=.*/MaxLevelConsole=debug/' /etc/systemd/journald.conf
+        changes_made=1
+    fi
+    # Restart the journald service if changes were made
+    if [ $changes_made -eq 1 ]; then
+        echo "Changes made to journald configuration; restarting the service."
         sudo systemctl restart systemd-journald
     fi
 }
@@ -374,6 +402,20 @@ function enable_i2c() {
     fi
 }
 
+##############################################
+# Create an alias for the bcli command
+##############################################
+function alias_bcli() {
+    # Create an alias for the bcli command
+    if ! grep -qs "alias bcli=" "$HOME/.bashrc"; then
+        echo "alias bcli='source ~/$venv_dir/bin/activate && bcli'" >> ~/.bashrc
+        echo "Alias for bcli created in .bashrc."
+    else
+        echo "Alias for bcli already exists in .bashrc."
+    fi
+    source ~/.bashrc
+}
+
 ################################################
 # Autostart if requested in system.cfg
 ################################################
@@ -388,21 +430,56 @@ function auto_start_if_requested() {
         fi
         echo "Calling $my_start_script in $HOME/$venv_dir"
         nohup python -m $my_start_script 2>&1 | /usr/bin/logger -t SENSOR_CORE &
+
+        echo "Starting DeviceManager..."
+        nohup python -m sensor_core.device_manager 2>&1 | /usr/bin/logger -t SENSOR_CORE &
+    else
+        echo "Auto-start is not enabled in system.cfg."
     fi
 }
 
-##############################################
-# Create an alias for the bcli command
-##############################################
-function alias_bcli() {
-    # Create an alias for the bcli command
-    if ! grep -qs "alias bcli=" "$HOME/.bashrc"; then
-        echo "alias bcli='source ~/$venv_dir/bin/activate && bcli'" >> ~/.bashrc
-        echo "Alias for bcli created in .bashrc."
-    else
-        echo "Alias for bcli already exists in .bashrc."
+###############################################
+# Make this script persistent by adding it to crontab
+# to run on reboot
+###############################################
+function make_persistent() {
+    if [ "$auto_start" == "Yes" ]; then
+        # Check the script is in the venv directory
+        if [ ! -f "$HOME/$venv_dir/scripts/rpi_installer.sh" ]; then
+            echo "Error: rpi_installer.sh not found in $HOME/$venv_dir/scripts/"
+            exit 1
+        fi
+        # Check if the script is already executable
+        if [ ! -x "$HOME/$venv_dir/scripts/rpi_installer.sh" ]; then
+            chmod +x "$HOME/$venv_dir/scripts/rpi_installer.sh" || { echo "Failed to make rpi_installer.sh executable"; exit 1; }
+            echo "rpi_installer.sh made executable."
+        fi
+        
+        rpi_installer_cmd="$HOME/$venv_dir/scripts/rpi_installer.sh 2>&1 | /usr/bin/logger -t SENSOR_CORE"
+        
+        # Check if the script is already in crontab
+        if ! crontab -l | grep -qs "rpi_installer"; then
+
+            # Add the script to crontab to run on reboot
+            echo "Script added to crontab to run on reboot and every night at 2am."
+            (crontab -l 2>/dev/null; echo "@reboot $rpi_installer_cmd") | crontab -
+            (crontab -l 2>/dev/null; echo "0 2 * * * $rpi_installer_cmd") | crontab -
+        else
+            echo "Script already exists in crontab."
+        fi
     fi
-    source ~/.bashrc
+}
+
+################################################
+# Reboot if required
+################################################
+function reboot_if_required() {
+    if [ -f "$HOME/.sensor_core/flags/reboot_required" ]; then
+        echo "Reboot required. Rebooting now..."
+        sudo reboot
+    else
+        echo "No reboot required."
+    fi
 }
 
 ###################################################################################################
@@ -424,12 +501,13 @@ set_log_storage_volatile
 create_mount
 set_predictable_network_interface_names
 enable_i2c
-auto_start_if_requested
 alias_bcli
+auto_start_if_requested
+make_persistent
+reboot_if_required
 
 # Add a flag file in the .sensor_core directory to indicate that the installer has run
 # We use the timestamp on this flag to determine the last update time
-mkdir -p "$HOME/.sensor_core/flags"
 touch "$HOME/.sensor_core/flags/rpi_installer_ran"
 echo "RPi installer completed successfully."
 

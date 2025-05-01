@@ -91,19 +91,12 @@ class DeviceCfg(Configuration):
     log_level: int = 20
 
     # Device management
-    auto_update_os: bool = True
-    auto_update_os_cron: str = "0 2 * * 0"  # Every Sunday at 2am
-    auto_update_code: bool = True
-    auto_update_code_cron: str = "0 3 * * *"  # Every day at 3am
     attempt_wifi_recovery: bool = True
     manage_leds: bool = True
 
     # Wifi networks
     # These are the networks that the device will connect to if they are available.
     wifi_clients: list[WifiClient] = field(default_factory=list)
-
-    # Test device
-    is_testnet: int = 0
 
 
 ############################################################################################
