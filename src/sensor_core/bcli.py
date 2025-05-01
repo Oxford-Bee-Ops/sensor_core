@@ -17,6 +17,7 @@ from sensor_core import configuration as root_cfg
 from sensor_core.edge_orchestrator import EdgeOrchestrator
 from sensor_core.utils import utils, utils_clean
 from sensor_core.utils.utils_clean import disable_console_logging
+from sensor_core.cloud_connector import CloudConnector, AsyncCloudConnector
 
 logger = root_cfg.setup_logger("common")
 
@@ -608,6 +609,10 @@ class InteractiveMenu():
                 break
             else:
                 click.echo("Invalid choice. Please try again.")
+        # Clean up and exit
+        cc = CloudConnector.get_instance(type=root_cfg.CloudType.AZURE)
+        assert isinstance(cc, AsyncCloudConnector)
+        cc.shutdown()
 
 
     def debug_menu(self) -> None:
