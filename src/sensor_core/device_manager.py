@@ -35,6 +35,7 @@ class DeviceManager:
     GPIO_GREEN = 16
 
     def __init__(self) -> None:
+        print("DeviceManager: __init__")
         if root_cfg.system_cfg is None:
             logger.error(f"{root_cfg.RAISE_WARN()}DeviceManager: system_cfg is None; exiting")
             return
@@ -58,7 +59,7 @@ class DeviceManager:
             self.wifi_timer = utils.RepeatTimer(interval=2.0, 
                                                 function=self.wifi_timer_callback)
             self.wifi_timer.start()
-            logger.info("Wifi timer started")
+            logger.info("DeviceManager Wifi timer started")
 
         ###############################
         # LED status management

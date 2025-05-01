@@ -367,9 +367,8 @@ class InteractiveMenu():
         # We just need to "touch" the stop file to stop the service
         root_cfg.STOP_SENSOR_CORE_FLAG.touch()
 
-        if pkill:
-            # pkill -f "python -m bee_ops.run_my_sensor"
-            run_cmd(f"sudo pkill -f 'python -m {root_cfg.system_cfg.my_start_script}'")
+        if pkill and root_cfg.system_cfg:
+                run_cmd(f"sudo pkill -f 'python -m {root_cfg.system_cfg.my_start_script}'")
         return
 
 

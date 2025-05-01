@@ -95,7 +95,7 @@ class DeviceCfg(Configuration):
     auto_update_os_cron: str = "0 2 * * 0"  # Every Sunday at 2am
     auto_update_code: bool = True
     auto_update_code_cron: str = "0 3 * * *"  # Every day at 3am
-    attempt_wifi_recovery: bool = False
+    attempt_wifi_recovery: bool = True
     manage_leds: bool = True
 
     # Wifi networks
