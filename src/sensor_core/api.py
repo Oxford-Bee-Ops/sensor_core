@@ -4,7 +4,7 @@
 # File define constants used on interfaces between components in the Bee Ops system.
 ####################################################################################################
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum, Enum
 from typing import Optional
 from zoneinfo import ZoneInfo
 
@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 ############################################################
 # Data record ID fields
 ############################################################
-class RECORD_ID(Enum):
+class RECORD_ID(StrEnum):
     VERSION = "version_id"
     DATA_TYPE_ID = "data_type_id"
     DEVICE_ID = "device_id"

@@ -488,6 +488,8 @@ function reboot_if_required() {
 # 
 ###################################################################################################
 echo "Starting RPi installer..."
+# Sleep for 20 seconds to allow the system to settle down after booting
+sleep 10
 check_prerequisites
 cd "$HOME/.sensor_core" || { echo "Failed to change directory to $HOME/.sensor_core"; exit 1; }
 export_system_cfg

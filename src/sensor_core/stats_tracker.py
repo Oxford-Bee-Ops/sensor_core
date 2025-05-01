@@ -72,15 +72,18 @@ class StatTracker(Sensor):
         This method is called when the thread is started.
         It runs in a loop, logging health data and warnings at regular intervals.
         """
-        logger.info(f"Starting SelfTracker thread {self!r}")
+        try:
+            logger.info(f"Starting SelfTracker thread {self!r}")
 
-        while not self.stop_requested:
-            logger.debug(f"SelfTracker {self.sensor_index} running log_sample_data() "
-                         f"for {len(self.dpworkers)} DP engines")
-            # Trigger each datastream to log sample counts
-            for dpworker in self.dpworkers:
-                dpworker.log_sample_data(self.last_ran)
+            while not self.stop_requested:
+                logger.debug(f"SelfTracker {self.sensor_index} running log_sample_data() "
+                            f"for {len(self.dpworkers)} DP engines")
+                # Trigger each datastream to log sample counts
+                for dpworker in self.dpworkers:
+                    dpworker.log_sample_data(self.last_ran)
 
-            # Set timer for next run
-            self.last_ran = api.utc_now()
-            sleep(root_cfg.my_device.heart_beat_frequency)
+                # Set timer for next run
+                self.last_ran = api.utc_now()
+                sleep(root_cfg.my_device.heart_beat_frequency)
+        except Exception as e:
+            logger.error(f"Error in SelfTracker thread: {e}", exc_info=True)

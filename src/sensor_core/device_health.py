@@ -147,20 +147,23 @@ class DeviceHealth(Sensor):
         This method is called when the thread is started.
         It runs in a loop, logging health data and warnings at regular intervals.
         """
-        logger.info(f"Starting DeviceHealth thread {self!r}")
+        try:
+            logger.info(f"Starting DeviceHealth thread {self!r}")
 
-        while not self.stop_requested:
-            # Log the health data
-            self.log_health()
+            while not self.stop_requested:
+                # Log the health data
+                self.log_health()
 
-            # Log the warning data
-            self.log_warnings()
+                # Log the warning data
+                self.log_warnings()
 
-            # Set timer for next run
-            self.last_ran = api.utc_now()
-            self.log_counter += 1
-            sleep_time = root_cfg.my_device.heart_beat_frequency
-            sleep(sleep_time)
+                # Set timer for next run
+                self.last_ran = api.utc_now()
+                self.log_counter += 1
+                sleep_time = root_cfg.my_device.heart_beat_frequency
+                sleep(sleep_time)
+        except Exception as e:
+            logger.error(f"{root_cfg.RAISE_WARN()}Error in DeviceHealth thread: {e}", exc_info=True)
 
     def log_health(self) -> None:
         """Logs device health data to the HEART datastream."""
