@@ -381,6 +381,11 @@ function auto_start_if_requested() {
     if [ "$auto_start" == "Yes" ]; then
         echo "Auto-starting SensorCore..."
         
+        # Check the script is not already running
+        if pgrep -f "$my_start_script" > /dev/null; then
+            echo "SensorCore is already running."
+            return
+        fi
         echo "Calling $my_start_script in $HOME/$venv_dir"
         nohup python -m $my_start_script 2>&1 | /usr/bin/logger -t SENSOR_CORE &
     fi
