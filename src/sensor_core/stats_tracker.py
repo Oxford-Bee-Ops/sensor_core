@@ -83,5 +83,4 @@ class StatTracker(Sensor):
 
             # Set timer for next run
             self.last_ran = api.utc_now()
-            sleep_time = root_cfg.my_device.heart_beat_frequency
-            sleep(sleep_time)
+            sleep(root_cfg.my_device.heart_beat_frequency)
