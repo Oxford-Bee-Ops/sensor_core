@@ -129,7 +129,6 @@ if running_on_windows:
 
 elif running_on_rpi:
     # Check we're not running in the root context
-    assert Path.cwd() != Path("/"), f"Running in root context: {Path.cwd()}"
     HOME_DIR = Path.home()
     CODE_DIR = Path(__file__).parent.parent
     SC_CODE_DIR = CODE_DIR / "sensor_core"

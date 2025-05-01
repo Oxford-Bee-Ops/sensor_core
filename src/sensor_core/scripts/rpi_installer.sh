@@ -170,15 +170,15 @@ create_and_activate_venv() {
 # and we want to use the system package manager to install them.
 install_os_packages() {
     echo "Installing OS packages..."
-    sudo apt update && sudo apt upgrade -y || { echo "Failed to update package list"; exit 1; }
+    sudo apt-get update && sudo apt-get upgrade -y || { echo "Failed to update package list"; exit 1; }
     sudo apt-get install -y pip git libsystemd-dev python3-scipy python3-pandas python3-opencv || { echo "Failed to install base packages"; exit 1; }
     sudo apt-get install -y libcamera-dev python3-picamera2 python3-smbus || { echo "Failed to install sensor packages"; exit 1; }
     # If we install the lite version (no desktop), we need to install the full version of rpicam-apps
     # Otherwise we get ERROR: *** Unable to find an appropriate H.264 codec ***
-    sudo apt purge -y rpicam-apps-lite || { echo "Failed to remove rpicam-apps-lite"; exit 1; }
-    sudo apt install -y rpi-connect-lite || { echo "Failed to install rpi-connect-lite"; exit 1; }
+    sudo apt-get purge -y rpicam-apps-lite || { echo "Failed to remove rpicam-apps-lite"; exit 1; }
+    sudo apt-get install -y rpi-connect-lite || { echo "Failed to install rpi-connect-lite"; exit 1; }
     sudo apt-get install -y rpicam-apps || { echo "Failed to install rpicam-apps"; exit 1; }
-    sudo apt autoremove -y || { echo "Failed to remove unnecessary packages"; }
+    sudo apt-get autoremove -y || { echo "Failed to remove unnecessary packages"; }
     echo "OS packages installed successfully."
 }
 
