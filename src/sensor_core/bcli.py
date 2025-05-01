@@ -352,7 +352,7 @@ class InteractiveMenu():
                     click.echo(f"{my_start_script} is already running.")
                     return
                 cmd = (
-                    f"source ~/{root_cfg.system_cfg.venv_dir}/bin/activate && "
+                    f"source {root_cfg.HOME_DIR}/{root_cfg.system_cfg.venv_dir}/bin/activate && "
                     f"nohup python -m {my_start_script} 2>&1 | /usr/bin/logger -t SENSOR_CORE &"
                 )
                 click.echo(f"Running command: {cmd}")
