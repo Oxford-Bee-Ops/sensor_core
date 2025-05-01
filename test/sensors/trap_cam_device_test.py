@@ -25,6 +25,8 @@ class Test_trap_cam_device:
     def test_trap_cam_device(self):
 
         with ScEmulator.get_instance() as th:
+            # Mock the timers in the inventory for faster testing
+            inventory = th.mock_timers(INVENTORY)
 
             # Set the file to be fed into the trap camera device
             th.set_recordings([
@@ -41,7 +43,7 @@ class Test_trap_cam_device:
 
             # Configure SensorCore with the trap camera device
             sc = SensorCore()
-            sc.configure(INVENTORY)
+            sc.configure(inventory)
             sc.start()
             sleep(10)
             sc.stop()

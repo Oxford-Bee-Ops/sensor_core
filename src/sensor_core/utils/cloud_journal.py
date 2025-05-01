@@ -27,8 +27,7 @@ class _CloudJournalManager:
         self._journals_dict_lock = Lock() # grab this lock when modifying the _journals dict
         self.cloud_container = cloud_container
         self._stop_requested = Event()
-        self.sleep_time = root_cfg.JOURNAL_SYNC_FREQUENCY
-        self._sync_timer = Timer(self.sleep_time, self.sync_run)
+        self._sync_timer = Timer(root_cfg.JOURNAL_SYNC_FREQUENCY, self.sync_run)
         self._sync_timer.start()
 
     @staticmethod
@@ -47,7 +46,7 @@ class _CloudJournalManager:
         self.flush_all()
         logger.debug("Schedule next CloudJournalManager sync timer")
         if not self._stop_requested.is_set():
-            self._sync_timer = Timer(self.sleep_time, self.sync_run)
+            self._sync_timer = Timer(root_cfg.JOURNAL_SYNC_FREQUENCY, self.sync_run)
             self._sync_timer.name = "cj_sync_timer"
             self._sync_timer.start()
 

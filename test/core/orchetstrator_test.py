@@ -27,6 +27,9 @@ class Test_Orchestrator:
     @pytest.mark.quick
     def test_Orchestrator(self) -> None:
         with sc_test_emulator.ScEmulator.get_instance() as th:
+            # Mock the timers in the inventory for faster testing
+            inventory = th.mock_timers(INVENTORY)
+
             logger.debug("sensor_test: # Test orchestrator")
             # Standard flow
             # We reset cfg.my_device_id to override the computers mac_address
@@ -34,7 +37,7 @@ class Test_Orchestrator:
             root_cfg.update_my_device_id("d01111111111")
 
             sc = SensorCore()
-            sc.configure(INVENTORY)
+            sc.configure(inventory)
 
             orchestrator = EdgeOrchestrator.get_instance()
             orchestrator.load_config()

@@ -102,14 +102,6 @@ class DeviceCfg(Configuration):
     # These are the networks that the device will connect to if they are available.
     wifi_clients: list[WifiClient] = field(default_factory=list)
 
-    # Wifi devices
-    client_wlan: str = "wlan0"
-
-    # Additional wifi configuration
-    local_wifi_ssid: str = "not_set"
-    local_wifi_pw: str = "not_set"
-    local_wifi_priority: int = 80
-
     # Test device
     is_testnet: int = 0
 

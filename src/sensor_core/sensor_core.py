@@ -179,7 +179,7 @@ class SensorCore:
         # We invoke the DeviceManager as a separate process so that it can persist when this
         # process exits.
         if root_cfg.running_on_rpi:
-            utils.run_cmd(f"{Path.home()}/venv/bin/activate && nohup python3 -m sensor_core.device_manager &")
+            utils.run_cmd(f"source {Path.home()}/venv/bin/activate && nohup python3 -m sensor_core.device_manager &")
             logger.info("Device manager started.")
 
         ####################################

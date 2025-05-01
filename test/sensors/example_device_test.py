@@ -25,12 +25,15 @@ class Test_example_device:
     def test_example_device(self):
 
         with ScEmulator.get_instance() as th:
+            # Mock the timers in the inventory for faster testing
+            inventory = th.mock_timers(INVENTORY)
+
             # Limit the SensorCore to 1 recording so we can easily validate the results
             th.set_recording_cap(1)
 
             # Configure SensorCore with the trap camera device
             sc = SensorCore()
-            sc.configure(INVENTORY)
+            sc.configure(inventory)
             sc.start()
             sleep(4)
             sc.stop()

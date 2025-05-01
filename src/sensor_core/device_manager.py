@@ -113,7 +113,7 @@ class DeviceManager:
 
     # This function gets called every second.
     # Set the LEDs to ON or OFF as appropriate given the current device state.
-    def led_timer_callback(self, args: Any) -> None:
+    def led_timer_callback(self) -> None:
         # We run in a try block because we don't an "LED busy" issue to permanently kill the LED loop
         try:
             logger.debug("LED timer callback")

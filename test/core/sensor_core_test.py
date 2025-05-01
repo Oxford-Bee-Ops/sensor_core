@@ -22,11 +22,14 @@ class Test_SensorFactory:
         # Standard flow
         # We reset cfg.my_device_id to override the computers mac_address
         # This is a test device defined in BeeOps.cfg to have a DummySensor.
-        with ScEmulator.get_instance():
+        with ScEmulator.get_instance() as th:
+            # Mock the timers in the inventory for faster testing
+            inventory = th.mock_timers(my_fleet_config.INVENTORY)
+
             root_cfg.update_my_device_id("d01111111111")
 
             sc = SensorCore()
-            sc.configure(my_fleet_config.INVENTORY)
+            sc.configure(inventory)
             sc.start()
             sleep(2)
             sc.status()

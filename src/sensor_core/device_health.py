@@ -141,7 +141,6 @@ class DeviceHealth(Sensor):
         self.cum_bytes_written = 0
         self.cum_bytes_sent = 0
         self.log_counter = 0
-        self.client_wlan = "wlan0"
         
     def run(self) -> None:
         """Main loop for the DeviceHealth sensor.
@@ -161,9 +160,6 @@ class DeviceHealth(Sensor):
             self.last_ran = api.utc_now()
             self.log_counter += 1
             sleep_time = root_cfg.my_device.heart_beat_frequency
-            if root_cfg.TEST_MODE == root_cfg.MODE.TEST:
-                # In test mode, we want to run every 1 seconds
-                sleep_time = 1
             sleep(sleep_time)
 
     def log_health(self) -> None:

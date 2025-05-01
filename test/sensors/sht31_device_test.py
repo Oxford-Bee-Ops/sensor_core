@@ -23,10 +23,11 @@ class Test_sht31_device:
     def test_sht31_device(self):
 
         with ScEmulator.get_instance() as th:
+            # Mock the timers in the inventory for faster testing
+            inventory = th.mock_timers(INVENTORY)
 
             # Configure SensorCore with the trap camera device
             sc = SensorCore()
-            inventory = th.mock_timers(INVENTORY)
             sc.configure(inventory)
             sc.start()
             sleep(2)

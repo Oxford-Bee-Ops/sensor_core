@@ -721,7 +721,7 @@ class AsyncCloudConnector(CloudConnector):
         self._worker_pool: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=6)
         # Start the worker thread to process the upload queue
         self._worker_pool.submit(self.do_work)
-        self._worker_pool.submit(self.monitor_futures)
+        #self._worker_pool.submit(self.monitor_futures)
 
     def __del__(self) -> None:
         self._stop_requested = True
