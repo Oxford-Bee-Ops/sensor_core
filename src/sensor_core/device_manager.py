@@ -5,7 +5,7 @@
 # - auto-update the OS to keep current with security fixes
 import os
 import time
-from typing import Any
+from time import sleep
 
 from gpiozero import LED
 
@@ -55,7 +55,6 @@ class DeviceManager:
 
         # Start wifi management thread
         if root_cfg.running_on_rpi and root_cfg.my_device.attempt_wifi_recovery:
-            self.delete_and_reconfigure_client_wifi()
             self.wifi_timer = utils.RepeatTimer(interval=2.0, 
                                                 function=self.wifi_timer_callback)
             self.wifi_timer.start()
@@ -238,42 +237,12 @@ class DeviceManager:
         currentTime = api.utc_now()
         return (currentTime - self.lastStateChangeTime).total_seconds()
 
-    # Configure the client wifi connection
-    def delete_and_reconfigure_client_wifi(self) -> None:
-        """ We only delete and reconfigure if we suspect something is wrong with the existing config
-        This may be the case if we change the client_wlan or the mac_address. """
-
-        logger.info("Deleting all wifi connections")
-        list_of_connections_str = utils.run_cmd("sudo nmcli -t -f NAME connection show")
-        # remove the lo connection (local loopback) from the list and convert to a list
-        list_of_connections = list_of_connections_str.replace("lo", "").split("\n")
-        for connection in list_of_connections:
-            if connection != "":
-                utils.run_cmd(
-                    'sudo nmcli connection delete "' + connection + '"',
-                    ignore_errors=True,
-                )
-                logger.warning("Deleted wifi connection " + connection)
-
-        # Loop through the wifi_clients list and configure the client wifi connections
-        # NetworkManager will automatically connect to the wifi with the highest priority and strongest signal
-        self.inject_wifi_clients()
-
-
     # Create a function for logging useful info
     def log_wifi_info(self) -> None:
         try:
             logger.info(utils.run_cmd("sudo iwgetid -r", ignore_errors=True))
             logger.info(utils.run_cmd("sudo ifconfig " + self.client_wlan, ignore_errors=True))
-            logger.info(
-                utils.run_cmd(
-                    "sudo iwconfig " + self.client_wlan,
-                    grep_strs=["Link", "Quality"],
-                    ignore_errors=True,
-                )
-            )
-            logger.info(
-                utils.run_cmd(
+            logger.info(utils.run_cmd(
                     "sudo nmcli device wifi list ifname " + self.client_wlan,
                     grep_strs=["Infra"],
                     ignore_errors=True,
@@ -320,14 +289,15 @@ class DeviceManager:
             #############################################
             # Recovery actions
             #
-            # We use modulo 600 to retry recovery actions every 10 minutes
-            # If ping is failing, this can be ~2s per iteration, so 20 minutes
-            #
-            # Since recovery involves reconfiguring wifi clients, we only do this if there are clients
-            # specified in the configuration.
+            # Possible recovery actions:
+            # - Restart the wlan0 interface:  nmcli dev disconnect / connect wlan0
+            # - Toggle radio:                 nmcli radio wifi off / on
+            # - Explicit wifi connect:        nmcli dev wifi connect <SSID> password <password>
+            # - Reload NMCLI:                 nlcli general reload
+            # - Restart the device:           sudo reboot
             #############################################
-            retry_timer = 600
-            if root_cfg.my_device.attempt_wifi_recovery and (len(root_cfg.my_device.wifi_clients) > 0):
+            if root_cfg.my_device.attempt_wifi_recovery:
+                retry_frequency = 600  # Retry recovery action set every 2s*600=1200s=20mins
 
                 # If the failure count gets to 4 hours then reboot the device
                 # Ping cycle is 2s, so 60*60*2 = 4 hours
@@ -335,49 +305,33 @@ class DeviceManager:
                     logger.error(f"{root_cfg.RAISE_WARN()}Rebooting device due to no internet for >4 hours")
                     utils.run_cmd("sudo reboot")
 
-                # If we're connected to wifi but the internet is down, then try a different SSID
-                elif ((self.currentState == self.S_WIFI_UP) and 
-                        (self.ping_failure_count_run % retry_timer == 30)):
-                    logger.info("Disconnecting from current SSID %s to try another one", ESSID)
-                    # We keep the client_wlan up, but we delete the current connection - it will get re-added
-                    # when we reconfigure the client wifi connections below if we continue to fail pings
-                    assert ESSID != "", "ESSID is empty despite getting it above with iwgetid -r"
-                    utils.run_cmd("sudo nmcli conn delete " + ESSID, ignore_errors=True)
-                    # The next highest priority connection should take over at this point
-                    time.sleep(2)
-                    # Re-add the connection but at lower priority
-                    new_priority = -1
-                    for client in self.wifi_clients:
-                        if client.ssid == ESSID:
-                            client.priority -= 10
-                            new_priority = client.priority
-                            break
-                    # Now re-add the connection with the new lower priority
-                    # The existing connections won't be impacted because the code checks whether they already 
-                    # exist
-                    # If we've decremented the priority to -100 (lowest valid value); we reset all info
-                    if new_priority > -100:
-                        logger.warning(
-                            "Lowered priority of wifi connection " + ESSID + " to " + str(new_priority)
-                        )
-                        self.delete_and_reconfigure_client_wifi()
-                    else:
-                        logger.warning(
-                            "Lowered priority of wifi connection " + ESSID + " to -100; reconfiguring all"
-                        )
-                        self.wifi_clients = root_cfg.my_device.wifi_clients
-                        self.delete_and_reconfigure_client_wifi()
-
-                # If we've failed to get internet for a while, try reconfiguring the client wifi connections
-                elif self.ping_failure_count_run % retry_timer == 60:
-                    logger.info("Reconfiguring client wifi connections")
-                    self.delete_and_reconfigure_client_wifi()
-
-                # Try restarting the client wifi interface
-                elif self.ping_failure_count_run % retry_timer == (60 * 2):
+                elif self.ping_failure_count_run % retry_frequency == 60:
                     logger.info("Restarting client wifi interface")
                     utils.run_cmd("sudo nmcli dev disconnect " + self.client_wlan, ignore_errors=True)
+                    sleep(1)
                     utils.run_cmd("sudo nmcli dev connect " + self.client_wlan, ignore_errors=True)
+
+                elif self.ping_failure_count_run % retry_frequency == 120:
+                    logger.info("Toggle wifi radio")
+                    utils.run_cmd("sudo nmcli radio wifi off", ignore_errors=True)
+                    sleep(1)
+                    utils.run_cmd("sudo nmcli radio wifi on", ignore_errors=True)
+
+                elif self.ping_failure_count_run % retry_frequency == 180:
+                    logger.info("Reloading NetworkManager")
+                    utils.run_cmd("sudo nmcli general reload", ignore_errors=True)
+
+                elif self.ping_failure_count_run % retry_frequency == 240:
+                    # Explicitly connect to bee-ops wifi network
+                    logger.info("Explicitly connecting to wifi network")
+                    for client in self.wifi_clients:
+                        if client.ssid is not None and client.pw is not None:
+                            logger.info(f"Connecting to {client.ssid}")
+                            utils.run_cmd(
+                                f"sudo nmcli dev wifi connect {client.ssid} password {client.pw}",
+                                ignore_errors=True,
+                            )
+                            break
 
                 #############################################
                 # End of recovery actions
