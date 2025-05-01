@@ -4,7 +4,7 @@
 # File define constants used on interfaces between components in the Bee Ops system.
 ####################################################################################################
 from datetime import datetime
-from enum import StrEnum, Enum
+from enum import Enum, StrEnum
 from typing import Optional
 from zoneinfo import ZoneInfo
 

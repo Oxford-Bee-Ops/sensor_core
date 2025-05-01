@@ -14,10 +14,10 @@ from crontab import CronTab
 
 from sensor_core import SensorCore, api, device_health
 from sensor_core import configuration as root_cfg
+from sensor_core.cloud_connector import AsyncCloudConnector, CloudConnector
 from sensor_core.edge_orchestrator import EdgeOrchestrator
 from sensor_core.utils import utils, utils_clean
 from sensor_core.utils.utils_clean import disable_console_logging
-from sensor_core.cloud_connector import CloudConnector, AsyncCloudConnector
 
 logger = root_cfg.setup_logger("common")
 

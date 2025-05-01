@@ -304,7 +304,8 @@ class DeviceManager:
                     # If the failure count gets to 4 hours then reboot the device
                     # Ping cycle is 2s, so 60*60*2 = 4 hours
                     if self.ping_failure_count_run == (60 * 60 * 2):
-                        logger.error(f"{root_cfg.RAISE_WARN()}Rebooting device due to no internet for >4 hours")
+                        logger.error(f"{root_cfg.RAISE_WARN()}Rebooting device "
+                                     f"due to no internet for >4 hours")
                         utils.run_cmd("sudo reboot")
 
                     elif self.ping_failure_count_run % retry_frequency == 60:
