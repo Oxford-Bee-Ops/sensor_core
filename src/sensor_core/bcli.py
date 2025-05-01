@@ -347,15 +347,15 @@ class InteractiveMenu():
                 if root_cfg.running_on_windows:
                     click.echo("This command only works on Linux. Exiting...")
                     return
-                if root_cfg.SCRIPTS_DIR.exists():
-                    cmd = (
-                        f"source ~/{root_cfg.system_cfg.venv_dir}/bin/activate && "
-                        f"nohup python -m {my_start_script} 2>&1 | /usr/bin/logger -t SENSOR_CORE &"
-                    )
-                    run_cmd_live_echo(cmd)
-                else:
-                    click.echo(f"Error: scripts directory does not exist at {root_cfg.SCRIPTS_DIR}. "
-                            f"Please check your installation.")
+                # Check whether the script is already running
+                if utils.is_already_running(my_start_script):
+                    click.echo(f"{my_start_script} is already running.")
+                    return
+                cmd = (
+                    f"source ~/{root_cfg.system_cfg.venv_dir}/bin/activate && "
+                    f"nohup python -m {my_start_script} 2>&1 | /usr/bin/logger -t SENSOR_CORE &"
+                )
+                run_cmd_live_echo(cmd)
 
         click.echo("SensorCore started.")
         return
@@ -369,7 +369,7 @@ class InteractiveMenu():
 
         if pkill:
             # pkill -f "python -m bee_ops.run_my_sensor"
-            run_cmd("sudo pkill -f 'python -m bee_ops.run_my_sensor'")
+            run_cmd(f"sudo pkill -f 'python -m {root_cfg.system_cfg.my_start_script}'")
         return
 
 
