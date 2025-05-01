@@ -5,4 +5,4 @@ from sensor_core import device_manager
 class Test_device_manager:
     @pytest.mark.quick
     def test_device_manager(self) -> None:
-        dm = device_manager.DeviceManager()
+        device_manager.DeviceManager()
