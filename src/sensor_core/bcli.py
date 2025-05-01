@@ -348,7 +348,11 @@ class InteractiveMenu():
                     click.echo("This command only works on Linux. Exiting...")
                     return
                 if root_cfg.SCRIPTS_DIR.exists():
-                    run_cmd_live_echo(f"sudo -u $USER {root_cfg.SCRIPTS_DIR}/run_sensor_core.sh")
+                    cmd = (
+                        f"source ~/{root_cfg.system_cfg.venv_dir}/bin/activate && "
+                        f"nohup python -m {my_start_script} 2>&1 | /usr/bin/logger -t SENSOR_CORE &"
+                    )
+                    run_cmd_live_echo(cmd)
                 else:
                     click.echo(f"Error: scripts directory does not exist at {root_cfg.SCRIPTS_DIR}. "
                             f"Please check your installation.")

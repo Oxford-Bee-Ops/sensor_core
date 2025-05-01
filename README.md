@@ -68,18 +68,18 @@ The following steps enable you to run the default example sensor on your RPi.  D
     - For security reasons, do **not** check keys.env into Git.
 - Log in to your RPi:
     - create a **.sensor_core** folder in your user home directory 
-        - `mkdir $HOME/.sensor_core`
+        - `mkdir ~/.sensor_core`
     - copy your **keys.env** and **system.cfg** to the .sensor_core folder
-    - copy the **rpi_installer.sh** and **run_sensor_core.sh** files from `/src/sensor_core/scripts` to the .sensor_core folder
+    - copy the **rpi_installer.sh** files from `/src/sensor_core/scripts` to the .sensor_core folder
     - run the rpi_installer.sh script:
-        - `cd $HOME/.sensor_core`
+        - `cd ~/.sensor_core`
         - `dos2unix *.sh`
         - `chmod +x *.sh`
         - `./rpi_installer.sh`
         - this will take a few minutes as it installs mini-conda, creates a virtual environment, installs SensorCore and its dependencies, and sets up the RPi ready for use as a sensor.
     - once SensorCore is installed, you can test it using either:
-        - A shell script:
-            `./run_sensor_core.sh`
+        - CLI at a shell prompt:
+            - `bcli`
         - In Python:
             - `python`
             - `from sensor_core import SensorCore`
