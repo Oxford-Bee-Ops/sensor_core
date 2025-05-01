@@ -240,7 +240,7 @@ class DeviceManager:
     # Create a function for logging useful info
     def log_wifi_info(self) -> None:
         try:
-            logger.info(utils.run_cmd("sudo iwgetid -r", ignore_errors=True))
+            logger.info(utils.run_cmd("sudo nmcli -g SSID device wifi", ignore_errors=True))
             logger.info(utils.run_cmd("sudo ifconfig " + self.client_wlan, ignore_errors=True))
             logger.info(utils.run_cmd(
                     "sudo nmcli device wifi list ifname " + self.client_wlan,
@@ -278,7 +278,7 @@ class DeviceManager:
             self.set_ping_status(False)
 
             # Only check Wifi status if ping fails
-            ESSID = utils.run_cmd("sudo iwgetid -r", ignore_errors=True)
+            ESSID = utils.run_cmd("sudo nmcli -g SSID device wifi", ignore_errors=True)
             if len(ESSID) > 3:
                 self.set_wifi_status(True)
                 logger.info("Wifi is up: " + ESSID)
