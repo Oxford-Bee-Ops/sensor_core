@@ -498,6 +498,8 @@ class InteractiveMenu():
             click.echo("No camera found.\n")
         else:
             click.echo(camera_info + "\n")
+        click.echo("I2C devices discovered:")
+        click.echo(run_cmd("i2cdetect -y 1") + "\n")
 
 
     def test_audio(self) -> None:
