@@ -1,4 +1,5 @@
 import shutil
+import threading  # Add this import for thread safety
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -54,6 +55,8 @@ class DPnode():
         # Create the Journals that we will use to store this DPtree's output.
         self.journal_pool: JournalPool = JournalPool.get(mode=root_cfg.get_mode())
 
+        # Lock to ensure thread safety when accessing the stats dictionary.
+        self._stats_lock = threading.Lock()  
 
     def is_leaf(self, stream_index: int) -> bool:
         """Check if this node is a leaf node (i.e., it has no children).
@@ -157,7 +160,8 @@ class DPnode():
         self.journal_pool.add_rows(stream, [log_data], api.utc_now())
 
         # Track the number of measurements recorded
-        self._dpnode_score_stats.setdefault(stream.type_id, DPnodeStat()).record(1)
+        with self._stats_lock:
+            self._dpnode_score_stats.setdefault(stream.type_id, DPnodeStat()).record(1)
 
         # We also spam the data to the logger for easy debugging and display in the bcli
         if stream.type_id not in api.SYSTEM_DS_TYPES:
@@ -183,7 +187,8 @@ class DPnode():
 
         # Track the number of measurements recorded
         # These data points don't have a duration - that only applies to recordings.
-        self._dpnode_score_stats.setdefault(stream.type_id, DPnodeStat()).record(len(sensor_data))
+        with self._stats_lock:
+            self._dpnode_score_stats.setdefault(stream.type_id, DPnodeStat()).record(len(sensor_data))
         logger.debug(f"Saved {len(sensor_data)} rows to {self.get_data_id(stream_index)}")
 
 
@@ -309,10 +314,21 @@ class DPnode():
         if DPnode._selftracker is None:
             logger.warning(f"{root_cfg.RAISE_WARN}SelfTracker not set; cannot log sample data")
             return
-        
-        stat: DPnodeStat
-        for type_id, stat in self._dpnode_score_stats.items():
-            # Log SCORE data
+
+        # Lock the dictionary to prevent concurrent access
+        with self._stats_lock:
+            # Grab the data and release the lock.
+            # Don't call selftracker.log inside the lock, as it may take a while to complete.
+            score_stats: list[tuple[str, DPnodeStat]] = list(self._dpnode_score_stats.items())
+            for type_id in self._dpnode_score_stats.keys():
+                self._dpnode_score_stats[type_id] = DPnodeStat()
+            scorp_stats: list[tuple[str, DPnodeStat]] = list(self._dpnode_score_stats.items())
+            for type_id in self._dpnode_scorp_stats.keys():
+                self._dpnode_scorp_stats[type_id] = DPnodeStat()
+
+
+        # Log SCORE data
+        for type_id, stat in score_stats:
             DPnode._selftracker.log(
                 stream_index=api.SCORE_STREAM_INDEX,
                 sensor_data={
@@ -322,11 +338,9 @@ class DPnode():
                     "count": str(stat.count),
                 }
             )
-            # Reset the datastream stats for the next period
-            self._dpnode_score_stats[type_id] = DPnodeStat()
 
-        for type_id, stat in self._dpnode_scorp_stats.items():
-            # Log SCORP data
+        # Log SCORP data
+        for type_id, stat in scorp_stats:
             DPnode._selftracker.log(
                 stream_index=api.SCORP_STREAM_INDEX,
                 sensor_data={
@@ -339,8 +353,6 @@ class DPnode():
                     "duration": str(stat.sum),
                 }
             )
-            # Reset the datastream stats for the next period
-            self._dpnode_scorp_stats[type_id] = DPnodeStat()
         logger.debug("Logged sample data for SCORE & SCORP")
 
     
@@ -371,7 +383,8 @@ class DPnode():
     def _scorp_stat(self, stream_index: int, duration: float) -> None:
         """Record the duration of a DataProcessor cycle in the SCORP stream."""
         stream = self.get_stream(stream_index)
-        self._dpnode_scorp_stats.setdefault(stream.type_id, DPnodeStat()).record(duration)
+        with self._stats_lock:
+            self._dpnode_scorp_stats.setdefault(stream.type_id, DPnodeStat()).record(duration)
         logger.debug(f"Recorded SCORP stat for {stream.type_id} duration {duration}")
 
     def _save_recording(
@@ -491,12 +504,13 @@ class DPnode():
                                         storage_tier=stream.storage_tier)
 
         # Track the number of measurements recorded
-        if end_time is None:
-            self._dpnode_score_stats.setdefault(stream.type_id, DPnodeStat()).record(1)
-        else:
-            # Track duration if this file represents a period
-            self._dpnode_score_stats.setdefault(stream.type_id, DPnodeStat()).record(
-                (end_time - start_time).total_seconds())
+        with self._stats_lock:
+            if end_time is None:
+                self._dpnode_score_stats.setdefault(stream.type_id, DPnodeStat()).record(1)
+            else:
+                # Track duration if this file represents a period
+                self._dpnode_score_stats.setdefault(stream.type_id, DPnodeStat()).record(
+                    (end_time - start_time).total_seconds())
 
         logger.debug(f"Saved recording {src_file.name} as {new_fname.name}")
 
