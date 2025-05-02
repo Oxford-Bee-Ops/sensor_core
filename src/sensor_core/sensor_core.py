@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional
 
 from crontab import CronTab
 
@@ -29,8 +30,18 @@ class SensorCore:
     KEYS_FILE = root_cfg.KEYS_FILE
 
 
-    def test_configuration(self, fleet_config: list[DeviceCfg]) -> tuple[bool, list[str]]:
+    def test_configuration(self, 
+                           fleet_config: list[DeviceCfg], 
+                           device_id: Optional[str] = None) -> tuple[bool, list[str]]:
         """ Validates that the configuration in fleet_config_py is valid.
+
+        Parameters:
+        - fleet_config: The configuration to be validated.
+        - device_id: The device config to validate. If None, all config is validated.
+
+        Returns:
+        - A tuple containing a boolean indicating if the configuration is valid and a list of error messages.
+        - If the configuration is valid, the list of error messages will be empty.
         """
         is_valid = False
         errors: list[str] = []
@@ -40,6 +51,8 @@ class SensorCore:
         
         try:
             for device in fleet_config:
+                if device_id is not None and device.device_id != device_id:
+                    continue
                 # Check the device configuration is valid
                 dp_trees = EdgeOrchestrator._safe_call_create_method(device.dp_trees_create_method)
                 is_valid, errors = config_validator.validate_trees(dp_trees)
@@ -75,7 +88,7 @@ class SensorCore:
 
         # Find the config for this device
         logger.info(f"TEST_CREATE of fleet config with {len(fleet_config)} devices.")
-        is_valid, errors = self.test_configuration(fleet_config)
+        is_valid, errors = self.test_configuration(fleet_config, root_cfg.my_device.device_id)
         if not is_valid:
             raise ValueError(f"Configuration is not valid: {errors}")
         logger.info("Completed TEST_CREATE of fleet config.")
