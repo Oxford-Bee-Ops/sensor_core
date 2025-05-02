@@ -161,7 +161,8 @@ class DPnode():
 
         # We also spam the data to the logger for easy debugging and display in the bcli
         if stream.type_id not in api.SYSTEM_DS_TYPES:
-            logger.info(f"Save log: {log_data!s}")
+            # We use the TELEM_TAG so that the BCLI can identify these as sensor logs for display.
+            logger.info(f"{api.TELEM_TAG}Save log: {log_data!s}")
         else:
             logger.debug(f"Save log: {log_data!s}")
 
@@ -169,8 +170,8 @@ class DPnode():
     def save_data(self, stream_index: int, sensor_data: pd.DataFrame) -> None:
         """Called by Sensors to save 1 or more 'rows' of Sensor-generated data.
 
-        save_data() is used to save Pandas dataframes to the datastore defined in the DatastreamType.
-        The input_format field of the DatastreamType object must be set to df or csv for this to be used.
+        save_data() is used to save Pandas dataframes to the Stream.
+        The 'format' field of the Stream object must be set to df or csv for this to be used.
         """
         if sensor_data.empty:
             logger.debug(f"Dataframe empty for {self.get_data_id(stream_index)}")
@@ -183,6 +184,7 @@ class DPnode():
         # Track the number of measurements recorded
         # These data points don't have a duration - that only applies to recordings.
         self._dpnode_score_stats.setdefault(stream.type_id, DPnodeStat()).record(len(sensor_data))
+        logger.debug(f"Saved {len(sensor_data)} rows to {self.get_data_id(stream_index)}")
 
 
     def save_recording(
@@ -231,6 +233,7 @@ class DPnode():
             suffix=self.get_stream(stream_index).format,
             end_time=end_time,
         )
+        # Logged in _save_recording()
 
         return new_fname
 
@@ -292,6 +295,7 @@ class DPnode():
             offset_index=offset_index,
             secondary_offset_index=secondary_offset_index,
         )
+        # Logged in _save_recording()
 
         return new_fname
 
@@ -337,6 +341,7 @@ class DPnode():
             )
             # Reset the datastream stats for the next period
             self._dpnode_scorp_stats[type_id] = DPnodeStat()
+        logger.debug("Logged sample data for SCORE & SCORP")
 
     
     def save_sample(self, sample_probability: str | None) -> bool:
@@ -469,17 +474,21 @@ class DPnode():
             sample_fname = file_naming.increment_filename(root_cfg.EDGE_UPLOAD_DIR / new_fname.name)
             shutil.copy(new_fname, sample_fname)
             self.cc.upload_to_container(stream.cloud_container,
-                                                [sample_fname], 
-                                                delete_src=True)
+                                        [sample_fname], 
+                                        delete_src=True,
+                                        storage_tier=stream.storage_tier)
             logger.info(f"Raw sample saved to {stream.cloud_container}; "
                         f"sample_prob={stream.sample_probability}")
 
 
         # If the dst_dir is EDGE_UPLOAD_DIR, we can use direct upload to the cloud
         if dst_dir == root_cfg.EDGE_UPLOAD_DIR:
-            cloud_container = self.get_stream(stream_index).cloud_container
-            assert cloud_container is not None
-            self.cc.upload_to_container(cloud_container, [new_fname], delete_src=True)
+            stream = self.get_stream(stream_index)
+            assert stream.cloud_container is not None and stream.storage_tier is not None
+            self.cc.upload_to_container(stream.cloud_container, 
+                                        [new_fname], 
+                                        delete_src=True,
+                                        storage_tier=stream.storage_tier)
 
         # Track the number of measurements recorded
         if end_time is None:

@@ -104,7 +104,10 @@ class DPworker(Thread):
         Path(fair_fname).parent.mkdir(parents=True, exist_ok=True)
         with open(fair_fname, "w") as f:
             yaml.dump(wrap, f, Dumper=CustomDumper)
-        self.cc.upload_to_container(root_cfg.my_device.cc_for_fair, [fair_fname], delete_src=True)
+        self.cc.upload_to_container(root_cfg.my_device.cc_for_fair, 
+                                    [fair_fname], 
+                                    delete_src=True,
+                                    storage_tier=api.StorageTier.COOL)
 
     def log_sample_data(self, sample_period_start_time: datetime) -> None:
         """Provide the count & duration of data samples recorded (environmental, media, etc)

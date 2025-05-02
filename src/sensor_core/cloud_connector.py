@@ -2,13 +2,12 @@ import shutil
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from enum import Enum
 from pathlib import Path
 from queue import Queue
 from time import sleep
 from typing import Optional
 
-from azure.storage.blob import BlobClient, BlobLeaseClient, ContainerClient, StandardBlobTier
+from azure.storage.blob import BlobClient, BlobLeaseClient, ContainerClient
 
 from sensor_core import api, file_naming
 from sensor_core import configuration as root_cfg
@@ -16,24 +15,6 @@ from sensor_core.configuration import CloudType
 
 logger = root_cfg.setup_logger(name="sensor_core")
 
-
-#############################################################
-# Blob storage tiers
-#
-# See Azure documentation for details:
-# https://learn.microsoft.com/en-us/azure/storage/blobs/storage-blob-storage-tiers
-#############################################################
-class BlobTier(Enum):
-    """Enum for the supported blob tiers"""
-    HOT = "Hot"
-    COOL = "Cool"
-    COLD = "Cold"
-
-tier_map = {
-    BlobTier.HOT: StandardBlobTier.HOT,
-    BlobTier.COOL: StandardBlobTier.COOL,
-    BlobTier.COLD: StandardBlobTier.ARCHIVE,
-}
 
 ##########################################################################################################
 
@@ -84,7 +65,7 @@ class CloudConnector:
         dst_container: str,
         src_files: list[Path],
         delete_src: bool,
-        blob_tier: Enum = BlobTier.HOT,
+        storage_tier: api.StorageTier = api.StorageTier.HOT,
     ) -> None:
         """Upload a list of local files to an Azure container
         These will be regular block_blobs and not append_blobs; see append_to_cloud for append_blobs.
@@ -112,7 +93,7 @@ class CloudConnector:
                         data,
                         overwrite=True,
                         connection_timeout=600,
-                        standard_blob_tier=tier_map[BlobTier(blob_tier)],
+                        standard_blob_tier=storage_tier,
                     )
                 if delete_src:
                     logger.debug(f"Deleting uploaded file: {file}")
@@ -200,7 +181,7 @@ class CloudConnector:
         dst_container: str,
         blob_names: list[str],
         delete_src: bool = False,
-        blob_tier: Enum =BlobTier.COOL,
+        storage_tier: api.StorageTier = api.StorageTier.COOL,
     ) -> None:
         """Move blobs between containers
 
@@ -218,7 +199,7 @@ class CloudConnector:
             src_blob = from_container.get_blob_client(blob_name)
             dst_blob = to_container.get_blob_client(blob_name)
             dst_blob.start_copy_from_url(src_blob.url, 
-                                         standard_blob_tier=tier_map[BlobTier(blob_tier)])
+                                         standard_blob_tier=storage_tier)
             if delete_src:
                 src_blob.delete_blob()
 
@@ -447,7 +428,7 @@ class LocalCloudConnector(CloudConnector):
         dst_container: str,
         src_files: list[Path],
         delete_src: bool,
-        blob_tier: Enum = BlobTier.HOT,
+        storage_tier: api.StorageTier = api.StorageTier.HOT,
     ) -> None:
         """Upload a list of local files to an Azure container
         These will be regular block_blobs and not append_blobs; see append_to_cloud for append_blobs.
@@ -532,7 +513,7 @@ class LocalCloudConnector(CloudConnector):
         dst_container: str,
         blob_names: list[str],
         delete_src: bool = False,
-        standard_blob_tier: Enum =BlobTier.COOL,
+        storage_tier: api.StorageTier = api.StorageTier.COOL,
     ) -> None:
         """Move blobs between containers
 
@@ -697,7 +678,7 @@ class AsyncUpload():
     dst_container: str
     src_files: list[Path]
     delete_src: bool
-    blob_tier: Enum = BlobTier.HOT
+    storage_tier: api.StorageTier = api.StorageTier.HOT
     iteration: int = 0
 
 @dataclass
@@ -756,7 +737,7 @@ class AsyncCloudConnector(CloudConnector):
         dst_container: str,
         src_files: list[Path],
         delete_src: bool,
-        blob_tier: Enum = BlobTier.HOT,
+        storage_tier: api.StorageTier = api.StorageTier.HOT,
     ) -> None:
         """
         Async version of upload_to_container using a queue and thread pool for parallel uploads.
@@ -780,7 +761,7 @@ class AsyncCloudConnector(CloudConnector):
                 src_files[i] = tmp_file
 
         if src_files:
-            self._upload_queue.put(AsyncUpload(dst_container, src_files, delete_src, blob_tier))
+            self._upload_queue.put(AsyncUpload(dst_container, src_files, delete_src, storage_tier))
 
     def append_to_cloud(self, 
                         dst_container: str, 
@@ -835,7 +816,7 @@ class AsyncCloudConnector(CloudConnector):
             super().upload_to_container(action.dst_container, 
                                         action.src_files, 
                                         action.delete_src, 
-                                        action.blob_tier)
+                                        action.storage_tier)
             if action.delete_src:
                 # We created a temporary directory for the files in upload_to_cloud - delete it now
                 tmp_dir = action.src_files[0].parent

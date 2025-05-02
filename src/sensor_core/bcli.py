@@ -438,6 +438,38 @@ class InteractiveMenu():
         click.echo("Rebooting the device...")
         run_cmd_live_echo("sudo reboot")
 
+    def update_storage_key(self) -> None:
+        """Update the storage key in ~/.sensor_core/keys.env."""
+        # Ask the user for the new storage key
+        click.echo("This option enables you to update the SAS key "
+                   "for access to your Azure cloud storage. "
+                   "This is normal practice when you are going to use this device for a new experiment. "
+                   "You'll find the SAS key in portal.azure.com > Storage accounts > "
+                   "Security + networking > Shared Access Signature (SAS)."
+                   "\nIt should look something like:\n"
+                   "'DefaultEndpointsProtocol=https;AccountName=mystorageaccount;"
+                   "AccountKey=UnZzSivXKjXl0NffCODRGqNDFGCwSBHDG1UcaIeGOdzo2zfFs45"
+                   "GXTB9JjFfD/ZDuaLH8m3te6+ASt2HoD+w==;EndpointSuffix=core.windows.net;'\n"
+        )
+        click.echo("Enter the new storage key:")
+        # Strip any leading or trailing whitespace or " or ' characters so we can handle
+        # users either wrapping with quotes or not
+        new_key = input()
+        new_key = new_key.strip().strip('"').strip("'")
+
+        # Check the key is not empty and contains "core.windows.net"
+        if not new_key or "core.windows.net" not in new_key:
+            click.echo("That doesn't look like a valid key. Please try again.")
+            return
+        
+        click.echo(f"Saving old file as {root_cfg.KEYS_FILE.with_suffix('.bak')}")
+        root_cfg.KEYS_FILE.rename(root_cfg.KEYS_FILE.with_suffix(".bak"))
+
+        click.echo(f"Updating the storage key in {root_cfg.KEYS_FILE}")
+        with open(root_cfg.KEYS_FILE, "w") as f:
+            f.write(f"cloud_storage_key=\"{new_key}\"\n")
+        
+
 
     ####################################################################################################
     # Sensor menu functions
@@ -668,8 +700,9 @@ class InteractiveMenu():
             click.echo("4. Hard stop SensorCore (pkill)")
             click.echo("5. Set Hostname")
             click.echo("6. Enable rpi-connect")
-            click.echo("7. Restart the Device") 
-            click.echo("8. Back to Main Menu")  
+            click.echo("7. Restart the Device")
+            click.echo("8. Update storage key")
+            click.echo("9. Back to Main Menu")  
             try:
                 choice = click.prompt("\nEnter your choice", type=int)
                 click.echo("\n")
@@ -692,6 +725,8 @@ class InteractiveMenu():
             elif choice == 7: 
                 self.reboot_device()
             elif choice == 8: 
+                self.update_storage_key()
+            elif choice == 9:
                 break
             else:
                 click.echo("Invalid choice. Please try again.")

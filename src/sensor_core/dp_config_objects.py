@@ -32,6 +32,11 @@ class Stream:
     # The default implementation interprets this string as a float sampling probability (0.0-1.0)
     sample_probability: Optional[str] = None
 
+    # Storage tier for the data in the cloud storage system.
+    # If you're using Azure for storage, see Azure documentation for details:
+    # https://learn.microsoft.com/en-us/azure/storage/blobs/storage-blob-storage-tiers
+    storage_tier: api.StorageTier = api.StorageTier.COOL
+
 
     def get_data_id(self, sensor_index: int) -> str:
         """

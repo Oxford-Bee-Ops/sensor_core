@@ -8,6 +8,8 @@ from enum import Enum, StrEnum
 from typing import Optional
 from zoneinfo import ZoneInfo
 
+from azure.storage.blob import StandardBlobTier
+
 
 ############################################################
 # Data record ID fields
@@ -52,6 +54,19 @@ class INSTALL_TYPE(Enum):
     RPI_SENSOR = "rpi_sensor"  # Sensor installation
     ETL = "etl"  # ETL installation
     NOT_SET = "NOT_SET"  # Invalid but used to declare the SensorCfg object
+
+#############################################################
+# Blob storage tiers
+#
+# See Azure documentation for details:
+# https://learn.microsoft.com/en-us/azure/storage/blobs/storage-blob-storage-tiers
+#############################################################
+class StorageTier(Enum):
+    """Enum for the supported blob tiers"""
+    HOT = StandardBlobTier.HOT
+    COOL = StandardBlobTier.COOL
+    COLD = StandardBlobTier.ARCHIVE
+
 
 ############################################################
 # Sensor interface type
