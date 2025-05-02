@@ -170,8 +170,7 @@ class DeviceManager:
         # Inject the wifi clients via nmcli
         # This is done so that the device has out-of-the-box awareness of the wifi clients
         # We use the nmcli command to get the list of wifi clients
-        # We copy the config because we may modify it and want to be able to revert
-        self.wifi_clients = root_cfg.my_device.wifi_clients.copy()
+        self.wifi_clients = root_cfg.my_device.wifi_clients
         if self.wifi_clients is None:
             logger.info("No wifi clients in the device configuration")
             return
@@ -200,7 +199,7 @@ class DeviceManager:
                     f"ifname {self.client_wlan} type wifi wifi.mode infrastructure wifi.ssid {client.ssid} "
                     f"wifi-sec.key-mgmt wpa-psk wifi-sec.psk {client.pw} "
                     f"connection.autoconnect-priority {client.priority} "
-                    f"ipv4.dns '8.8.8.8 8.8.8.4'"
+                    f"ipv4.dns '8.8.8.8 8.8.4.4'"
                 )        
 
     def set_wifi_status(self, wifi_up: bool) -> None:
