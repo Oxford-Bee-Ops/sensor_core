@@ -50,7 +50,7 @@ check_prerequisites() {
     # Check ssh is enabled
     if ! systemctl is-active --quiet ssh; then
         echo "Error: SSH is not enabled. Please enable SSH."
-        exit 1
+        # This is not a fatal error, but we need to warn the user
     fi
     # Check the OS is 64-bit
     if [ "$(getconf LONG_BIT)" == "64" ] || [ "$(uname -m)" == "aarch64" ]; then
@@ -125,7 +125,7 @@ install_ssh_keys() {
             chmod 600 "$HOME/.ssh/$my_git_ssh_private_key_file" || { echo "Failed to set permissions for $my_git_ssh_private_key_file"; exit 1; }
         else
             echo "Error: Private key file $my_git_ssh_private_key_file does not exist in $HOME/.sensor_core"
-            exit 1
+            # This is not a fatal error (it may be intentional if a public repo), but we need to warn the user
         fi
 
         # Set up known_hosts for GitHub if it doesn't already exist
@@ -170,14 +170,14 @@ create_and_activate_venv() {
 # and we want to use the system package manager to install them.
 install_os_packages() {
     echo "Installing OS packages..."
-    sudo apt-get update && sudo apt-get upgrade -y || { echo "Failed to update package list"; exit 1; }
-    sudo apt-get install -y pip git libsystemd-dev python3-scipy python3-pandas python3-opencv || { echo "Failed to install base packages"; exit 1; }
-    sudo apt-get install -y libcamera-dev python3-picamera2 python3-smbus || { echo "Failed to install sensor packages"; exit 1; }
+    sudo apt-get update && sudo apt-get upgrade -y || { echo "Failed to update package list"; }
+    sudo apt-get install -y pip git libsystemd-dev python3-scipy python3-pandas python3-opencv || { echo "Failed to install base packages"; }
+    sudo apt-get install -y libcamera-dev python3-picamera2 python3-smbus || { echo "Failed to install sensor packages"; }
     # If we install the lite version (no desktop), we need to install the full version of rpicam-apps
     # Otherwise we get ERROR: *** Unable to find an appropriate H.264 codec ***
-    sudo apt-get purge -y rpicam-apps-lite || { echo "Failed to remove rpicam-apps-lite"; exit 1; }
-    sudo apt-get install -y rpi-connect-lite || { echo "Failed to install rpi-connect-lite"; exit 1; }
-    sudo apt-get install -y rpicam-apps || { echo "Failed to install rpicam-apps"; exit 1; }
+    sudo apt-get purge -y rpicam-apps-lite || { echo "Failed to remove rpicam-apps-lite"; }
+    sudo apt-get install -y rpi-connect-lite || { echo "Failed to install rpi-connect-lite"; }
+    sudo apt-get install -y rpicam-apps || { echo "Failed to install rpicam-apps"; }
     sudo apt-get autoremove -y || { echo "Failed to remove unnecessary packages"; }
     echo "OS packages installed successfully."
 }
@@ -188,7 +188,12 @@ install_sensor_core() {
     current_version=$(pip show sensor_core | grep Version)
     echo "Installing SensorCore.  Current version: $current_version"
     source "$HOME/$venv_dir/bin/activate" || { echo "Failed to activate virtual environment"; exit 1; }
-    pip install git+https://github.com/oxford-bee-ops/sensor_core.git@main || { echo "Failed to install SensorCore"; exit 1; }
+
+    ###############################################################################################################
+    # We don't return exit code 1 if the install fails, because we want to continue with the rest of the script
+    # and this can happen due to transient network issues causing github.com name resolution to fail.
+    ###############################################################################################################
+    pip install git+https://github.com/oxford-bee-ops/sensor_core.git@main || { echo "Failed to install SensorCore"; }
     updated_version=$(pip show sensor_core | grep Version)
     echo "SensorCore installed successfully.  Now version: $updated_version"
 
@@ -215,7 +220,7 @@ install_user_code() {
     # Verify that the private key file exists
     if [ ! -f "$HOME/.ssh/$my_git_ssh_private_key_file" ]; then
         echo "Error: Private key file ~/.ssh/$my_git_ssh_private_key_file does not exist."
-        exit 1
+        # This is not a fatal error (it may be intentional if a public repo), but we need to warn the user
     fi
 
     # Ensure the private key has correct permissions
@@ -247,7 +252,12 @@ install_user_code() {
     current_version=$(pip show "$project_name" | grep Version)
     echo "Reinstalling user code. Current version: $current_version"
     source "$HOME/$venv_dir/bin/activate" || { echo "Failed to activate virtual environment"; exit 1; }
-    pip install "git+ssh://git@$my_git_repo_url@$my_git_branch" || { echo "Failed to install $my_git_repo_url@$my_git_branch"; exit 1; }    
+
+    ###############################################################################################################
+    # We don't return exit code 1 if the install fails, because we want to continue with the rest of the script
+    # and this can happen due to transient network issues causing github.com name resolution to fail.
+    ###############################################################################################################
+    pip install "git+ssh://git@$my_git_repo_url@$my_git_branch" || { echo "Failed to install $my_git_repo_url@$my_git_branch"; }    
     updated_version=$(pip show "$project_name" | grep Version)
     echo "User's code installed successfully. Now version: $updated_version"
     
@@ -455,7 +465,7 @@ function make_persistent() {
             echo "rpi_installer.sh made executable."
         fi
         
-        rpi_installer_cmd="$HOME/$venv_dir/scripts/rpi_installer.sh 2>&1 | /usr/bin/logger -t SENSOR_CORE"
+        rpi_installer_cmd="/bin/bash $HOME/$venv_dir/scripts/rpi_installer.sh 2>&1 | /usr/bin/logger -t SENSOR_CORE"
         
         # Check if the script is already in crontab
         if ! crontab -l | grep -qs "rpi_installer"; then
