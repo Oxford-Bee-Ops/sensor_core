@@ -25,7 +25,12 @@ def main():
 
         # Load_inventory loads the configuration specified in system_cfg.my_fleet_config
         logger.info("Configuring SensorCore...")
-        sc.configure(root_cfg.load_inventory())
+        inventory = root_cfg.load_inventory()
+        if inventory is None:
+            logger.error("Failed to load inventory. Exiting...")
+            return
+        
+        sc.configure(inventory)
 
         # Start the SensorCore and begin data collection
         logger.info("Starting SensorCore...")

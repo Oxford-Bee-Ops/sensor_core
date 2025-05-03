@@ -108,6 +108,16 @@ class Keys(BaseSettings):
     cloud_storage_key: str = FAILED_TO_LOAD
     model_config = SettingsConfigDict(extra="ignore")
 
+    def get_storage_account(self) -> str:
+        """Return the storage account name from the key"""
+        try:
+            # Extract the storage account name from the key
+            storage_account = self.cloud_storage_key.split("https://")[1].split(".")[0]
+            return storage_account
+        except Exception as e:
+            print(f"Failed to extract storage account from key: {e}")
+            return "unknown"
+
 
 class SystemCfg(BaseSettings):
     """Class to hold the keys for the system"""

@@ -177,6 +177,10 @@ class SensorCore:
         """
         display_message = f"\nConfiguration:\n{root_cfg.my_device.display()}"
 
+        # Display the storage account name
+        if root_cfg.keys:
+            display_message += f"\nStorage account: {root_cfg.keys.get_storage_account()}\n"
+
         return display_message
 
     def update(self) -> None:
