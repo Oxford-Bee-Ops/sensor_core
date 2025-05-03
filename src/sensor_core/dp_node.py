@@ -50,13 +50,14 @@ class DPnode():
 
         # Record the number of datapoints recorded by this Datastream (by type_id).
         self._dpnode_score_stats: dict[str, DPnodeStat] = {}
+        # Record the duration of each DataProcessor cycle (by type_id).
         self._dpnode_scorp_stats: dict[str, DPnodeStat] = {}
+        # Lock to ensure thread safety when accessing the stats dictionary.
+        self._stats_lock = threading.Lock()  
 
         # Create the Journals that we will use to store this DPtree's output.
         self.journal_pool: JournalPool = JournalPool.get(mode=root_cfg.get_mode())
 
-        # Lock to ensure thread safety when accessing the stats dictionary.
-        self._stats_lock = threading.Lock()  
 
     def is_leaf(self, stream_index: int) -> bool:
         """Check if this node is a leaf node (i.e., it has no children).

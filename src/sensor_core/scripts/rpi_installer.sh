@@ -288,7 +288,7 @@ install_ufw() {
     #sudo ufw allow 21
     sudo ufw allow 22
     # Allow DNS on 53
-    #sudo ufw allow 53
+    sudo ufw allow 53
     # Allow DHCP on 67 / 68
     #sudo ufw allow 67/udp
     #sudo ufw allow 68/udp
