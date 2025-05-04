@@ -56,8 +56,7 @@ class SHT31(Sensor):
     def __init__(self, config: SHT31SensorCfg):
         super().__init__(config)
         self.config = config
-        self.port = self.config.sensor_index
-
+        
     def read_data(self):
         cTemp: float
         humidity: float
