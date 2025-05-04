@@ -112,7 +112,10 @@ class Keys(BaseSettings):
         """Return the storage account name from the key"""
         try:
             # Extract the storage account name from the key
-            storage_account = self.cloud_storage_key.split("https://")[1].split(".")[0]
+            if "AccountName=" in self.cloud_storage_key:
+                storage_account = self.cloud_storage_key.split("AccountName=")[1].split(";")[0]
+            else:
+                storage_account = self.cloud_storage_key.split("https://")[1].split(".")[0]
             return storage_account
         except Exception as e:
             print(f"Failed to extract storage account from key: {e}")
