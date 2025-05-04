@@ -93,7 +93,7 @@ class SensorCore:
 
         # Find the config for this device
         logger.info(f"TEST_CREATE of fleet config with {len(fleet_config)} devices.")
-        is_valid, errors = self.test_configuration(fleet_config, root_cfg.my_device.device_id)
+        is_valid, errors = self.test_configuration(fleet_config, root_cfg.my_device_id)
         if not is_valid:
             raise ValueError(f"Configuration is not valid: {errors}")
         logger.info("Completed TEST_CREATE of fleet config.")
