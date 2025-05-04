@@ -43,7 +43,7 @@ class SensorCore:
         - A tuple containing a boolean indicating if the configuration is valid and a list of error messages.
         - If the configuration is valid, the list of error messages will be empty.
         """
-        is_valid = False
+        is_valid = True
         errors: list[str] = []
 
         if not fleet_config:
@@ -52,8 +52,10 @@ class SensorCore:
         try:
             for device in fleet_config:
                 if device_id is not None and device.device_id != device_id:
+                    logger.debug(f"Skipping device {device.device_id} for validation.")
                     continue
                 # Check the device configuration is valid
+                logger.debug(f"Validating device {device.device_id} configuration.")
                 dp_trees = EdgeOrchestrator._safe_call_create_method(device.dp_trees_create_method)
                 is_valid, errors = config_validator.validate_trees(dp_trees)
                 if not is_valid:
