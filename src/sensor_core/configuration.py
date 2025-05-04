@@ -270,17 +270,14 @@ def setup_logger(name: str,
         for handler in logger.handlers:
             if isinstance(handler, logging.FileHandler):
                 file_handler_count += 1
-            elif isinstance(handler, logging.StreamHandler):
-                console_handler = handler
 
         # Create a console handler and set the log level
         # Check if we've already added a console handler
-        if console_handler is None:
+        if len(logger.handlers) == 0:
             console_handler = logging.StreamHandler(sys.stdout)
+            console_handler.setLevel(_LOG_LEVEL)
+            console_handler.setFormatter(formatter)
             logger.addHandler(console_handler)
-
-        console_handler.setLevel(_LOG_LEVEL)
-        console_handler.setFormatter(formatter)
 
         if filename is None:
             if _DEFAULT_LOG is None:
