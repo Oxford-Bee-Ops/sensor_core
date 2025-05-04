@@ -23,7 +23,7 @@ def main():
         logger.info("Creating SensorCore...")
         sc = SensorCore()
 
-        # Load_inventory loads the configuration specified in system_cfg.my_fleet_config
+        # Load_configuration loads the configuration specified in system_cfg.my_fleet_config
         logger.info("Configuring SensorCore...")
         inventory = root_cfg.load_configuration()
         if inventory is None:
