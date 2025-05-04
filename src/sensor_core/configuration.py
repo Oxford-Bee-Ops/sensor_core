@@ -235,7 +235,7 @@ _LOG_LEVEL = logging.INFO
 
 def set_log_level(level: int) -> None:
     global _LOG_LEVEL
-    _LOG_LEVEL = level
+    _LOG_LEVEL = min(level, _LOG_LEVEL)
     module_logger = logging.getLogger("sensor_core")
     module_logger.setLevel(level)
     module_logger.debug("Debug logging enabled for sensor_core")
@@ -263,20 +263,24 @@ def setup_logger(name: str,
             "%(asctime)-15s %(name)-6s %(levelname)-6s [%(thread)d] %(message)s"
         )
 
-        # Create a console handler and set the log level
-        # Check if we've already added a console handler
-        if len(logger.handlers) == 0:
-            console_handler = logging.StreamHandler(sys.stdout)
-            console_handler.setLevel(_LOG_LEVEL)
-            console_handler.setFormatter(formatter)
-            logger.addHandler(console_handler)
-
         # By default, we always want to log to a file
         # Check whether there are any FileHander handlers already
         file_handler_count = 0
+        console_handler = None
         for handler in logger.handlers:
             if isinstance(handler, logging.FileHandler):
                 file_handler_count += 1
+            elif isinstance(handler, logging.StreamHandler):
+                console_handler = handler
+
+        # Create a console handler and set the log level
+        # Check if we've already added a console handler
+        if console_handler is None:
+            console_handler = logging.StreamHandler(sys.stdout)
+            logger.addHandler(console_handler)
+
+        console_handler.setLevel(_LOG_LEVEL)
+        console_handler.setFormatter(formatter)
 
         if filename is None:
             if _DEFAULT_LOG is None:
@@ -285,6 +289,7 @@ def setup_logger(name: str,
                 _DEFAULT_LOG.parent.mkdir(parents=True, exist_ok=True)
             if file_handler_count == 0:
                 handler = logging.FileHandler(_DEFAULT_LOG)
+                handler.setLevel(_LOG_LEVEL)
                 handler.setFormatter(formatter)
                 logger.addHandler(handler)
                 print(f"Logging {name} to default file: {_DEFAULT_LOG} at level {_LOG_LEVEL}")
