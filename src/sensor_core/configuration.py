@@ -395,7 +395,7 @@ INVENTORY: dict[str, DeviceCfg] = {}
 my_device: DeviceCfg = DUMMY_DEVICE
 
 
-def load_inventory() -> Optional[list[DeviceCfg] | None]:
+def load_configuration() -> Optional[list[DeviceCfg] | None]:
     """Load the inventory using the my_fleet_config value defined in SystemCfg class."""
     inventory: list[DeviceCfg] = []
     if (system_cfg and 
