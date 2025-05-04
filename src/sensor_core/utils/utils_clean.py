@@ -120,12 +120,14 @@ def disable_console_logging(logger_name: str) -> Generator[Any, Any, Any]:
     """
     logger = logging.getLogger(logger_name)
     original_handlers = logger.handlers[:]  # Save the original handlers
+    original_propagate = logger.propagate  # Save the original propagate setting
 
     # Remove console handlers
-    if logger.level != logging.DEBUG:
-        logger.handlers = [h for h in logger.handlers if not isinstance(h, logging.StreamHandler)]
+    logger.handlers = [h for h in logger.handlers if not isinstance(h, logging.StreamHandler)]
+    logger.propagate = False  # Prevent log messages from propagating to the root logger
 
     try:
         yield  # Allow the code block to execute
     finally:
         logger.handlers = original_handlers  # Restore original handlers
+        logger.propagate = original_propagate
