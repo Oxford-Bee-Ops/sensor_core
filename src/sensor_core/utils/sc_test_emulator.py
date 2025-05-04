@@ -49,6 +49,7 @@ class ScEmulator():
         self.previous_recordings_index: int = 0
         self.recordings_saved: dict[str, int] = {}
         self.recording_cap: int = -1
+        self.recording_cap_dict: dict[str, int] = {}
         root_cfg.TEST_MODE = root_cfg.MODE.TEST
         root_cfg.CLOUD_TYPE = root_cfg.CloudType.LOCAL_EMULATOR
         cc = CloudConnector.get_instance(root_cfg.CLOUD_TYPE)
@@ -86,9 +87,13 @@ class ScEmulator():
         Call this function to specify which recording should be returned in which conditions."""
         self.recordings = recordings
 
-    def set_recording_cap(self, cap: int) -> None:
-        """Set the maximum number of recordings to be saved."""
-        self.recording_cap = cap
+    def set_recording_cap(self, cap: int, type_id: Optional[str] = None) -> None:
+        """Set the maximum number of recordings to be saved.  
+        If a type_id is provided, set the cap for that type only."""
+        if type_id is not None:
+            self.recording_cap_dict[type_id] = cap
+        else:
+            self.recording_cap = cap
 
     def assert_records(self, container: str, expected: dict[str, int]) -> None:
         """Assert that the expected number of files exist.
@@ -144,12 +149,26 @@ class ScEmulator():
         return None
 
     def ok_to_save_recording(self, ds_id) -> bool:
-        if (self.recording_cap == -1):
+        """Check if we are allowed to save a recording.
+        We have to check both the global recording cap and the per-type recording cap."""
+        previous_recordings = self.recordings_saved.get(ds_id, 0)
+        type_cap = self.recording_cap_dict.get(ds_id, self.recording_cap)
+        
+        if (type_cap == -1) or (previous_recordings < self.recording_cap):
+            pass_check = True
+        else:            
+            pass_check = False
+
+        if pass_check:
+            self.recordings_saved[ds_id] = previous_recordings + 1
             return True
         else:
-            previous_recordings = self.recordings_saved.get(ds_id, 0)
-            self.recordings_saved[ds_id] = previous_recordings + 1
-            return previous_recordings < self.recording_cap
+            logger.debug(f"Recording cap exceeded for {ds_id}. "
+                         f"Global cap: {self.recording_cap}, "
+                         f"Type cap: {self.recording_cap_dict.get(ds_id, -1)}, "
+                         f"Previous recordings: {previous_recordings}")
+            return False
+
 
     #################################################################################################
     # Sensor command emulation
