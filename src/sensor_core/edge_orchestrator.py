@@ -8,6 +8,7 @@ from typing import Callable, Optional
 
 from sensor_core import api
 from sensor_core import configuration as root_cfg
+from sensor_core.cloud_connector import AsyncCloudConnector, CloudConnector
 from sensor_core.device_health import DeviceHealth
 from sensor_core.dp_node import DPnode
 from sensor_core.dp_tree import DPtree
@@ -41,7 +42,10 @@ class EdgeOrchestrator:
     def __init__(self) -> None:
         logger.info(f"Initialising EdgeOrchestrator {self!r}")
 
+        self._orchestrator_is_running = False
+        self._orchestrator_is_stopping = False
         self.reset_orchestrator_state()
+
         logger.info(f"Initialised EdgeOrchestrator {self!r}")
 
     @staticmethod
@@ -56,10 +60,11 @@ class EdgeOrchestrator:
     def reset_orchestrator_state(self) -> None:
         logger.debug("Reset orchestrator state")
         with EdgeOrchestrator.orchestrator_lock:
+
             self._sensorThreads: list[Sensor] = []
             self._dpworkers: list[DPworker] = []
             self.dp_trees: list[DPtree] = []
-
+            
             # We create a series of special Datastreams for recording:
             # HEART - device health
             # WARNING - captures error & warning logs
@@ -79,7 +84,6 @@ class EdgeOrchestrator:
             # log their performance data
             DPnode._selftracker = self.selftracker
 
-            self._orchestrator_is_running = False
 
 
     def status(self) -> dict[str, str]:
@@ -257,7 +261,11 @@ class EdgeOrchestrator:
             jp.flush_journals()
             jp.stop()
             # jp.stop will also stop the cloud connector threadpool
-            
+            # Clean up and exit
+            cc = CloudConnector.get_instance(type=root_cfg.CloudType.AZURE)
+            assert isinstance(cc, AsyncCloudConnector)
+            cc.shutdown()
+
             # Clear our thread lists
             self.reset_orchestrator_state()
             self._orchestrator_is_running = False
