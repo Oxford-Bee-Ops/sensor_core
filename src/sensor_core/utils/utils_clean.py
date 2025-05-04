@@ -122,7 +122,8 @@ def disable_console_logging(logger_name: str) -> Generator[Any, Any, Any]:
     original_handlers = logger.handlers[:]  # Save the original handlers
 
     # Remove console handlers
-    logger.handlers = [h for h in logger.handlers if not isinstance(h, logging.StreamHandler)]
+    if logger.level != logging.DEBUG:
+        logger.handlers = [h for h in logger.handlers if not isinstance(h, logging.StreamHandler)]
 
     try:
         yield  # Allow the code block to execute
