@@ -56,7 +56,7 @@ class DPnode():
         self._stats_lock = threading.Lock()  
 
         # Create the Journals that we will use to store this DPtree's output.
-        self.journal_pool: Optional[JournalPool]
+        self.journal_pool: Optional[JournalPool] = None
 
 
     def is_leaf(self, stream_index: int) -> bool:
