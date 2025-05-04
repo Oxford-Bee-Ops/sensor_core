@@ -404,6 +404,8 @@ def load_inventory() -> Optional[list[DeviceCfg] | None]:
             inventory = getattr(module, obj_name)
         except Exception as e:
             logger.error(f"{RAISE_WARN()}Failed to load config from {system_cfg.my_fleet_config}: {e}")
+    else:
+        logger.error(f"{RAISE_WARN()}my_fleet_config not set in {SYSTEM_CFG_FILE}")
 
     return inventory
 

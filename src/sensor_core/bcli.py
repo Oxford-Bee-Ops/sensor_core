@@ -134,8 +134,9 @@ class InteractiveMenu():
     def __init__(self):
         self.sc = SensorCore()
         inventory = root_cfg.load_inventory()
+        logger.debug(f"Inventory: {inventory}")
         if inventory:
-            self.sc.configure(fleet_config=inventory)
+            self.sc.configure(inventory)
 
     ####################################################################################################
     # Main menu functions
