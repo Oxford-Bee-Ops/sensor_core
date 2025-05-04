@@ -19,7 +19,7 @@ from sensor_core.edge_orchestrator import EdgeOrchestrator
 from sensor_core.utils import utils, utils_clean
 from sensor_core.utils.utils_clean import disable_console_logging
 
-logger = root_cfg.setup_logger("common", level="DEBUG")
+logger = root_cfg.setup_logger("sensor_core", level="DEBUG")
 
 dash_line = "########################################################"
 header = dash_line + "\n\n"
