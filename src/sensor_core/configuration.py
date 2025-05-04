@@ -381,11 +381,11 @@ system_cfg = _load_system_cfg()
 
 #############################################################################################
 # Store the provided inventory
-##############################################################################################
+#############################################################################################
 DUMMY_DEVICE = DeviceCfg(
     name="DUMMY",
-    device_id=DUMMY_MAC,
-    notes="DUMMY MAC address for testing",
+    device_id=my_device_id,
+    notes="DUMMY device config for case where none supplied in system.cfg",
     dp_trees_create_method=None,
 )
 INVENTORY: dict[str, DeviceCfg] = {}
