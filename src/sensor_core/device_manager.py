@@ -42,8 +42,6 @@ class DeviceManager:
         ###############################
         # Wifi management
         ###############################
-        if root_cfg.my_device.wifi_clients:
-            self.inject_wifi_clients()
         self.ping_failure_count_all = 0
         self.ping_success_count_all = 0
         self.ping_failure_count_run = 0
@@ -53,6 +51,8 @@ class DeviceManager:
         self.wifi_log_frequency = 60 * 10
         self.client_wlan = "wlan0"
         self.use_cloned_mac = False
+        if root_cfg.my_device.wifi_clients:
+            self.inject_wifi_clients()
 
         # Start wifi management thread
         if root_cfg.running_on_rpi and root_cfg.my_device.attempt_wifi_recovery:
