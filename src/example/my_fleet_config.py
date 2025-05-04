@@ -68,9 +68,9 @@ def create_example_device() -> list[DPtree]:
 ###############################################################################
 INVENTORY: list[DeviceCfg] = [
     DeviceCfg(  # This is the DUMMY MAC address for windows
-        name="Alex",
+        name="DUMMY",
         device_id="d01111111111",
-        notes="Using Alex as an all-defaults camera in Experiment A",
+        notes="Using Dummy as an all-defaults camera in Experiment A",
         dp_trees_create_method=create_example_device,
         wifi_clients=WIFI_CLIENTS,
     ),
