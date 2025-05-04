@@ -20,7 +20,7 @@ from sensor_core.edge_orchestrator import EdgeOrchestrator
 from sensor_core.utils import utils, utils_clean
 from sensor_core.utils.utils_clean import disable_console_logging
 
-logger = root_cfg.setup_logger("sensor_core", level=logging.DEBUG)
+logger = root_cfg.setup_logger("sensor_core")
 
 dash_line = "########################################################"
 header = dash_line + "\n\n"
@@ -134,7 +134,7 @@ class InteractiveMenu():
     """Interactive menu for navigating commands."""
     def __init__(self):
         self.sc = SensorCore()
-        inventory = root_cfg.load_inventory()
+        inventory = root_cfg.load_configuration()
         logger.debug(f"Inventory: {inventory}")
         if inventory:
             self.sc.configure(inventory)
@@ -795,9 +795,9 @@ class InteractiveMenu():
 #################################################################################
 def main():
     # Disable console logging during CLI execution
-    #with disable_console_logging("sensor_core"):
-    im = InteractiveMenu()
-    im.interactive_menu()
+    with disable_console_logging("sensor_core"):
+        im = InteractiveMenu()
+        im.interactive_menu()
 
 if __name__ == "__main__":
     os.chdir(root_cfg.HOME_DIR)
