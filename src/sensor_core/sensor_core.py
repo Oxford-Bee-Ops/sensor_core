@@ -1,14 +1,10 @@
-from pathlib import Path
 from typing import Optional
-
-from crontab import CronTab
 
 from sensor_core import config_validator
 from sensor_core import configuration as root_cfg
 from sensor_core.device_config_objects import DeviceCfg
 from sensor_core.device_health import DeviceHealth
 from sensor_core.edge_orchestrator import EdgeOrchestrator
-from sensor_core.utils import utils
 
 logger = root_cfg.setup_logger("sensor_core")
 
@@ -30,10 +26,17 @@ class SensorCore:
     KEYS_FILE = root_cfg.KEYS_FILE
 
 
+    def load_configuration(self) -> list[DeviceCfg] | None:
+        """ Load the configuration specified in the system.cfg file found in $HOME/.sensor_core.
+        The output can be passed to test_configuration() or configure().
+        """
+        return root_cfg.load_configuration()
+
+
     def test_configuration(self, 
                            fleet_config: list[DeviceCfg], 
                            device_id: Optional[str] = None) -> tuple[bool, list[str]]:
-        """ Validates that the configuration in fleet_config_py is valid.
+        """ Validates that the configuration in fleet_config is valid.
 
         Parameters:
         - fleet_config: The configuration to be validated.
@@ -124,14 +127,6 @@ class SensorCore:
         print(f"SensorCore stopping - this may take up to {root_cfg.my_device.max_recording_timer}s.")
         EdgeOrchestrator.get_instance().stop_all()
 
-        # Remove from crontab
-        if root_cfg.running_on_rpi:
-            # Remove the cron job to restart SensorCore on reboot
-            cron = CronTab(user=utils.get_current_user())  # Use the current user's crontab
-            cron.remove_all(comment='Run_my_script_on_reboot')
-            cron.write()
-
-
     def status(self, verbose: bool = True) -> str:
         """
         Get the current status of the sensor core.
@@ -206,45 +201,3 @@ class SensorCore:
     def update_my_device_id(new_device_id: str) -> None:
         """Function used in testing to change the device_id"""
         root_cfg.update_my_device_id(new_device_id)
-
-    @staticmethod
-    def make_my_script_persistent(my_script: Path | str) -> None:
-        """Make this sensor persistent over reboot by adding a restart job in crontab.
-
-        Parameters:
-        - my_script: Path to the script to be made persistent.
-
-        Raises:
-        - ValueError: If the virtual environment is not found.
-            This script assumes that a virtual environment has been created and that this script
-            should be run in it's context. The virtual environment's location must be specified in system.cfg.
-        """
-        if not root_cfg.system_cfg:
-            raise ValueError("SensorCore must be configured before making a script persistent.")
-
-        # We assume that a virtual environment has been created and that this script
-        # should be run in it's context.
-        if not (Path.home() / root_cfg.system_cfg.venv_dir).exists():
-            raise ValueError(f"Virtual environment not found at {Path.home() / root_cfg.system_cfg.venv_dir}"
-                             "Please create venv before running this script.")
-
-        if isinstance(my_script, str):
-            my_script = Path(my_script)
-
-        restart_on_reboot_cmd=(
-            f"/bin/bash -c 'source {Path.home()}/{root_cfg.system_cfg.venv_dir}/bin/activate && "
-            f"nohup python3 {my_script} 2>&1 | /usr/bin/logger -t SENSOR_CORE &'")
-        try:
-            from crontab import CronTab
-            cron = CronTab(user=utils.get_current_user())
-            cron.remove_all(comment='Run_my_script_on_reboot')
-            job = cron.new(command=restart_on_reboot_cmd, 
-                        comment='Run_my_script_on_reboot',
-                        pre_comment=True)
-            job.every_reboot()
-            cron.write()
-            logger.info("Cron job added to run this script on reboot.")
-        except Exception as e:
-            logger.error(f"{root_cfg.RAISE_WARN()}Failed to add cron job ({restart_on_reboot_cmd}): {e}", 
-                         exc_info=True)
-            raise ValueError(f"Failed to add cron job ({restart_on_reboot_cmd}): {e}")
