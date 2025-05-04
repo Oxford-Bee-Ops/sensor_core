@@ -44,7 +44,7 @@ class DPnode():
         """
         self._dpnode_config: DPtreeNodeCfg = config
         self.sensor_index: int = sensor_index
-        self.cc: CloudConnector = CloudConnector.get_instance(root_cfg.CLOUD_TYPE)
+        self.cc: Optional[CloudConnector] = None
 
         self._dpnode_children: dict[int, DPnode] = {}  # Dictionary mapping output streams to child nodes.
 
@@ -56,7 +56,7 @@ class DPnode():
         self._stats_lock = threading.Lock()  
 
         # Create the Journals that we will use to store this DPtree's output.
-        self.journal_pool: JournalPool = JournalPool.get(mode=root_cfg.get_mode())
+        self.journal_pool: Optional[JournalPool]
 
 
     def is_leaf(self, stream_index: int) -> bool:
@@ -158,7 +158,7 @@ class DPnode():
         log_data[api.RECORD_ID.TIMESTAMP.value] = api.utc_to_iso_str()
         log_data[api.RECORD_ID.NAME.value] = root_cfg.my_device.name
 
-        self.journal_pool.add_rows(stream, [log_data], api.utc_now())
+        self._get_cpool().add_rows(stream, [log_data], api.utc_now())
 
         # Track the number of measurements recorded
         with self._stats_lock:
@@ -184,7 +184,7 @@ class DPnode():
         
         stream = self.get_stream(stream_index)
         sensor_data = self._validate_output(sensor_data, stream)
-        self.journal_pool.add_rows_from_df(stream, sensor_data)
+        self._get_cpool().add_rows_from_df(stream, sensor_data)
 
         # Track the number of measurements recorded
         # These data points don't have a duration - that only applies to recordings.
@@ -487,10 +487,10 @@ class DPnode():
                 
             sample_fname = file_naming.increment_filename(root_cfg.EDGE_UPLOAD_DIR / new_fname.name)
             shutil.copy(new_fname, sample_fname)
-            self.cc.upload_to_container(stream.cloud_container,
-                                        [sample_fname], 
-                                        delete_src=True,
-                                        storage_tier=stream.storage_tier)
+            self._get_cc().upload_to_container(stream.cloud_container,
+                                                [sample_fname], 
+                                                delete_src=True,
+                                                storage_tier=stream.storage_tier)
             logger.info(f"Raw sample saved to {stream.cloud_container}; "
                         f"sample_prob={stream.sample_probability}")
 
@@ -499,10 +499,10 @@ class DPnode():
         if dst_dir == root_cfg.EDGE_UPLOAD_DIR:
             stream = self.get_stream(stream_index)
             assert stream.cloud_container is not None and stream.storage_tier is not None
-            self.cc.upload_to_container(stream.cloud_container, 
-                                        [new_fname], 
-                                        delete_src=True,
-                                        storage_tier=stream.storage_tier)
+            self._get_cc().upload_to_container(stream.cloud_container, 
+                                                [new_fname], 
+                                                delete_src=True,
+                                                storage_tier=stream.storage_tier)
 
         # Track the number of measurements recorded
         with self._stats_lock:
@@ -578,3 +578,23 @@ class DPnode():
                     raise Exception(err_str)
 
         return output_data
+
+    ##########################################################################################################
+    # Utilities
+    ##########################################################################################################
+    def _get_cc(self) -> CloudConnector:
+        """Return the CloudConnector object for this node.
+        We don't do this during init to avoid unnecessary work for things like config validation that
+        don't need the CloudConnector.
+        """
+        if self.cc is None:
+            self.cc = CloudConnector.get_instance(root_cfg.CLOUD_TYPE)
+        return self.cc
+    
+    def _get_cpool(self) -> JournalPool:
+        """Return the JournalPool object for this node.
+        We don't do this during init to avoid unnecessary work for things like config validation that
+        don't need the JournalPool."""
+        if self.journal_pool is None:
+            self.journal_pool = JournalPool.get(mode=root_cfg.get_mode())
+        return self.journal_pool
