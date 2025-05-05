@@ -156,11 +156,11 @@ class ScEmulator():
                 return recording.recordings
         return None
 
-    def ok_to_save_recording(self, ds_id) -> bool:
+    def ok_to_save_recording(self, type_id) -> bool:
         """Check if we are allowed to save a recording.
         We have to check both the global recording cap and the per-type recording cap."""
-        previous_recordings = self.recordings_saved.get(ds_id, 0)
-        type_cap = self.recording_cap_dict.get(ds_id, self.recording_cap)
+        previous_recordings = self.recordings_saved.get(type_id, 0)
+        type_cap = self.recording_cap_dict.get(type_id, self.recording_cap)
         
         if (type_cap == -1) or (previous_recordings < type_cap):
             pass_check = True
@@ -168,12 +168,12 @@ class ScEmulator():
             pass_check = False
 
         if pass_check:
-            self.recordings_saved[ds_id] = previous_recordings + 1
+            self.recordings_saved[type_id] = previous_recordings + 1
             return True
         else:
-            logger.debug(f"Recording cap exceeded for {ds_id}. "
+            logger.debug(f"Recording cap exceeded for {type_id}. "
                          f"Global cap: {self.recording_cap}, "
-                         f"Type cap: {self.recording_cap_dict.get(ds_id, -1)}, "
+                         f"Type cap: {self.recording_cap_dict.get(type_id, -1)}, "
                          f"Previous recordings: {previous_recordings}")
             return False
 

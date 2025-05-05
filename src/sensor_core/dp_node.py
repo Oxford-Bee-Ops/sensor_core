@@ -462,7 +462,7 @@ class DPnode():
 
         # If we're in test mode, we may cap the number of recordings we save.
         if root_cfg.TEST_MODE == root_cfg.MODE.TEST:
-            if not ScEmulator.get_instance().ok_to_save_recording(self.get_data_id(stream_index)):
+            if not ScEmulator.get_instance().ok_to_save_recording(stream.type_id):
                 logger.info(f"Test mode recording cap hit; deleting {src_file.name}")
                 if src_file.exists():
                     src_file.unlink()
