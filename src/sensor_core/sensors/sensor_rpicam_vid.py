@@ -75,6 +75,8 @@ class RpicamSensor(Sensor):
             logger.warning("Video configuration is only supported on Raspberry Pi.")
             return
 
+        exception_count = 0
+
         # Main loop to record video and take still images
         while not self.stop_requested:
             try:
@@ -115,6 +117,13 @@ class RpicamSensor(Sensor):
 
             except Exception as e:
                 logger.error(f"{root_cfg.RAISE_WARN()}Error in RpicamSensor: {e}", exc_info=True)
-                break
+            finally:
+                # On the assumption that the error is transient, we will continue to run but sleep for 60s
+                sleep(60)
+                exception_count += 1
+                if exception_count > 30:
+                    logger.error(f"RpicamSensor has failed {exception_count} times. Exiting.")
+                    self.sensor_failed()
+                    break
 
         logger.warning("Exiting RpicamSensor loop")
