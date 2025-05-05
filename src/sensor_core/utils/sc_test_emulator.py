@@ -152,6 +152,8 @@ class ScEmulator():
                         lines = f.readlines()
                         # Ignore any blank lines at the end of the file
                         lines = [line for line in lines if line.strip()]
+                        # Assume the first line is the header
+                        lines = lines[1:]
                         assert len(lines) == count, (
                             f"Expected {count} rows in file {file}, "
                             f"but found {len(lines)} rows."
