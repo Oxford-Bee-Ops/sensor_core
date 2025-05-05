@@ -8,7 +8,6 @@ import sys
 import threading
 import time
 from datetime import timedelta
-import logging
 
 import click
 from crontab import CronTab

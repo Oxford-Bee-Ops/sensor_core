@@ -19,6 +19,7 @@ from typing import Optional
 
 import cv2
 import numpy as np
+import pandas as pd
 
 from sensor_core import DeviceCfg
 from sensor_core import configuration as root_cfg
@@ -103,22 +104,30 @@ class ScEmulator():
         else:
             self.recording_cap = cap
 
-    def assert_records(self, container: str, expected: dict[str, int]) -> None:
+    def assert_records(self, 
+                       container: str, 
+                       expected_files: dict[str, int],
+                       expected_rows: Optional[dict[str, int]] = None) -> None:
         """Assert that the expected number of files exist.
 
         Parameters:
         ----------
-        expected: dict[str, int]
-            A dictionary with the expected number of recordings for each file name prefix.
+        container: str
+            The name of the cloud storage container to check.
+        expected_files: dict[str, int]
+            A dictionary with the expected number of files for each file name prefix.
             The keys are the prefixes of the file names.
-            The values are the expected number of recordings.
+            The values are the expected number of files.
+        expected_rows: dict[str, int]
+            A dictionary with the expected number of data rows in each file with the given name prefix.
+            The value excludes the header row.
         """
         assert self.local_cloud is not None, (
             "Local cloud not set. Use ScEmulator as a context manager to set it."
             "with ScEmulator.get_instance() as scem: "
             "   ..."
         )
-        for file_prefix, count in expected.items():
+        for file_prefix, count in expected_files.items():
             files = list((self.local_cloud /container).glob(file_prefix))
             if count == self.ONE_OR_MORE:
                 # Check that at least one file exists with the prefix
@@ -134,6 +143,48 @@ class ScEmulator():
                     f"Expected {count} files with prefix {file_prefix}, "
                     f"but found {len(files)} files."
                 )
+        if expected_rows is not None:
+            for file_prefix, count in expected_rows.items():
+                files = list((self.local_cloud /container).glob(file_prefix))
+                for file in files:
+                    # Check the number of data rows in the file
+                    with open(file, "r") as f:
+                        lines = f.readlines()
+                        # Ignore any blank lines at the end of the file
+                        lines = [line for line in lines if line.strip()]
+                        assert len(lines) == count, (
+                            f"Expected {count} rows in file {file}, "
+                            f"but found {len(lines)} rows."
+                        )
+
+    def get_journal_as_df(self, 
+                          container: str, 
+                          file_prefix: str) -> pd.DataFrame:
+        """Get the journal specified by the container & file_prefix and return as a pandas DataFrame
+        for further custom validation."""
+        
+        assert self.local_cloud is not None, (
+            "Local cloud not set. Use ScEmulator as a context manager to set it."
+            "with ScEmulator.get_instance() as scem: "
+            "   ..."
+        )
+        
+        if not file_prefix.endswith("*"):
+            file_prefix += "*"
+        files = list((self.local_cloud / container).glob(file_prefix))
+
+        # Just return the first file found
+        if len(files) == 0:
+            raise FileNotFoundError(f"No files found with prefix {file_prefix}")
+        if len(files) > 1:
+            logger.warning(f"Multiple files found with prefix {file_prefix}. "
+                           f"Using the first one: {files[0]}")
+        file = files[0]
+
+        # Read the file into a pandas DataFrame
+        df = pd.read_csv(file, skip_blank_lines=True)
+        
+        return df
 
     ##################################################################################################
     # Internal implementation functions

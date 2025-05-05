@@ -2,9 +2,7 @@
 import logging
 
 import pytest
-from sensor_core import bcli
 from sensor_core import configuration as root_cfg
-from unittest.mock import patch
 
 logger = root_cfg.setup_logger("sensor_core", logging.DEBUG)
 

@@ -2,7 +2,8 @@ from time import sleep
 
 import pytest
 from example.my_fleet_config import create_example_device
-from sensor_core import DeviceCfg, SensorCore
+from example.my_processor_example import EXAMPLE_DF_DS_TYPE_ID
+from sensor_core import DeviceCfg, SensorCore, api
 from sensor_core import configuration as root_cfg
 from sensor_core.utils.sc_test_emulator import ScEmulator
 
@@ -52,3 +53,14 @@ class Test_example_device:
                             {"V3_DUMML*": 1, "V3_DUMMD*": 1})
             th.assert_records("sensor-core-upload", 
                             {"V3_DUMMF*": th.ONE_OR_MORE,})
+            df = th.get_journal_as_df("sensor-core-journals", "V3_DUMMD*")
+            assert df is not None, "Expected df to be not None"
+            for field in api.ALL_RECORD_ID_FIELDS:
+                assert field in df.columns, "Expected all of the api.RECORD_ID fields, missing: " + field
+            assert (df["version_id"] == "V3").all()
+            assert (df["data_type_id"] == EXAMPLE_DF_DS_TYPE_ID).all()
+            assert (df["device_id"] == root_cfg.DUMMY_MAC).all()
+            assert (df["sensor_index"] == 1).all()
+            assert (df["stream_index"] == 0).all() 
+            assert (df["pixel_count"] == 25).all(), "Expected pixel_count to be 25"
+            assert (df["timestamp"].str.contains("T")).all(), "Expected timestamp to contain T"

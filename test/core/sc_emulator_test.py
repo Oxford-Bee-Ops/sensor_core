@@ -1,4 +1,5 @@
 import logging
+
 import pytest
 from sensor_core import configuration as root_cfg
 from sensor_core.utils import sc_test_emulator
