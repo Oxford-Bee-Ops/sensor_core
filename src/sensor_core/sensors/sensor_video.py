@@ -22,7 +22,6 @@ import os
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from time import sleep
 
 from sensor_core import Sensor, SensorCfg, api, file_naming
 from sensor_core import configuration as root_cfg
@@ -176,7 +175,7 @@ class VideoSensor(Sensor):
             self.configure_for_video(camera)
 
             # Main loop to record video and take still images
-            while not self.stop_requested:
+            while not self.stop_requested.is_set():
                 try:
                     # Check if we need to take a still image
                     if self.time_to_take_still_image():
@@ -191,7 +190,7 @@ class VideoSensor(Sensor):
                     # If memory is running low, we pause recording until the video_processor and push_to_cloud
                     # have dealt with the backlog.
                     if utils.pause_recording() and not self.bcli_test_mode:
-                        sleep(180)
+                        self.stop_requested.wait(180)
                         continue
 
                     # Record video for the specified number of seconds
@@ -245,7 +244,7 @@ class VideoSensor(Sensor):
         logger.info(f"Recording to {vid_output_filename} for {record_for_seconds} seconds")
 
         camera.start_recording(encoder, str(vid_output_filename), quality=self.video_quality)
-        sleep(max(record_for_seconds, 5))
+        self.stop_requested.wait(max(record_for_seconds, 5))
 
         # Grab the end timestamp now before the potentially slow saving of the video stream
         end_time = api.utc_now()

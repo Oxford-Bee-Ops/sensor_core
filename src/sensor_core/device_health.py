@@ -2,7 +2,6 @@ import os
 import socket
 import subprocess
 from datetime import datetime
-from time import sleep
 from typing import Any, Optional
 
 import psutil
@@ -150,7 +149,7 @@ class DeviceHealth(Sensor):
         try:
             logger.info(f"Starting DeviceHealth thread {self!r}")
 
-            while not self.stop_requested:
+            while not self.stop_requested.is_set():
                 # Log the health data
                 self.log_health()
 
@@ -161,7 +160,7 @@ class DeviceHealth(Sensor):
                 self.last_ran = api.utc_now()
                 self.log_counter += 1
                 sleep_time = root_cfg.my_device.heart_beat_frequency
-                sleep(sleep_time)
+                self.stop_requested.wait(sleep_time)
         except Exception as e:
             logger.error(f"{root_cfg.RAISE_WARN()}Error in DeviceHealth thread: {e}", exc_info=True)
 

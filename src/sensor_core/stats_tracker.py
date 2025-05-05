@@ -1,5 +1,4 @@
 from datetime import datetime
-from time import sleep
 
 from sensor_core import api
 from sensor_core import configuration as root_cfg
@@ -75,7 +74,7 @@ class StatTracker(Sensor):
         try:
             logger.info(f"Starting SelfTracker thread {self!r}")
 
-            while not self.stop_requested:
+            while not self.stop_requested.is_set():
                 logger.debug(f"SelfTracker {self.sensor_index} running log_sample_data() "
                             f"for {len(self.dpworkers)} DP engines")
                 # Trigger each datastream to log sample counts
@@ -84,6 +83,6 @@ class StatTracker(Sensor):
 
                 # Set timer for next run
                 self.last_ran = api.utc_now()
-                sleep(root_cfg.my_device.heart_beat_frequency)
+                self.stop_requested.wait(root_cfg.my_device.heart_beat_frequency)
         except Exception as e:
             logger.error(f"Error in SelfTracker thread: {e}", exc_info=True)

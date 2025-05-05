@@ -333,7 +333,6 @@ def main() -> None:
 
         # Keep the main thread alive
         while not orchestrator.is_stop_requested():
-            sleep(root_cfg.WATCHDOG_FREQUENCY)
             _touch_running_file()
 
             # Restart the re-load and re-start the EdgeOrchestrator if it fails.
@@ -341,6 +340,9 @@ def main() -> None:
                 logger.error("Sensor manager failed; restarting")
                 orchestrator.load_config()
                 orchestrator.start_all()
+
+            sleep(root_cfg.WATCHDOG_FREQUENCY)
+
 
     except Exception as e:
         logger.error(

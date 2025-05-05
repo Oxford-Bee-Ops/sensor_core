@@ -6,7 +6,6 @@
 ####################################################################################################
 
 from dataclasses import dataclass
-from time import sleep
 
 from sensor_core import Sensor, SensorCfg, api, file_naming
 from sensor_core import configuration as root_cfg
@@ -78,12 +77,12 @@ class RpicamSensor(Sensor):
         exception_count = 0
 
         # Main loop to record video and take still images
-        while not self.stop_requested:
+        while not self.stop_requested.is_set():
             try:
                 # If memory is running low, we pause recording until the downstream processing
                 # catches up.
                 if utils.pause_recording():
-                    sleep(180)
+                    self.stop_requested.wait(180)
                     continue
 
                 # Record video for the specified number of seconds
@@ -119,7 +118,7 @@ class RpicamSensor(Sensor):
                 logger.error(f"{root_cfg.RAISE_WARN()}Error in RpicamSensor: {e}", exc_info=True)
             finally:
                 # On the assumption that the error is transient, we will continue to run but sleep for 60s
-                sleep(60)
+                self.stop_requested.wait(60)
                 exception_count += 1
                 if exception_count > 30:
                     logger.error(f"RpicamSensor has failed {exception_count} times. Exiting.")
