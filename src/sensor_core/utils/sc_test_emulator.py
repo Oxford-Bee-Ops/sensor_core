@@ -208,13 +208,13 @@ class ScEmulator():
 
         """
         if cmd.startswith("rpicam-vid"):
-            self.emulate_rpicam_vid(cmd, ignore_errors, grep_strs)
+            return self.emulate_rpicam_vid(cmd, ignore_errors, grep_strs)
             
         elif cmd.startswith("arecord"):
             # Emulate the arecord command
             # This is a simple emulation that just returns a success code and a message.
             # In a real scenario, we would run the command and return the output.
-            return "arecord command emulated successfully"
+            return self.emulate_arecord(cmd, ignore_errors, grep_strs)
         return "Command not run on windows: " + cmd
 
     def emulate_rpicam_vid(self, cmd: str, 
@@ -298,3 +298,41 @@ class ScEmulator():
         # Sleep for the duration of the video to simulate recording time.
         time.sleep(duration)
         return f"rpicam-vid command emulated successfully, created {filename}"
+
+    def emulate_arecord(self, cmd: str, 
+                        ignore_errors: bool=False, 
+                        grep_strs: Optional[list[str]]=None) -> str:
+        # Emulate the arecord command
+        # We expect commands like:
+        #   f"arecord -D hw:{dev_index!s} -r {samp_rate!s} -c {chans!s}"
+        #   f" -f S16_LE -t wav -d {length_to_record!s} {wav_output_filename!s}"
+        #
+        # We try to find a matching recording to provide. 
+        args = shlex.split(cmd, posix=False)        
+        filename = args[-1]
+        duration = int(args[args.index("-d") + 1])
+
+        # We divide duration to get a 25x speedup for testing purposes
+        duration = int(duration / 25)
+
+        # See if we have a matching cmd in the recordings list
+        # We need to replace the filename with FILENAME
+        recordings = self._match_recording(cmd)
+        logger.debug(f"Found match command {recordings is not None} "
+                    f"for match command: {cmd}")
+
+        if recordings:
+            # We have a recording so save that with the appropriate filename
+            recording = recordings[self.previous_recordings_index]
+            self.previous_recordings_index += 1
+            self.previous_recordings_index %= len(recordings)
+            shutil.copy(recording, filename)
+            logger.info(f"Recording {recording} saved to DS")
+        else:
+            logger.error(f"Recording not found for command: {cmd}")
+            if not ignore_errors:
+                raise FileNotFoundError(f"Recording not found for command: {cmd}")
+
+        # Sleep for the duration of the video to simulate recording time.
+        time.sleep(duration)
+        return f"arecord command emulated successfully, created {filename}"
