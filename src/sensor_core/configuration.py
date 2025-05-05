@@ -270,6 +270,8 @@ def setup_logger(name: str,
         for handler in logger.handlers:
             if isinstance(handler, logging.FileHandler):
                 file_handler_count += 1
+            elif isinstance(handler, logging.StreamHandler):
+                handler.setLevel(_LOG_LEVEL)
 
         # Create a console handler and set the log level
         # Check if we've already added a console handler
