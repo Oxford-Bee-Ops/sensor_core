@@ -162,7 +162,7 @@ class ScEmulator():
         previous_recordings = self.recordings_saved.get(ds_id, 0)
         type_cap = self.recording_cap_dict.get(ds_id, self.recording_cap)
         
-        if (type_cap == -1) or (previous_recordings < self.recording_cap):
+        if (type_cap == -1) or (previous_recordings < type_cap):
             pass_check = True
         else:            
             pass_check = False
