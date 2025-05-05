@@ -85,6 +85,14 @@ class ScEmulator():
         """Set the recordings to be used for testing.
 
         Call this function to specify which recording should be returned in which conditions."""
+        for recording in recordings:
+            if not isinstance(recording, ScTestRecording):
+                raise ValueError("recordings must be a list of ScTestRecording objects; got: "
+                                 f"{type(recording)}")
+            # Check the recording exists
+            for rec in recording.recordings:
+                if not rec.exists():
+                    raise ValueError(f"Recording {rec} does not exist")
         self.recordings = recordings
 
     def set_recording_cap(self, cap: int, type_id: Optional[str] = None) -> None:
