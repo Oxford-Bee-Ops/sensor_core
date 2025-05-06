@@ -175,6 +175,11 @@ class DeviceManager:
             logger.info("No wifi clients in the device configuration")
             return
         
+        # Use nmcli to configure the client wifi connection if it doesn't already exist
+        existing_connections = (
+            utils.run_cmd("sudo nmcli -t -f NAME connection show").split("\n")
+        )
+
         # Inject the wifi clients
         for client in self.wifi_clients:
             if (client.ssid is None or 
@@ -186,11 +191,6 @@ class DeviceManager:
                 logger.warning(f"Skipping invalid wifi client: {client}")
                 continue
 
-            # Use nmcli to configure the client wifi connection if it doesn't already exist
-            existing_connections = (
-                utils.run_cmd("sudo nmcli -t -f NAME connection show").split("\n")
-            )
-
             # Configure the wifi client
             if client.ssid not in existing_connections:
                 logger.info(f"Adding client wifi connection {client.ssid} on {self.client_wlan}")
@@ -200,7 +200,10 @@ class DeviceManager:
                     f"wifi-sec.key-mgmt wpa-psk wifi-sec.psk {client.pw} "
                     f"connection.autoconnect-priority {client.priority} "
                     f"ipv4.dns '8.8.8.8 8.8.4.4'"
-                )        
+                )
+            else:
+                logger.info(f"Client wifi connection {client.ssid} already exists")
+                    
 
     def set_wifi_status(self, wifi_up: bool) -> None:
         if wifi_up:
