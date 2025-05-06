@@ -88,10 +88,26 @@ class EdgeOrchestrator:
 
     def status(self) -> dict[str, str]:
         """Return a key-value status describing the state of the EdgeOrchestrator"""
+        # Check that all threads are alive
+        sensors_alive = 0
+        for sensor in self._sensorThreads:
+            if not sensor.is_alive():
+                logger.warning(f"Sensor thread {sensor} is not alive")
+            else:
+                sensors_alive += 1
+        dps_alive = 0
+        for dpe in self._dpworkers:
+            if not dpe.is_alive():
+                logger.warning(f"Datastream thread {dpe} is not alive")
+            else:
+                dps_alive += 1
+
         status = {
             "SensorCore running": str(self.is_running()),
             "Sensor threads": str(self._sensorThreads),
+            "Sensor threads alive": str(sensors_alive),
             "DPtrees": str(self._dpworkers),
+            "DPtrees alive": str(dps_alive),
         }
         return status
 
