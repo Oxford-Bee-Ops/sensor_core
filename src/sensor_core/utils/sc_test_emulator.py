@@ -128,6 +128,8 @@ class ScEmulator():
             "   ..."
         )
         for file_prefix, count in expected_files.items():
+            if not file_prefix.endswith("*"):
+                file_prefix = file_prefix + "*"
             files = list((self.local_cloud /container).glob(file_prefix))
             if count == self.ONE_OR_MORE:
                 # Check that at least one file exists with the prefix
