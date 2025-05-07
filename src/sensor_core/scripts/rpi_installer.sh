@@ -469,13 +469,14 @@ function make_persistent() {
         fi
         
         rpi_installer_cmd="/bin/bash $HOME/$venv_dir/scripts/rpi_installer.sh 2>&1 | /usr/bin/logger -t SENSOR_CORE"
+        rpi_cmd_no_os_update="/bin/bash $HOME/$venv_dir/scripts/rpi_installer.sh no_os_update 2>&1 | /usr/bin/logger -t SENSOR_CORE"
         
         # Delete and re-add any lines containing "rpi_installer" from crontab
         crontab -l | grep -v "rpi_installer" | crontab -
 
         # Add the script to crontab to run on reboot
         echo "Script added to crontab to run on reboot and every night at 2am."
-        (crontab -l 2>/dev/null; echo "@reboot $rpi_installer_cmd no_os_update") | crontab -
+        (crontab -l 2>/dev/null; echo "@reboot $rpi_cmd_no_os_update") | crontab -
         (crontab -l 2>/dev/null; echo "0 2 * * * $rpi_installer_cmd") | crontab -
     fi
 }
