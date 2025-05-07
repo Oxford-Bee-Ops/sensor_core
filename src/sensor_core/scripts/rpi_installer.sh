@@ -35,10 +35,10 @@
 # - no_os_update: if this argument is passed, we skip the OS update and package installation steps
 # Check for this argument and set a flag
 # to skip the OS update and package installation steps
-if [ "$1" == "no_os_update" ]; then
-    no_os_update="yes"
+if [ "$1" == "os_update" ]; then
+    os_update="yes"
 else
-    no_os_update="no"
+    os_update="no"
 fi
 
 # Function to check pre-requisites
@@ -516,8 +516,8 @@ cd "$HOME/.sensor_core" || { echo "Failed to change directory to $HOME/.sensor_c
 export_system_cfg
 install_ssh_keys
 create_and_activate_venv
-# If the no_os_update argument is passed on the command line, skip the OS update and package installation steps
-if [ "$no_os_update" == "no" ]; then
+# If the os_update argument is passed on the command line, update the OS
+if [ "$os_update" == "yes" ]; then
     install_os_packages
 fi
 install_sensor_core
