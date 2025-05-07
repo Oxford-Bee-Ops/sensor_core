@@ -440,9 +440,6 @@ function auto_start_if_requested() {
         fi
         echo "Calling $my_start_script in $HOME/$venv_dir"
         nohup python -m $my_start_script 2>&1 | /usr/bin/logger -t SENSOR_CORE &
-
-        echo "Starting DeviceManager..."
-        nohup python -m sensor_core.device_manager 2>&1 | /usr/bin/logger -t SENSOR_CORE &
     else
         echo "Auto-start is not enabled in system.cfg."
     fi

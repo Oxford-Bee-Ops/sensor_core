@@ -81,6 +81,15 @@ class DeviceManager:
             logger.info("DeviceManager LED timer started")
 
         return
+    
+    def stop(self) -> None:
+        """Stop the DeviceManager threads."""
+        if self.led_timer is not None:
+            self.led_timer.cancel()
+            logger.info("DeviceManager LED timer stopped")
+        if self.wifi_timer is not None:
+            self.wifi_timer.cancel()
+            logger.info("DeviceManager Wifi timer stopped")
 
     #############################################################################################################
     # LED management functions
@@ -372,20 +381,3 @@ class DeviceManager:
         except Exception as e:
             logger.error(f"{root_cfg.RAISE_WARN()}Wifi timer callback threw an exception: " + str(e), 
                         exc_info=True)
-
-
-# Main loop called from crontab on boot up
-if __name__ == "__main__":
-    # Check if we're running on a Raspberry Pi and if the device_manager is already running
-    if not root_cfg.running_on_rpi:
-        print("Not running on a Raspberry Pi; exiting")
-        exit(0)
-    if utils.is_already_running("device_manager"):
-        print("Device manager is already running; exiting")
-        exit(0)
-
-    device_manager = DeviceManager()
-    while True:
-        # Sleep for 1 seconds
-        time.sleep(1)
-        

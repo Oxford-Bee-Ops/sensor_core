@@ -82,23 +82,26 @@ class Test_Orchestrator:
             factory_thread = Thread(target=edge_orchestrator.main)
             factory_thread.start()
             start_clock = api.utc_now()
-            while not orchestrator._orchestrator_is_running:
+            while not orchestrator.watchdog_file_alive():
                 sleep(1)
                 assert (api.utc_now() - start_clock).total_seconds() < 10, (
                     "Orchestrator did not restart quickly enough")
-            assert orchestrator._orchestrator_is_running
+            assert orchestrator.watchdog_file_alive()
 
             # Sensor fails; factory_thread should restart everything after 1s
             logger.info("sensor_test: # Sensor fails; factory_thread should restart everything after 1s")
             sensor = orchestrator._get_sensor(api.SENSOR_TYPE.I2C, 1)
             assert sensor is not None
-            orchestrator.sensor_failed(sensor)
-            assert not orchestrator._orchestrator_is_running
+            
+            sensor.sensor_failed()
+            assert not orchestrator.watchdog_file_alive()
+            
             start_clock = api.utc_now()
-            while not orchestrator._orchestrator_is_running:
+            while not orchestrator.watchdog_file_alive():
                 sleep(1)
                 assert (api.utc_now() - start_clock).total_seconds() < 10, (
                     "Orchestrator did not restart quickly enough")
+                
             orchestrator.stop_all()
 
             # Wait for the main thread to exit

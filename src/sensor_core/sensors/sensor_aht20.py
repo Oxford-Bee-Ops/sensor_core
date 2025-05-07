@@ -1,11 +1,8 @@
 from dataclasses import dataclass
-from time import sleep
-from typing import ClassVar
 
 from sensor_core import Sensor, SensorCfg, api
 from sensor_core import configuration as root_cfg
 from sensor_core.dp_config_objects import Stream
-
 from sensor_core.sensors.drivers.aht20 import AHT20 as AHT20_driver
 
 logger = root_cfg.setup_logger("sensor_core")

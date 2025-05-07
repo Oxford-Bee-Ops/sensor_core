@@ -209,6 +209,7 @@ def set_mode(mode: Mode) -> None:
 ############################################################
 # Used by the CLI and SensorCore.py to start / stop SensorCore
 STOP_SENSOR_CORE_FLAG = FLAGS_DIR / "STOP_SENSOR_CORE_FLAG"
+RESTART_SENSOR_CORE_FLAG = FLAGS_DIR / "RESTART_SENSOR_CORE_FLAG"
 
 # Used by EdgeOrchestrator to check if SensorCore is running
 SENSOR_CORE_IS_RUNNING_FLAG = TMP_FLAGS_DIR / "SENSOR_CORE_IS_RUNNING_FLAG"

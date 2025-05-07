@@ -144,7 +144,7 @@ class SensorCore:
         # Display the orchestrator status
         orchestrator = EdgeOrchestrator.get_instance()
         if orchestrator is not None:
-            display_message += f"\n\nSensorCore running: {orchestrator.is_running()}\n"
+            display_message += f"\n\nSensorCore running: {orchestrator.watchdog_file_alive()}\n"
 
             if verbose:
                 status = orchestrator.status()
@@ -189,7 +189,7 @@ class SensorCore:
 
     def _is_running(self)-> bool:
         """Check if an instance of SensorCore is running."""
-        return EdgeOrchestrator.is_running()
+        return EdgeOrchestrator.watchdog_file_alive()
 
     @staticmethod
     def _is_configured() -> bool:

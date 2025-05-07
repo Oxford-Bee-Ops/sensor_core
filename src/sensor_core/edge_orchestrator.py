@@ -3,6 +3,7 @@
 ####################################################################################################
 import threading
 from datetime import timedelta
+from enum import Enum
 from time import sleep
 from typing import Callable, Optional
 
@@ -10,6 +11,7 @@ from sensor_core import api
 from sensor_core import configuration as root_cfg
 from sensor_core.cloud_connector import AsyncCloudConnector, CloudConnector
 from sensor_core.device_health import DeviceHealth
+from sensor_core.device_manager import DeviceManager
 from sensor_core.dp_node import DPnode
 from sensor_core.dp_tree import DPtree
 from sensor_core.dp_worker_thread import DPworker
@@ -19,6 +21,26 @@ from sensor_core.utils.journal_pool import JournalPool
 
 logger = root_cfg.setup_logger("sensor_core")
 
+class OrchestratorStatus(Enum):
+    """Enum for the status of the orchestrator"""
+    STOPPED = 0
+    STARTING = 1
+    RUNNING = 2
+    STOPPING = 3
+
+    def __str__(self) -> str:
+        return self.name.lower()
+    
+    @staticmethod
+    def running(status: "OrchestratorStatus") -> bool:
+        """Check if the orchestrator is starting"""
+        return (status == OrchestratorStatus.STARTING or
+                status == OrchestratorStatus.RUNNING)
+
+    def stopped(status: "OrchestratorStatus") -> bool:
+        """Check if the orchestrator is stopped"""
+        return (status == OrchestratorStatus.STOPPED or
+                status == OrchestratorStatus.STOPPING)
 
 class EdgeOrchestrator:
     """The EdgeOrchestrator manages the state of the sensors and their associated Datastreams.
@@ -31,7 +53,8 @@ class EdgeOrchestrator:
     """
 
     _instance = None
-    orchestrator_lock = threading.RLock()  # Re-entrant lock to ensure thread-safety
+    _status_lock = threading.RLock()  # Re-entrant lock to ensure thread-safety
+
     root_cfg.set_mode(root_cfg.Mode.EDGE)
 
     def __new__(cls, *args, **kwargs): # type: ignore
@@ -42,8 +65,7 @@ class EdgeOrchestrator:
     def __init__(self) -> None:
         logger.info(f"Initialising EdgeOrchestrator {self!r}")
 
-        self._orchestrator_is_running = False
-        self._orchestrator_is_stopping = False
+        self._status = OrchestratorStatus.STOPPED
         self.reset_orchestrator_state()
 
         logger.info(f"Initialised EdgeOrchestrator {self!r}")
@@ -51,7 +73,7 @@ class EdgeOrchestrator:
     @staticmethod
     def get_instance() -> "EdgeOrchestrator":
         """Get the singleton instance of the EdgeOrchestrator"""
-        with EdgeOrchestrator.orchestrator_lock:
+        with EdgeOrchestrator._status_lock:
             if EdgeOrchestrator._instance is None:
                 EdgeOrchestrator._instance = EdgeOrchestrator()
 
@@ -59,8 +81,8 @@ class EdgeOrchestrator:
 
     def reset_orchestrator_state(self) -> None:
         logger.debug("Reset orchestrator state")
-        with EdgeOrchestrator.orchestrator_lock:
 
+        with EdgeOrchestrator._status_lock:
             self._sensorThreads: list[Sensor] = []
             self._dpworkers: list[DPworker] = []
             self.dp_trees: list[DPtree] = []
@@ -71,6 +93,7 @@ class EdgeOrchestrator:
             # SCORE - data save events
             # SCORP - DP performance
             self.device_health = DeviceHealth()
+            self.device_manager: DeviceManager | None = None
             health_dpe = DPworker(DPtree(self.device_health))
             self._sensorThreads.append(self.device_health)
             self._dpworkers.append(health_dpe)
@@ -103,7 +126,7 @@ class EdgeOrchestrator:
                 dps_alive += 1
 
         status = {
-            "SensorCore running": str(self.is_running()),
+            "SensorCore running": str(self.watchdog_file_alive()),
             "Sensor threads": str(self._sensorThreads),
             "Sensor threads alive": str(sensors_alive),
             "DPtrees": str(self._dpworkers),
@@ -156,8 +179,12 @@ class EdgeOrchestrator:
         """Called by Sensor to indicate that it has failed; orchestrator will then restarting everything."""
         logger.error(f"{root_cfg.RAISE_WARN()}Sensor failed; restarting all; {sensor}")
         logger.info(self.status())
-        self.stop_all(restart=True)
-        # The orchestrator monitors it's own status and will re-register all Sensors and Datastreams.
+
+        # We must *not* call stop_all() here, as that will cause a deadlock because we're currently in the 
+        # sensor thread that stop_all will wait on.
+        # Instead, we set the STOP and RESTART flags, and the main() method will check for them.
+        root_cfg.RESTART_SENSOR_CORE_FLAG.touch()
+        root_cfg.STOP_SENSOR_CORE_FLAG.touch()
 
 
     def _get_sensor(self, sensor_type: api.SENSOR_TYPE, sensor_index: int) -> Optional[Sensor | None]:
@@ -177,31 +204,41 @@ class EdgeOrchestrator:
     def start_all(self) -> None:
         """Start all Sensor & DPworker threads"""
 
-        with EdgeOrchestrator.orchestrator_lock:
+        with EdgeOrchestrator._status_lock:
 
-            if self._orchestrator_is_running:
-                logger.warning(f"Sensor_manager is already running; {self}")
+            if self._status != OrchestratorStatus.STOPPED:
+                logger.warning(f"EdgeOrchestrator is already running; {self}; {self._status}")
                 logger.info(self.status())
                 return
-
+            
+            self._status = OrchestratorStatus.STARTING
+            
             # Check the "stop" file has been cleared
             root_cfg.STOP_SENSOR_CORE_FLAG.unlink(missing_ok=True)
-            self.orchestrator_is_stopping = False
+            root_cfg.RESTART_SENSOR_CORE_FLAG.unlink(missing_ok=True)
 
-            # Set the flag monitored by the SensorFactory
-            self._orchestrator_is_running = True
+            logger.info(f"Starting EdgeOrchestrator {self!r}")
 
-            # Start the DPworker threads
-            for dpe in self._dpworkers:
-                dpe.start()
 
-            # Only once we've started the datastreams, do we start the Sensor threads
-            # otherwise we get a "Datastream not started" error.
-            for sensor in self._sensorThreads:
-                sensor.start()
+        # Start the device manager if we're on RPi
+        if root_cfg.running_on_rpi:
+            self.device_manager = DeviceManager()
 
-            # Dump status to log
-            logger.info(f"EdgeOrchestrator started: {self.status()}")
+        # Start the DPworker threads
+        for dpe in self._dpworkers:
+            dpe.start()
+
+        # Only once we've started the datastreams, do we start the Sensor threads
+        # otherwise we get a "Datastream not started" error.
+        for sensor in self._sensorThreads:
+            sensor.start()
+
+        # Dump status to log
+        logger.info(f"EdgeOrchestrator started: {self.status()}")
+
+        with EdgeOrchestrator._status_lock:
+            self._status = OrchestratorStatus.RUNNING
+
 
     @staticmethod
     def start_all_with_watchdog() -> None:
@@ -223,8 +260,14 @@ class EdgeOrchestrator:
 
         logger.info(f"stop_all on {self!r} called by {threading.current_thread().name}")
 
-        with EdgeOrchestrator.orchestrator_lock:
-            self.orchestrator_is_stopping = True
+        with EdgeOrchestrator._status_lock:
+            if not self._status == OrchestratorStatus.RUNNING:
+                logger.warning(f"EdgeOrchestrator not running when stop called; {self}")
+                logger.info(self.status())
+                self.reset_orchestrator_state()
+                return
+
+            self._status = OrchestratorStatus.STOPPING
 
             # Set the STOP_SENSOR_CORE_FLAG file; this is polled by the main() method in 
             # the EdgeOrchestrator which will continue to restart the SensorCore until the flag is removed.
@@ -232,74 +275,75 @@ class EdgeOrchestrator:
             # as the running instance will check the file and stop itself.
             if not restart:
                 root_cfg.STOP_SENSOR_CORE_FLAG.touch()
+                root_cfg.RESTART_SENSOR_CORE_FLAG.unlink(missing_ok=True)
             else:
                 # We use stop_all to restart the orchestrator cleanly in the event of a sensor failure.
-                logger.info("Restart requested; not touching stop file")
+                logger.info("Restart requested; clearing stop & restart flags")
+                root_cfg.STOP_SENSOR_CORE_FLAG.unlink(missing_ok=True)
+                root_cfg.RESTART_SENSOR_CORE_FLAG.unlink(missing_ok=True)
 
-            if not self._orchestrator_is_running:
-                logger.warning(f"EdgeOrchestrator not started when stop called; {self}")
-                logger.info(self.status())
-                self.reset_orchestrator_state()
-                return
+        # Stop the device manager if we're on RPi
+        if self.device_manager is not None:
+            self.device_manager.stop()
+            self.device_manager = None
 
-            # Stop all the sensor threads
-            for sensor in self._sensorThreads:
-                sensor.stop()
+        # Stop all the sensor threads
+        for sensor in self._sensorThreads:
+            sensor.stop()
 
-            # Block until all Sensor threads have exited
-            for sensor in self._sensorThreads:
-                # We need the check that the thread we're waiting on is not our own thread,
-                # because that will cause a RuntimeError
-                our_thread = threading.current_thread().ident
-                if (sensor.ident != our_thread) and sensor.is_alive():
-                    logger.info(f"Waiting for sensor thread {sensor}")
-                    sensor.join()
-                    logger.info(f"Waiting over. Sensor thread {sensor} stopped")
-                else:
-                    logger.info(f"Sensor thread {sensor} already stopped")
+        # Block until all Sensor threads have exited
+        for sensor in self._sensorThreads:
+            # We need the check that the thread we're waiting on is not our own thread,
+            # because that will cause a RuntimeError
+            our_thread = threading.current_thread().ident
+            if (sensor.ident != our_thread) and sensor.is_alive():
+                logger.info(f"Waiting for sensor thread {sensor}")
+                sensor.join()
+                logger.info(f"Waiting over. Sensor thread {sensor} stopped")
+            else:
+                logger.info(f"Sensor thread {sensor} already stopped")
 
-            # Stop all the dataprocessor threads
-            for dpe in self._dpworkers:
-                dpe.stop()
+        # Stop all the dataprocessor threads
+        for dpe in self._dpworkers:
+            dpe.stop()
 
-            # Block until all Datastreams have exited
-            for dpe in self._dpworkers:
-                if dpe.is_alive():
-                    logger.info(f"Waiting for datastream thread {dpe}")
-                    dpe.join()
-                    logger.info(f"Waiting over. Datastream thread {dpe} stopped")
-                else:
-                    logger.info(f"Datastream thread {dpe} already stopped")
+        # Block until all Datastreams have exited
+        for dpe in self._dpworkers:
+            if dpe.is_alive():
+                logger.info(f"Waiting for datastream thread {dpe}")
+                dpe.join()
+                logger.info(f"Waiting over. Datastream thread {dpe} stopped")
+            else:
+                logger.info(f"Datastream thread {dpe} already stopped")
 
-            # Trigger a flush_all on the CloudJournals so we save collected information 
-            # before we kill everything
-            jp = JournalPool.get(root_cfg.Mode.EDGE)
-            jp.flush_journals()
-            jp.stop()
-            # jp.stop will also stop the cloud connector threadpool
-            # Clean up and exit
-            cc = CloudConnector.get_instance(type=root_cfg.CloudType.AZURE)
-            assert isinstance(cc, AsyncCloudConnector)
-            cc.shutdown()
+        # Trigger a flush_all on the CloudJournals so we save collected information 
+        # before we kill everything
+        jp = JournalPool.get(root_cfg.Mode.EDGE)
+        jp.flush_journals()
+        jp.stop()
+        # jp.stop will also stop the cloud connector threadpool
+        # Clean up and exit
+        cc = CloudConnector.get_instance(type=root_cfg.CloudType.AZURE)
+        assert isinstance(cc, AsyncCloudConnector)
+        cc.shutdown()
 
-            # Clear our thread lists
-            self.reset_orchestrator_state()
-            self._orchestrator_is_running = False
+        # Clear our thread lists
+        self.reset_orchestrator_state()
+
+        with EdgeOrchestrator._status_lock:
+            self._status = OrchestratorStatus.STOPPED
             logger.info("Stopped all sensors and datastreams")
 
     def is_stop_requested(self) -> bool:
         """Check if a stop has been manually requested by the user.
         This function is polled by the main thread every second to check if the user has requested a stop."""
         stop_requested = root_cfg.STOP_SENSOR_CORE_FLAG.exists()
-        if stop_requested:
-            logger.info("is_stop_requested = True")
-            if not self.orchestrator_is_stopping:
-                self.stop_all()
+        restart_requested = root_cfg.RESTART_SENSOR_CORE_FLAG.exists()
 
-        return stop_requested
+        return (stop_requested and not restart_requested)
 
     @staticmethod
-    def is_running() -> bool:
+    def watchdog_file_alive() -> bool:
         """Check if the SensorCore is running"""
         # If the SENSOR_CORE_IS_RUNNING_FLAG exists and was touched within the last 2x _FREQUENCY seconds,
         # and the timestamp on the file is < than the timestamp on the STOP_SENSOR_CORE_FLAG file,
@@ -328,7 +372,7 @@ class EdgeOrchestrator:
 #
 # Main loop called from crontab on boot up
 #############################################################################################################
-def _touch_running_file() -> None:
+def _touch_watchdog_file() -> None:
     """Touch the running file to indicate that the script is running"""
     root_cfg.SENSOR_CORE_IS_RUNNING_FLAG.touch()
 
@@ -338,7 +382,8 @@ def main() -> None:
         logger.info(root_cfg.my_device.display())
 
         orchestrator = EdgeOrchestrator.get_instance()
-        if orchestrator.is_running() or orchestrator._orchestrator_is_running:
+        if (orchestrator.watchdog_file_alive() or 
+            OrchestratorStatus.running(orchestrator._status)):
             logger.warning("SensorCore is already running; exiting")
             return
 
@@ -349,13 +394,19 @@ def main() -> None:
 
         # Keep the main thread alive
         while not orchestrator.is_stop_requested():
-            _touch_running_file()
-
-            # Restart the re-load and re-start the EdgeOrchestrator if it fails.
-            if not orchestrator._orchestrator_is_running:
-                logger.error("Sensor manager failed; restarting")
-                orchestrator.load_config()
-                orchestrator.start_all()
+            if OrchestratorStatus.running(orchestrator._status):
+                _touch_watchdog_file()
+            elif orchestrator._status == OrchestratorStatus.STOPPED:
+                # Restart the re-load and re-start the EdgeOrchestrator if it fails.
+                # Recheck the _is_stop_requested() flag inside the _status_lock to avoid race conditions
+                if not orchestrator.is_stop_requested():
+                    logger.error("Sensor manager failed; restarting")
+                    orchestrator.load_config()
+                    orchestrator.start_all()
+                else:
+                    logger.warning("Race on stop requested; stopping")
+            else:
+                logger.info("Orchestrator is stopping")
 
             sleep(root_cfg.WATCHDOG_FREQUENCY)
 

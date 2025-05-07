@@ -9,7 +9,7 @@ from adafruit_register.i2c_bits import RWBits
 from adafruit_register.i2c_struct import ROUnaryStruct, Struct
 
 try:
-    from typing import Iterable, Optional, Tuple, Type
+    from typing import Iterable, Optional, Tuple
 
     from busio import I2C
 except ImportError:
@@ -99,8 +99,8 @@ class UnalignedStruct(Struct):
 
     def __get__(
         self,
-        obj: Optional["LTR390"],
-        objtype: Optional[Type["LTR390"]] = None,
+        obj,
+        objtype = None,
     ) -> int:
         # read bytes into buffer at correct alignment
         raw_value = unpack_from(self.format, self.buffer, offset=1)[0]
@@ -117,7 +117,7 @@ class UnalignedStruct(Struct):
         raw_value = unpack_from(self.format, self.buffer, offset=1)[0]
         return raw_value >> 8
 
-    def __set__(self, obj: Optional["LTR390"], value: int) -> None:
+    def __set__(self, obj, value: int) -> None:
         pack_into(self.format, self.buffer, 1, value)
         with obj.i2c_device as i2c:
             i2c.write(self.buffer)
