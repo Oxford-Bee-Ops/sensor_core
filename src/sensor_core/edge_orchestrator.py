@@ -121,7 +121,7 @@ class EdgeOrchestrator:
         dps_alive = 0
         for dpe in self._dpworkers:
             if not dpe.is_alive():
-                logger.warning(f"Datastream thread {dpe} is not alive")
+                logger.debug(f"Datastream thread {dpe} is not alive")
             else:
                 dps_alive += 1
 
