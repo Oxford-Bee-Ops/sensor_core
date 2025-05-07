@@ -27,6 +27,9 @@
 # - alias_bcli so that you can run 'bcli' at any prompt
 # - auto_start_if_requested to start SensorCore & DeviceManager automatically if requested in system.cfg
 # - make_persistent by adding this script to crontab to run on reboot
+#
+# This script can be called with a no_os_update argument to skip the OS update and package installation steps.
+# This is used when this script is called from crontab on reboot.
 
 # Function to check pre-requisites
 check_prerequisites() {
@@ -180,6 +183,9 @@ install_os_packages() {
     sudo apt-get install -y rpicam-apps || { echo "Failed to install rpicam-apps"; }
     sudo apt-get autoremove -y || { echo "Failed to remove unnecessary packages"; }
     echo "OS packages installed successfully."
+    # A reboot is always required after installing packages, otherwise the system is unstable 
+    # (eg rpicam broken pipe)
+    touch "$HOME/.sensor_core/flags/reboot_required"
 }
 
 # Function to install SensorCore 
@@ -464,16 +470,13 @@ function make_persistent() {
         
         rpi_installer_cmd="/bin/bash $HOME/$venv_dir/scripts/rpi_installer.sh 2>&1 | /usr/bin/logger -t SENSOR_CORE"
         
-        # Check if the script is already in crontab
-        if ! crontab -l | grep -qs "rpi_installer"; then
+        # Delete and re-add any lines containing "rpi_installer" from crontab
+        crontab -l | grep -v "rpi_installer" | crontab -
 
-            # Add the script to crontab to run on reboot
-            echo "Script added to crontab to run on reboot and every night at 2am."
-            (crontab -l 2>/dev/null; echo "@reboot $rpi_installer_cmd") | crontab -
-            (crontab -l 2>/dev/null; echo "0 2 * * * $rpi_installer_cmd") | crontab -
-        else
-            echo "Script already exists in crontab."
-        fi
+        # Add the script to crontab to run on reboot
+        echo "Script added to crontab to run on reboot and every night at 2am."
+        (crontab -l 2>/dev/null; echo "@reboot $rpi_installer_cmd no_os_update") | crontab -
+        (crontab -l 2>/dev/null; echo "0 2 * * * $rpi_installer_cmd") | crontab -
     fi
 }
 
@@ -494,7 +497,7 @@ function reboot_if_required() {
 # Main script execution to configure a RPi device suitable for long-running SensorCore operations
 # 
 ###################################################################################################
-echo "Starting RPi installer..."
+echo "Starting RPi installer.  no_os_update is present: $no_os_update"
 # Sleep for 20 seconds to allow the system to settle down after booting
 sleep 10
 check_prerequisites
@@ -502,7 +505,10 @@ cd "$HOME/.sensor_core" || { echo "Failed to change directory to $HOME/.sensor_c
 export_system_cfg
 install_ssh_keys
 create_and_activate_venv
-install_os_packages
+# If the no_os_update argument is passed on the command line, skip the OS update and package installation steps
+if [ -z "$no_os_update" ]; then
+    install_os_packages
+fi
 install_sensor_core
 install_user_code
 install_ufw
