@@ -31,6 +31,16 @@
 # This script can be called with a no_os_update argument to skip the OS update and package installation steps.
 # This is used when this script is called from crontab on reboot.
 
+# We expect that 1 argument may be passed to this script:
+# - no_os_update: if this argument is passed, we skip the OS update and package installation steps
+# Check for this argument and set a flag
+# to skip the OS update and package installation steps
+if [ "$1" == "no_os_update" ]; then
+    no_os_update="yes"
+else
+    no_os_update="no"
+fi
+
 # Function to check pre-requisites
 check_prerequisites() {
     echo "Checking pre-requisites..."
@@ -498,7 +508,7 @@ function reboot_if_required() {
 # Main script execution to configure a RPi device suitable for long-running SensorCore operations
 # 
 ###################################################################################################
-echo "Starting RPi installer.  no_os_update is present: $no_os_update"
+echo "Starting RPi installer.  (no_os_update=$no_os_update)"
 # Sleep for 20 seconds to allow the system to settle down after booting
 sleep 10
 check_prerequisites
@@ -507,7 +517,7 @@ export_system_cfg
 install_ssh_keys
 create_and_activate_venv
 # If the no_os_update argument is passed on the command line, skip the OS update and package installation steps
-if [ -z "$no_os_update" ]; then
+if [ "$no_os_update" == "no" ]; then
     install_os_packages
 fi
 install_sensor_core
