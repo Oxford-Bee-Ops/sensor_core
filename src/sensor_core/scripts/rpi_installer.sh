@@ -397,6 +397,8 @@ function create_mount() {
             # Add the mount to fstab
             echo "$fstab_entry" | sudo tee -a /etc/fstab > /dev/null
             sudo systemctl daemon-reload
+            # Recommended sleep before mount -a to allow systemd to complete
+            sleep 1
             sudo mount -a
             echo "The sensor_core mount point has been added to fstab."
         fi
@@ -479,15 +481,15 @@ function make_persistent() {
         fi
         
         rpi_installer_cmd="/bin/bash $HOME/$venv_dir/scripts/rpi_installer.sh 2>&1 | /usr/bin/logger -t SENSOR_CORE"
-        rpi_cmd_no_os_update="/bin/bash $HOME/$venv_dir/scripts/rpi_installer.sh no_os_update 2>&1 | /usr/bin/logger -t SENSOR_CORE"
+        rpi_cmd_os_update="/bin/bash $HOME/$venv_dir/scripts/rpi_installer.sh os_update 2>&1 | /usr/bin/logger -t SENSOR_CORE"
         
         # Delete and re-add any lines containing "rpi_installer" from crontab
         crontab -l | grep -v "rpi_installer" | crontab -
 
         # Add the script to crontab to run on reboot
         echo "Script added to crontab to run on reboot and every night at 2am."
-        (crontab -l 2>/dev/null; echo "@reboot $rpi_cmd_no_os_update") | crontab -
-        (crontab -l 2>/dev/null; echo "0 2 * * * $rpi_installer_cmd") | crontab -
+        (crontab -l 2>/dev/null; echo "@reboot $rpi_installer_cmd") | crontab -
+        (crontab -l 2>/dev/null; echo "0 2 * * * $rpi_cmd_os_update") | crontab -
     fi
 }
 
@@ -508,7 +510,7 @@ function reboot_if_required() {
 # Main script execution to configure a RPi device suitable for long-running SensorCore operations
 # 
 ###################################################################################################
-echo "Starting RPi installer.  (no_os_update=$no_os_update)"
+echo "Starting RPi installer.  (os_update=$os_update)"
 # Sleep for 20 seconds to allow the system to settle down after booting
 sleep 10
 check_prerequisites
