@@ -182,9 +182,8 @@ class EdgeOrchestrator:
 
         # We must *not* call stop_all() here, as that will cause a deadlock because we're currently in the 
         # sensor thread that stop_all will wait on.
-        # Instead, we set the STOP and RESTART flags, and the main() method will check for them.
+        # Instead, we set the RESTART flag, and the main() method will check for them.
         root_cfg.RESTART_SENSOR_CORE_FLAG.touch()
-        root_cfg.STOP_SENSOR_CORE_FLAG.touch()
 
 
     def _get_sensor(self, sensor_type: api.SENSOR_TYPE, sensor_index: int) -> Optional[Sensor | None]:
@@ -254,6 +253,7 @@ class EdgeOrchestrator:
         # Block for long enough for the main thread to be scheduled
         # So we avoid race conditions with subsequence calls to stop_all()
         sleep(1)
+
 
     def stop_all(self, restart: Optional[bool] = False) -> None:
         """Stop all Sensor, Datastream and observability threads
@@ -336,13 +336,12 @@ class EdgeOrchestrator:
             self._status = OrchestratorStatus.STOPPED
             logger.info("Stopped all sensors and datastreams")
 
+
     def is_stop_requested(self) -> bool:
         """Check if a stop has been manually requested by the user.
         This function is polled by the main thread every second to check if the user has requested a stop."""
-        stop_requested = root_cfg.STOP_SENSOR_CORE_FLAG.exists()
-        restart_requested = root_cfg.RESTART_SENSOR_CORE_FLAG.exists()
+        return root_cfg.STOP_SENSOR_CORE_FLAG.exists()
 
-        return (stop_requested and not restart_requested)
 
     @staticmethod
     def watchdog_file_alive() -> bool:
@@ -378,6 +377,7 @@ def _touch_watchdog_file() -> None:
     """Touch the running file to indicate that the script is running"""
     root_cfg.SENSOR_CORE_IS_RUNNING_FLAG.touch()
 
+
 def main() -> None:
     try:
         # Provide diagnostics
@@ -396,19 +396,15 @@ def main() -> None:
 
         # Keep the main thread alive
         while not orchestrator.is_stop_requested():
-            if OrchestratorStatus.running(orchestrator._status):
-                _touch_watchdog_file()
-            elif orchestrator._status == OrchestratorStatus.STOPPED:
+            if root_cfg.RESTART_SENSOR_CORE_FLAG.exists():
                 # Restart the re-load and re-start the EdgeOrchestrator if it fails.
-                # Recheck the _is_stop_requested() flag inside the _status_lock to avoid race conditions
-                if not orchestrator.is_stop_requested():
-                    logger.error("Sensor manager failed; restarting")
-                    orchestrator.load_config()
-                    orchestrator.start_all()
-                else:
-                    logger.warning("Race on stop requested; stopping")
-            else:
-                logger.info("Orchestrator is stopping")
+                logger.error(f"Orchestrator failed; restarting; {orchestrator._status}")
+                orchestrator.stop_all()
+                orchestrator.load_config()
+                orchestrator.start_all()
+            else:   
+                logger.debug(f"Orchestrator running {orchestrator._status}")
+                _touch_watchdog_file()
 
             sleep(root_cfg.WATCHDOG_FREQUENCY)
 

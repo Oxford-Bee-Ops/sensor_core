@@ -76,6 +76,7 @@ class Test_Orchestrator:
         with sc_test_emulator.ScEmulator.get_instance():
 
             orchestrator = EdgeOrchestrator.get_instance()
+            root_cfg.set_inventory(root_cfg.load_configuration())
 
             # Direct use of edge_orchestrator to include main() keep-alive
             logger.info("sensor_test: Direct use of EdgeOrchestor to include keep-alive")
@@ -94,14 +95,13 @@ class Test_Orchestrator:
             assert sensor is not None
             
             sensor.sensor_failed()
-            assert not orchestrator.watchdog_file_alive()
-            
+            assert root_cfg.RESTART_SENSOR_CORE_FLAG.exists()
             start_clock = api.utc_now()
-            while not orchestrator.watchdog_file_alive():
+            while root_cfg.RESTART_SENSOR_CORE_FLAG.exists():
                 sleep(1)
                 assert (api.utc_now() - start_clock).total_seconds() < 10, (
                     "Orchestrator did not restart quickly enough")
-                
+            sleep(3)
             orchestrator.stop_all()
 
             # Wait for the main thread to exit

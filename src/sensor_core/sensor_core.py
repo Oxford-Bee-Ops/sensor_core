@@ -144,7 +144,8 @@ class SensorCore:
         # Display the orchestrator status
         orchestrator = EdgeOrchestrator.get_instance()
         if orchestrator is not None:
-            display_message += f"\n\nSensorCore running: {orchestrator.watchdog_file_alive()}\n"
+            display_message += (f"\n\nSensorCore running: {orchestrator.watchdog_file_alive()}"
+                                f"({orchestrator._status})\n")
 
             if verbose:
                 status = orchestrator.status()

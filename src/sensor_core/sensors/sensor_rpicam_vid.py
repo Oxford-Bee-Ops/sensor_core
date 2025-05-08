@@ -113,13 +113,12 @@ class RpicamSensor(Sensor):
 
             except FileNotFoundError as e:
                 logger.error(f"{root_cfg.RAISE_WARN()}FileNotFoundError in RpicamSensor: {e}", exc_info=True)
-
             except Exception as e:
                 logger.error(f"{root_cfg.RAISE_WARN()}Error in RpicamSensor: {e}", exc_info=True)
+                exception_count += 1
             finally:
                 # On the assumption that the error is transient, we will continue to run but sleep for 60s
                 self.stop_requested.wait(60)
-                exception_count += 1
                 if exception_count > 30:
                     logger.error(f"RpicamSensor has failed {exception_count} times. Exiting.")
                     self.sensor_failed()
