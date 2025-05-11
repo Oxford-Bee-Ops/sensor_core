@@ -403,7 +403,7 @@ def main() -> None:
                 orchestrator.load_config()
                 orchestrator.start_all()
             else:   
-                logger.debug(f"Orchestrator running {orchestrator._status}")
+                logger.debug(f"Orchestrator running ({orchestrator._status})")
                 _touch_watchdog_file()
 
             sleep(root_cfg.WATCHDOG_FREQUENCY)
