@@ -88,6 +88,7 @@ class FORMAT(Enum):
     JPG = "jpg"  # JPEG image format
     PNG = "png"  # PNG image format
     MP4 = "mp4"  # MP4 video format
+    AVI = "avi"  # AVI video format
     H264 = "h264"  # H264 video format
     WAV = "wav"  # WAV audio format
     TXT = "txt"  # Text format
