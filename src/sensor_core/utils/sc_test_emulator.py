@@ -96,6 +96,7 @@ class ScEmulator():
                     raise ValueError(f"Recording {rec} does not exist")
         self.recordings = recordings
 
+
     def set_recording_cap(self, cap: int, type_id: Optional[str] = None) -> None:
         """Set the maximum number of recordings to be saved.  
         If a type_id is provided, set the cap for that type only."""
@@ -103,6 +104,27 @@ class ScEmulator():
             self.recording_cap_dict[type_id] = cap
         else:
             self.recording_cap = cap
+
+
+    def recordings_cap_hit(self, type_id: str) -> bool:
+        """Check if the recording cap has been hit for the given type_id."""
+        if type_id in self.recording_cap_dict:
+            cap = self.recording_cap_dict[type_id]
+        else:
+            cap = self.recording_cap
+        if cap == -1:
+            raise ValueError("The recording cap is not set for that type_id. You'll be waiting forever!")
+        return self.recordings_saved.get(type_id, 0) >= cap
+ 
+
+    def recordings_still_to_process(self) -> bool:
+        """Check if there are recordings remaining to process."""
+        # Look for any files remaining in the processing directory
+        for file in  root_cfg.EDGE_PROCESSING_DIR.glob("*"):
+            if file.is_file():
+                return True
+        return False
+
 
     def assert_records(self, 
                        container: str, 
