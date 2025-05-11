@@ -292,7 +292,9 @@ class DeviceManager:
                 self.set_ping_status(False)
 
                 # Only check Wifi status if ping fails
-                ESSID = utils.run_cmd("sudo nmcli -g SSID device wifi", ignore_errors=True)
+                # This returns eg "GNX103510:*:95" where * means connected
+                ESSID = utils.run_cmd("nmcli -g SSID,IN-USE,SIGNAL device wifi | grep '*'", 
+                                      ignore_errors=True)
                 if len(ESSID) > 3:
                     self.set_wifi_status(True)
                     logger.info("Wifi is up: " + ESSID)
