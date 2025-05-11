@@ -355,7 +355,7 @@ class DeviceHealth(Sensor):
         """
         if root_cfg.running_on_rpi:
             try:
-                output = utils.run_cmd(cmd="iw dev wlan0 link", ignore_errors=True).strip()
+                output = utils.run_cmd(cmd="bash -c 'iw dev wlan0 link'", ignore_errors=True).strip()
                 logger.debug(f"iw output: {output}")
                 for line in output.split("\n"):
                     if "SSID:" in line:
