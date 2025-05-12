@@ -39,6 +39,9 @@ class DeviceManager:
         if root_cfg.system_cfg is None:
             logger.error(f"{root_cfg.RAISE_WARN()}DeviceManager: system_cfg is None; exiting")
             return
+        
+    def start(self) -> None:
+        """Start the DeviceManager threads."""
         ###############################
         # Wifi management
         ###############################
@@ -50,7 +53,6 @@ class DeviceManager:
         self.log_counter = 0
         self.wifi_log_frequency = 60 * 10
         self.client_wlan = "wlan0"
-        self.use_cloned_mac = False
         if root_cfg.my_device.wifi_clients:
             self.inject_wifi_clients()
 
